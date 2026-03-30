@@ -1,0 +1,22 @@
+packages:
+  "framer-motion": "For smooth tab transitions, modal entry animations, and emergency pulsing effects"
+  "lucide-react": "For beautiful, consistent iconography across the application"
+  "date-fns": "For robust date formatting, calendar generation, and Australian date standards"
+  "react-hook-form": "For complex two-step job creation and edit forms"
+  "@hookform/resolvers": "For Zod schema validation integration with react-hook-form"
+  "zod": "For strict form validation (e.g. either phone or email required)"
+  "recharts": "For the dashboard revenue and job statistics visualization"
+  "clsx": "For dynamic class name construction"
+  "tailwind-merge": "For conflict-free Tailwind class merging in UI components"
+  "@radix-ui/react-dialog": "For accessible modals (Job Form, Invoices)"
+  "@radix-ui/react-slider": "For the smart sort weight sliders"
+  "@radix-ui/react-slot": "For component polymorphism"
+  "@radix-ui/react-switch": "For worker availability toggles"
+  "@radix-ui/react-tabs": "For job list filtering and views"
+  "@radix-ui/react-toast": "For application notifications"
+  "@radix-ui/react-tooltip": "For contextual help on tools"
+
+images:
+  - path: "artifacts/trade-scheduler/public/images/dashboard-bg.png"
+    description: "Abstract, dark industrial background with subtle orange glowing accents and geometric lines, suitable for a professional tradesman tool"
+    aspect_ratio: "16:9"

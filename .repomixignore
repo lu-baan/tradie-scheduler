@@ -1,0 +1,38 @@
+# .repomixignore
+
+# Exclude third-party dependencies (most important for reducing token size)
+node_modules/
+
+# Exclude temporary build files, caches, and logs
+.next/
+.vercel/
+logs/
+*.log
+
+# Exclude public assets (large static JS/CSS, images, fonts)
+public/
+
+# Exclude tests (optional, but good for reducing size)
+tests/
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+cypress/
+
+# Exclude IDE and CI/CD configuration files
+.idea/
+.vscode/
+.github/
+
+# Exclude unused template directories to save tokens (Optional)
+free-tailwind-admin-dashboard-template/
+
+# Exclude local Supabase cache/logs (if using the local Supabase CLI)
+supabase/.temp/
+supabase/.branches/
+supabase/logs/
+
+# Exclude repomix's own output file to prevent it from being included in the next run
+repomix-output.xml

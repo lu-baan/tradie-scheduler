@@ -1,0 +1,791 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.2.0
+  description: Trade Scheduler 2 API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: jobs
+    description: Job scheduling operations
+  - name: workers
+    description: Worker/tradie management
+  - name: invoices
+    description: Invoice management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List all jobs
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [date, price, distance, smart, validityCode]
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: priceWeight
+          in: query
+          schema:
+            type: number
+        - name: distanceWeight
+          in: query
+          schema:
+            type: number
+        - name: jobType
+          in: query
+          schema:
+            type: string
+            enum: [quote, booking]
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+    post:
+      operationId: createJob
+      tags: [jobs]
+      summary: Create a new job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "201":
+          description: Created job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /jobs/{id}:
+    get:
+      operationId: getJob
+      tags: [jobs]
+      summary: Get a job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateJob
+      tags: [jobs]
+      summary: Update a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobRequest"
+      responses:
+        "200":
+          description: Updated job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteJob
+      tags: [jobs]
+      summary: Delete a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /jobs/{id}/emergency:
+    post:
+      operationId: triggerEmergency
+      tags: [jobs]
+      summary: Trigger Code 9 emergency override for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Emergency triggered, all other bookings bumped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /jobs/{id}/convert-to-booking:
+    post:
+      operationId: convertToBooking
+      tags: [jobs]
+      summary: Convert a quote to a job booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertToBookingRequest"
+      responses:
+        "200":
+          description: Converted to booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /jobs/{id}/suggest-times:
+    get:
+      operationId: suggestTimes
+      tags: [jobs]
+      summary: Get two suggested available time slots for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Two suggested time slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestedTimesResponse"
+
+  /jobs/{id}/invoice:
+    get:
+      operationId: getJobInvoice
+      tags: [invoices]
+      summary: Generate invoice data for a job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workers:
+    get:
+      operationId: listWorkers
+      tags: [workers]
+      summary: List all workers/tradies
+      responses:
+        "200":
+          description: List of workers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Worker"
+    post:
+      operationId: createWorker
+      tags: [workers]
+      summary: Create a worker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkerRequest"
+      responses:
+        "201":
+          description: Created worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+
+  /workers/{id}:
+    put:
+      operationId: updateWorker
+      tags: [workers]
+      summary: Update a worker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkerRequest"
+      responses:
+        "200":
+          description: Updated worker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Worker"
+    delete:
+      operationId: deleteWorker
+      tags: [workers]
+      summary: Delete a worker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    JobStatus:
+      type: string
+      enum: [pending, confirmed, in_progress, completed, cancelled, bumped]
+
+    JobPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+
+    JobType:
+      type: string
+      enum: [quote, booking]
+
+    ValidityCode:
+      type: integer
+      enum: [1, 2, 3]
+      description: "Job desirability rating: 1=low, 2=medium, 3=high priority"
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+        jobType:
+          $ref: "#/components/schemas/JobType"
+        validityCode:
+          $ref: "#/components/schemas/ValidityCode"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        address:
+          type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        price:
+          type: number
+        estimatedHours:
+          type: number
+        numTradies:
+          type: integer
+          description: Number of tradies required
+        callUpTimeHours:
+          type: number
+          nullable: true
+          description: Hours before job to call up for materials delivery
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          $ref: "#/components/schemas/JobPriority"
+        isEmergency:
+          type: boolean
+          description: Code 9 emergency override
+        scheduledDate:
+          type: string
+          nullable: true
+        completedDate:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        tradeType:
+          type: string
+        assignedWorkerIds:
+          type: array
+          items:
+            type: integer
+          description: IDs of assigned workers
+        assignedWorkers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Worker"
+          description: Populated assigned workers
+        distanceKm:
+          type: number
+          nullable: true
+        smartScore:
+          type: number
+          nullable: true
+        travelTimeMinutes:
+          type: number
+          nullable: true
+          description: Estimated travel time in minutes
+        invoiceNumber:
+          type: string
+          nullable: true
+        invoiceSentAt:
+          type: string
+          nullable: true
+        customerConfirmed:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - jobType
+        - validityCode
+        - title
+        - clientName
+        - address
+        - price
+        - estimatedHours
+        - numTradies
+        - status
+        - priority
+        - isEmergency
+        - customerConfirmed
+        - tradeType
+        - assignedWorkerIds
+        - assignedWorkers
+        - createdAt
+        - updatedAt
+
+    CreateJobRequest:
+      type: object
+      properties:
+        jobType:
+          $ref: "#/components/schemas/JobType"
+        validityCode:
+          $ref: "#/components/schemas/ValidityCode"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        address:
+          type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        price:
+          type: number
+        estimatedHours:
+          type: number
+        numTradies:
+          type: integer
+        callUpTimeHours:
+          type: number
+          nullable: true
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          $ref: "#/components/schemas/JobPriority"
+        isEmergency:
+          type: boolean
+        scheduledDate:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        tradeType:
+          type: string
+        assignedWorkerIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - title
+        - clientName
+        - address
+        - price
+        - estimatedHours
+        - tradeType
+
+    UpdateJobRequest:
+      type: object
+      properties:
+        jobType:
+          $ref: "#/components/schemas/JobType"
+        validityCode:
+          $ref: "#/components/schemas/ValidityCode"
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        address:
+          type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        price:
+          type: number
+        estimatedHours:
+          type: number
+        numTradies:
+          type: integer
+        callUpTimeHours:
+          type: number
+          nullable: true
+        status:
+          $ref: "#/components/schemas/JobStatus"
+        priority:
+          $ref: "#/components/schemas/JobPriority"
+        isEmergency:
+          type: boolean
+        scheduledDate:
+          type: string
+          nullable: true
+        completedDate:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        tradeType:
+          type: string
+        assignedWorkerIds:
+          type: array
+          items:
+            type: integer
+        customerConfirmed:
+          type: boolean
+        invoiceNumber:
+          type: string
+          nullable: true
+        invoiceSentAt:
+          type: string
+          nullable: true
+
+    ConvertToBookingRequest:
+      type: object
+      properties:
+        estimatedHours:
+          type: number
+        numTradies:
+          type: integer
+        callUpTimeHours:
+          type: number
+          nullable: true
+        scheduledDate:
+          type: string
+          nullable: true
+        assignedWorkerIds:
+          type: array
+          items:
+            type: integer
+        notes:
+          type: string
+          nullable: true
+      required:
+        - estimatedHours
+
+    EmergencyResponse:
+      type: object
+      properties:
+        emergencyJob:
+          $ref: "#/components/schemas/Job"
+        bumpedCount:
+          type: integer
+          description: Number of bookings bumped
+        bumpedJobIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - emergencyJob
+        - bumpedCount
+        - bumpedJobIds
+
+    SuggestedTimesResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              slot:
+                type: string
+                description: ISO datetime string
+              label:
+                type: string
+                description: Human-readable label
+              reason:
+                type: string
+            required:
+              - slot
+              - label
+              - reason
+      required:
+        - suggestions
+
+    Invoice:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        jobId:
+          type: integer
+        jobTitle:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+          nullable: true
+        clientEmail:
+          type: string
+          nullable: true
+        address:
+          type: string
+        tradeType:
+          type: string
+        estimatedHours:
+          type: number
+        price:
+          type: number
+        gst:
+          type: number
+          description: 10% GST (Australian)
+        totalWithGst:
+          type: number
+        scheduledDate:
+          type: string
+          nullable: true
+        completedDate:
+          type: string
+          nullable: true
+        status:
+          type: string
+        issuedAt:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        assignedWorkers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Worker"
+      required:
+        - invoiceNumber
+        - jobId
+        - jobTitle
+        - clientName
+        - address
+        - tradeType
+        - estimatedHours
+        - price
+        - gst
+        - totalWithGst
+        - status
+        - issuedAt
+        - assignedWorkers
+
+    Worker:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        tradeType:
+          type: string
+        isAvailable:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - tradeType
+        - isAvailable
+        - createdAt
+
+    CreateWorkerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        tradeType:
+          type: string
+        isAvailable:
+          type: boolean
+      required:
+        - name
+        - tradeType
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+          nullable: true
+      required:
+        - error
