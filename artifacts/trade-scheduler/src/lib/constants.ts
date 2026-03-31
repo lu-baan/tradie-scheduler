@@ -1,5 +1,5 @@
 import { JobStatus, JobPriority } from "@workspace/api-client-react";
-import { Clock, CheckCircle2, XCircle, Wrench, AlertCircle, ArrowUpCircle, ArrowDownCircle, MinusCircle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Wrench, AlertCircle, ArrowUpCircle, ArrowDownCircle, MinusCircle, ShieldCheck, ArrowRightLeft } from "lucide-react";
 
 export const TRADE_TYPES = [
   "Electrical",
@@ -18,6 +18,11 @@ export const STATUS_CONFIG = {
     color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20",
     icon: Clock,
   },
+  [JobStatus.confirmed]: {
+    label: "Confirmed",
+    color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+    icon: ShieldCheck,
+  },
   [JobStatus.in_progress]: {
     label: "In Progress",
     color: "text-blue-500 bg-blue-500/10 border-blue-500/20",
@@ -32,6 +37,11 @@ export const STATUS_CONFIG = {
     label: "Cancelled",
     color: "text-red-500 bg-red-500/10 border-red-500/20",
     icon: XCircle,
+  },
+  [JobStatus.bumped]: {
+    label: "Bumped",
+    color: "text-purple-500 bg-purple-500/10 border-purple-500/20",
+    icon: ArrowRightLeft,
   },
 };
 

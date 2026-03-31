@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback, RefObject } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,7 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useCreateJob, useUpdateJob, useListWorkers, JobType, ValidityCode, Job } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save } from "lucide-react";
+import { ArrowRight, Loader2, Save, MapPin } from "lucide-react";
+
+// Shim until @types/google.maps is installed via `pnpm install`
+// eslint-disable-next-line no-var
+declare var google: any;
+
+// ── Australian phone regex ──
+// Accepts: 04XX XXX XXX, 04XXXXXXXX, +614XXXXXXXX, 614XXXXXXXX
+const ausPhoneRegex = /^(?:\+?61\s?4\d{2}\s?\d{3}\s?\d{3}|04\d{2}\s?\d{3}\s?\d{3}|04\d{8})$/;
 
 const jobSchema = z.object({
   jobType: z.nativeEnum(JobType),
@@ -15,11 +23,23 @@ const jobSchema = z.object({
   title: z.string().min(2, "Title is required"),
   tradeType: z.string().min(2, "Trade type is required"),
   clientName: z.string().min(2, "Client name is required"),
-  clientPhone: z.string().optional(),
-  clientEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  clientPhone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || ausPhoneRegex.test(val.replace(/\s+/g, " ").trim()),
+      { message: "Enter a valid Australian mobile number (e.g. 0412 345 678 or +61412345678)" }
+    ),
+  clientEmail: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val),
+      { message: "Enter a valid email address" }
+    ),
   address: z.string().min(5, "Address is required"),
   notes: z.string().optional(),
-  
+
   // Step 2 fields
   price: z.coerce.number().min(0),
   estimatedHours: z.coerce.number().min(1, "Minimum 1 hour"),
@@ -33,11 +53,59 @@ const jobSchema = z.object({
 
 type JobFormValues = z.infer<typeof jobSchema>;
 
+// ── Google Maps Places Autocomplete Hook ──
+function useGooglePlacesAutocomplete(
+  inputRef: RefObject<HTMLInputElement | null>,
+  onPlaceSelected: (address: string, lat: number | null, lng: number | null) => void
+) {
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  useEffect(() => {
+    if (!inputRef.current) return;
+    if (typeof google === "undefined" || !google.maps?.places) return;
+
+    // Only initialise once
+    if (autocompleteRef.current) return;
+
+    const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+      componentRestrictions: { country: "au" },
+      fields: ["formatted_address", "geometry"],
+      types: ["address"],
+    });
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (place?.formatted_address) {
+        const lat = place.geometry?.location?.lat() ?? null;
+        const lng = place.geometry?.location?.lng() ?? null;
+        onPlaceSelected(place.formatted_address, lat, lng);
+      }
+    });
+
+    autocompleteRef.current = autocomplete;
+  }, [inputRef, onPlaceSelected]);
+}
+
 export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, onSuccess: () => void }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const { data: workers } = useListWorkers();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
+  const [placesAvailable, setPlacesAvailable] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Check if Google Maps is loaded
+  useEffect(() => {
+    const check = () => {
+      if (typeof google !== "undefined" && google.maps?.places) {
+        setPlacesAvailable(true);
+      }
+    };
+    check();
+    // Re-check after a short delay in case script loads after mount
+    const timer = setTimeout(check, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const createJob = useCreateJob({
     mutation: {
@@ -91,12 +159,21 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
     }
   });
 
+  // Places autocomplete callback
+  const handlePlaceSelected = useCallback(
+    (address: string, _lat: number | null, _lng: number | null) => {
+      form.setValue("address", address, { shouldValidate: true });
+    },
+    [form]
+  );
+
+  useGooglePlacesAutocomplete(addressInputRef, handlePlaceSelected);
+
   const jobType = form.watch("jobType");
 
   const onSubmit = (data: JobFormValues) => {
-    // Make sure we format date properly if empty
     const scheduledDate = data.scheduledDate ? new Date(data.scheduledDate).toISOString() : undefined;
-    
+
     const payload = {
       ...data,
       scheduledDate,
@@ -111,6 +188,13 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
   };
 
   const isPending = createJob.isPending || updateJob.isPending;
+
+  // Phone formatting helper
+  const formatPhoneDisplay = (value: string) => {
+    // Strip everything except digits and leading +
+    const cleaned = value.replace(/[^\d+]/g, "");
+    return cleaned;
+  };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -167,7 +251,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
 
           <div>
             <label className="text-xs uppercase text-muted-foreground font-display mb-1 block">Trade Type</label>
-            <select 
+            <select
               {...form.register("tradeType")}
               className="flex h-12 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-base focus:ring-2 focus:ring-primary"
             >
@@ -192,26 +276,61 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-muted-foreground font-display mb-1 block">Phone</label>
-                  <Input {...form.register("clientPhone")} />
+                  <label className="text-xs text-muted-foreground font-display mb-1 block">Phone (AU Mobile)</label>
+                  <Input
+                    placeholder="0412 345 678"
+                    {...form.register("clientPhone")}
+                    onChange={(e) => {
+                      form.setValue("clientPhone", formatPhoneDisplay(e.target.value), { shouldValidate: form.formState.isSubmitted });
+                    }}
+                  />
+                  {form.formState.errors.clientPhone && (
+                    <p className="text-destructive text-xs mt-1">{form.formState.errors.clientPhone.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground font-display mb-1 block">Email</label>
-                  <Input type="email" {...form.register("clientEmail")} />
+                  <Input
+                    type="email"
+                    placeholder="client@example.com"
+                    {...form.register("clientEmail")}
+                  />
+                  {form.formState.errors.clientEmail && (
+                    <p className="text-destructive text-xs mt-1">{form.formState.errors.clientEmail.message}</p>
+                  )}
                 </div>
               </div>
-              {form.formState.errors.clientPhone && <p className="text-destructive text-sm">{form.formState.errors.clientPhone.message}</p>}
-              
+              {form.formState.errors.clientPhone?.type === "custom" && (
+                <p className="text-destructive text-sm">{form.formState.errors.clientPhone.message}</p>
+              )}
+
               <div>
-                <label className="text-xs text-muted-foreground font-display mb-1 block">Site Address</label>
-                <Input {...form.register("address")} placeholder="Full Australian Address" />
+                <label className="text-xs text-muted-foreground font-display mb-1 block flex items-center gap-1">
+                  Site Address
+                  {placesAvailable && (
+                    <span className="inline-flex items-center gap-1 text-green-500">
+                      <MapPin size={12} /> Google Autocomplete
+                    </span>
+                  )}
+                </label>
+                <Input
+                  placeholder="Start typing an Australian address..."
+                  {...form.register("address")}
+                  ref={(e) => {
+                    form.register("address").ref(e);
+                    addressInputRef.current = e;
+                  }}
+                />
+                {form.formState.errors.address && (
+                  <p className="text-destructive text-xs mt-1">{form.formState.errors.address.message}</p>
+                )}
               </div>
             </div>
           </Card>
 
-          <Button 
-            type="button" 
-            className="w-full h-12 text-lg mt-4" 
+          <Button
+            type="button"
+            className="w-full h-12 text-lg mt-4"
             onClick={async () => {
               const ok = await form.trigger(["title", "tradeType", "clientName", "clientPhone", "clientEmail", "address"]);
               if (ok) setStep(2);
@@ -247,7 +366,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
                 <Input type="number" step="0.01" className="pl-8" {...form.register("price")} />
               </div>
             </div>
-            
+
             {jobType === "booking" && (
               <div>
                 <label className="text-xs uppercase text-muted-foreground font-display mb-1 block">Est. Hours</label>
@@ -280,8 +399,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
               <div className="grid grid-cols-2 gap-2">
                 {workers.map(w => (
                   <label key={w.id} className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition-colors ${selectedWorkerIds.includes(w.id) ? 'bg-primary/20 border-primary' : 'bg-background border-input hover:bg-secondary'}`}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="hidden"
                       checked={selectedWorkerIds.includes(w.id)}
                       onChange={(e) => {
@@ -301,7 +420,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
 
           <div>
             <label className="text-xs uppercase text-muted-foreground font-display mb-1 block">Notes</label>
-            <textarea 
+            <textarea
               className="flex min-h-[80px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-base focus:ring-2 focus:ring-primary"
               {...form.register("notes")}
             />
@@ -310,7 +429,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
           <Button type="submit" disabled={isPending} className="w-full h-14 text-lg mt-6 shadow-[0_0_20px_rgba(234,88,12,0.4)]">
             {isPending ? <Loader2 className="animate-spin w-6 h-6" /> : (
               <>
-                <Save className="mr-2 w-5 h-5" /> 
+                <Save className="mr-2 w-5 h-5" />
                 {initialData ? "Update Job" : "Save Job"}
               </>
             )}

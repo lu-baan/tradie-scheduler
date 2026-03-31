@@ -1,9 +1,9 @@
-import { Job, useDeleteJob, useTriggerEmergency, useConvertToBooking } from "@/lib/api-client";
+import { Job, Worker, useDeleteJob, useTriggerEmergency, useConvertToBooking, useUpdateJob } from "@/lib/api-client";
 import { formatAUD, formatAusDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText, Check, Trash2, Edit2 } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText, Check, Trash2, Edit2, CheckCircle2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from "@/components/ui/dialog";
 import { useState } from "react";
@@ -31,14 +31,28 @@ export function JobCard({ job }: { job: Job }) {
     }
   });
 
+  const completeMutation = useUpdateJob({
+    mutation: {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/jobs"] })
+    }
+  });
+
   const isQuote = job.jobType === "quote";
+  const isCompleted = job.status === "completed";
+  const isCancelled = job.status === "cancelled";
 
   return (
-    <Card className={`relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${job.isEmergency ? 'border-destructive/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]' : 'border-white/5 hover:border-white/10'}`}>
+    <Card className={`relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 ${job.isEmergency ? 'border-destructive/50 shadow-[0_0_30px_rgba(239,68,68,0.2)]' : isCompleted ? 'border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.1)]' : 'border-white/5 hover:border-white/10'}`}>
       {/* Top Banner / Indicators */}
       {job.isEmergency && (
         <div className="bg-destructive text-destructive-foreground font-display font-bold uppercase text-center py-1.5 text-sm emergency-pulse tracking-widest flex items-center justify-center gap-2">
           <AlertTriangle size={16} /> CODE 9 EMERGENCY
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="bg-green-600 text-white font-display font-bold uppercase text-center py-1.5 text-sm tracking-widest flex items-center justify-center gap-2">
+          <CheckCircle2 size={16} /> JOB COMPLETED
         </div>
       )}
       
@@ -114,7 +128,7 @@ export function JobCard({ job }: { job: Job }) {
                 </div>
                 {job.assignedWorkers && job.assignedWorkers.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {job.assignedWorkers.map(w => (
+                    {job.assignedWorkers.map((w: Worker) => (
                       <span key={w.id} className="text-[10px] bg-secondary px-2 py-0.5 rounded text-foreground">{w.name}</span>
                     ))}
                   </div>
@@ -160,21 +174,45 @@ export function JobCard({ job }: { job: Job }) {
                 <Check size={14} className="mr-1" /> Convert to Booking
               </Button>
             ) : (
-              !job.isEmergency && job.status !== 'completed' && job.status !== 'cancelled' && (
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  className="bg-red-600 hover:bg-red-700 font-bold"
-                  onClick={() => {
-                    if (confirm("Trigger CODE 9 EMERGENCY? This will bump all other bookings.")) {
-                      emergencyMutation.mutate({ id: job.id });
-                    }
-                  }}
-                  disabled={emergencyMutation.isPending}
-                >
-                  <AlertTriangle size={14} className="mr-1" /> CODE 9
-                </Button>
-              )
+              <>
+                {!isCompleted && !isCancelled && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                    onClick={() => {
+                      if (confirm("Mark this job as completed?")) {
+                        completeMutation.mutate({
+                          id: job.id,
+                          data: {
+                            status: "completed",
+                            completedDate: new Date().toISOString(),
+                          },
+                        });
+                      }
+                    }}
+                    disabled={completeMutation.isPending}
+                  >
+                    <CheckCircle2 size={14} className="mr-1" /> Mark Complete
+                  </Button>
+                )}
+
+                {!job.isEmergency && !isCompleted && !isCancelled && (
+                  <Button 
+                    size="sm" 
+                    variant="destructive"
+                    className="bg-red-600 hover:bg-red-700 font-bold"
+                    onClick={() => {
+                      if (confirm("Trigger CODE 9 EMERGENCY? This will bump all other bookings.")) {
+                        emergencyMutation.mutate({ id: job.id });
+                      }
+                    }}
+                    disabled={emergencyMutation.isPending}
+                  >
+                    <AlertTriangle size={14} className="mr-1" /> CODE 9
+                  </Button>
+                )}
+              </>
             )}
             
             <Button size="sm" variant="secondary">
