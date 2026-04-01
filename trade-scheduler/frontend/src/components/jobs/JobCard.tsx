@@ -215,9 +215,25 @@ export function JobCard({ job }: { job: Job }) {
               </>
             )}
             
-            <Button size="sm" variant="secondary">
-              <FileText size={14} className="mr-1" /> Invoice
-            </Button>
+            {isCompleted ? (
+  <Button
+    size="sm"
+    variant="secondary"
+    onClick={async () => {
+  const res = await fetch(`/api/jobs/${job.id}/invoice?format=pdf`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}}
+  >
+    <FileText size={14} className="mr-1" /> Download Invoice
+  </Button>
+) : (
+  <Button size="sm" variant="secondary" disabled>
+    <FileText size={14} className="mr-1" /> Invoice
+  </Button>
+)}
           </div>
         </div>
       </div>

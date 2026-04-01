@@ -3,6 +3,8 @@ import { db, jobsTable, workersTable } from "../db";
 import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "../api-zod";
+import { sendJobCompletedSMS } from "../lib/sms";
+import { generateInvoicePDF } from "../lib/pdf";
 
 const router: IRouter = Router();
 
@@ -146,13 +148,36 @@ router.put("/:id", async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    // Fetch existing job to detect status change
+    const [existing] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!existing) { res.status(404).json({ error: "Job not found" }); return; }
+
     const body = UpdateJobBody.parse(req.body);
     const updateData: Record<string, unknown> = { ...body, updatedAt: new Date() };
     if (body.assignedWorkerIds !== undefined) {
       updateData.assignedWorkerIds = JSON.stringify(body.assignedWorkerIds);
     }
+
+    // Detect completion
+    const isNowCompleted = body.status === "completed" && existing.status !== "completed";
+    if (isNowCompleted) {
+      updateData.completedDate = new Date().toISOString();
+      if (!existing.invoiceNumber) {
+        updateData.invoiceNumber = generateInvoiceNumber(id);
+      }
+    }
+
     const [job] = await db.update(jobsTable).set(updateData).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    // Send SMS after DB update, non-blocking
+    if (isNowCompleted && job.clientPhone) {
+      const invoiceNum = (updateData.invoiceNumber as string) || job.invoiceNumber || generateInvoiceNumber(id);
+      sendJobCompletedSMS(job.clientName, job.clientPhone, job.title, invoiceNum)
+        .catch(err => console.error("SMS send failed:", err));
+    }
+
     const [hydrated] = await hydrateJobs([job]);
     res.json(hydrated);
   } catch (err) {
@@ -317,9 +342,8 @@ router.get("/:id/invoice", async (req: Request, res: Response) => {
     }
 
     const gst = Math.round(hydrated.price * 0.1 * 100) / 100;
-    res.json({
+    const invoiceData = {
       invoiceNumber,
-      jobId: job.id,
       jobTitle: job.title,
       clientName: job.clientName,
       clientPhone: job.clientPhone ?? null,
@@ -332,11 +356,21 @@ router.get("/:id/invoice", async (req: Request, res: Response) => {
       totalWithGst: Math.round((hydrated.price + gst) * 100) / 100,
       scheduledDate: job.scheduledDate ?? null,
       completedDate: job.completedDate ?? null,
-      status: job.status,
-      issuedAt: new Date().toISOString(),
       notes: job.notes ?? null,
       assignedWorkers: hydrated.assignedWorkers,
-    });
+    };
+
+    // Return PDF if requested
+    console.log("Query params:", req.query, "format value:", req.query.format, typeof req.query.format);
+if (String(req.query.format) === "pdf") {
+      const pdfBuffer = await generateInvoicePDF(invoiceData);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="invoice-${invoiceNumber}.pdf"`);
+      res.send(pdfBuffer);
+      return;
+    }
+
+    res.json({ ...invoiceData, status: job.status, issuedAt: new Date().toISOString() });
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
