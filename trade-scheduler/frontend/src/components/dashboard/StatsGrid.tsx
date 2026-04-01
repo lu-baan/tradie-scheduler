@@ -1,5 +1,5 @@
 import { Job, JobStatus } from "@/lib/api-client";
-import { Briefcase, CheckCircle2, Clock, DollarSign } from "lucide-react";
+import { BriefcaseBusiness, CheckCircle2, Clock, DollarSign } from "lucide-react";
 
 interface StatsGridProps {
   jobs: Job[] | undefined;
@@ -15,7 +15,7 @@ export function StatsGrid({ jobs = [] }: StatsGridProps) {
     {
       label: "Total Jobs",
       value: total,
-      icon: Briefcase,
+      icon: BriefcaseBusiness,
       color: "text-primary",
       bg: "bg-primary/10",
     },

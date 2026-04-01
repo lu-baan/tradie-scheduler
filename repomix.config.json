@@ -1,0 +1,21 @@
+{
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "artifacts/**",
+      "**/node_modules/**",
+      "**/components/ui/**",
+      "**/generated/**",
+      "**/drizzle/meta/**",
+      "**/public/**",
+      "pnpm-lock.yaml",
+      "package-lock.json",
+      "folders.txt",
+      "folders-only.txt",
+      "repomix-output.xml",
+      "*.sql",
+      "*.log"
+    ]
+  }
+}

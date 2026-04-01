@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { useCreateJob, useUpdateJob, useListWorkers, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Save } from "lucide-react";
+import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 
 const jobSchema = z.object({
   jobType: z.nativeEnum(JobType),
@@ -204,7 +205,19 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
               
               <div>
                 <label className="text-xs text-muted-foreground font-display mb-1 block">Site Address</label>
-                <Input {...form.register("address")} placeholder="Full Australian Address" />
+                <Controller
+                  name="address"
+                  control={form.control}
+                  render={({ field }) => (
+                    <AddressAutocomplete
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      placeholder="Start typing an Australian address…"
+                    />
+                  )}
+                />
+                {form.formState.errors.address && <p className="text-destructive text-sm mt-1">{form.formState.errors.address.message}</p>}
               </div>
             </div>
           </Card>

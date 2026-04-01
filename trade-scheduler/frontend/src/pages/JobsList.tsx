@@ -5,7 +5,7 @@ import { JobForm } from "@/components/jobs/JobForm";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, SlidersHorizontal, MapPin, Loader2, Briefcase } from "lucide-react";
+import { Plus, SlidersHorizontal, MapPin, Loader2, BriefcaseBusiness } from "lucide-react";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Slider from "@radix-ui/react-slider";
 
@@ -141,7 +141,7 @@ export function JobsList() {
                   </div>
                 ) : tabJobs.length === 0 ? (
                   <div className="py-20 text-center text-muted-foreground bg-card/30 rounded-xl border border-dashed border-white/10">
-                    <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <BriefcaseBusiness className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <h3 className="text-xl font-display uppercase">No jobs found</h3>
                     <p>Adjust your filters or create a new enquiry.</p>
                   </div>

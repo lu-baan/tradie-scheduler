@@ -9,10 +9,6 @@ import { useCreateJob, useUpdateJob, useListWorkers, JobType, ValidityCode, Job 
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Save, MapPin } from "lucide-react";
 
-// Shim until @types/google.maps is installed via `pnpm install`
-// eslint-disable-next-line no-var
-declare var google: any;
-
 // ── Australian phone regex ──
 // Accepts: 04XX XXX XXX, 04XXXXXXXX, +614XXXXXXXX, 614XXXXXXXX
 const ausPhoneRegex = /^(?:\+?61\s?4\d{2}\s?\d{3}\s?\d{3}|04\d{2}\s?\d{3}\s?\d{3}|04\d{8})$/;
@@ -27,14 +23,14 @@ const jobSchema = z.object({
     .string()
     .optional()
     .refine(
-      (val) => !val || ausPhoneRegex.test(val.replace(/\s+/g, " ").trim()),
+      (val: string | undefined) => !val || ausPhoneRegex.test(val.replace(/\s+/g, " ").trim()),
       { message: "Enter a valid Australian mobile number (e.g. 0412 345 678 or +61412345678)" }
     ),
   clientEmail: z
     .string()
     .optional()
     .refine(
-      (val) => !val || /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val),
+      (val: string | undefined) => !val || /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val),
       { message: "Enter a valid email address" }
     ),
   address: z.string().min(5, "Address is required"),
@@ -46,7 +42,7 @@ const jobSchema = z.object({
   numTradies: z.coerce.number().min(1).optional(),
   callUpTimeHours: z.coerce.number().optional(),
   scheduledDate: z.string().optional(),
-}).refine(data => data.clientPhone || data.clientEmail, {
+}).refine((data: { clientPhone?: string; clientEmail?: string }) => data.clientPhone || data.clientEmail, {
   message: "Either Phone or Email must be provided",
   path: ["clientPhone"]
 });
@@ -58,7 +54,8 @@ function useGooglePlacesAutocomplete(
   inputRef: RefObject<HTMLInputElement | null>,
   onPlaceSelected: (address: string, lat: number | null, lng: number | null) => void
 ) {
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const autocompleteRef = useRef<any>(null);
 
   useEffect(() => {
     if (!inputRef.current) return;
@@ -281,6 +278,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
                     placeholder="0412 345 678"
                     {...form.register("clientPhone")}
                     onChange={(e) => {
+                      form.register("clientPhone").onChange(e);
                       form.setValue("clientPhone", formatPhoneDisplay(e.target.value), { shouldValidate: form.formState.isSubmitted });
                     }}
                   />
@@ -300,10 +298,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
                   )}
                 </div>
               </div>
-              {form.formState.errors.clientPhone?.type === "custom" && (
-                <p className="text-destructive text-sm">{form.formState.errors.clientPhone.message}</p>
-              )}
-
               <div>
                 <label className="text-xs text-muted-foreground font-display mb-1 block flex items-center gap-1">
                   Site Address

@@ -1,7 +1,7 @@
 import { useListJobs } from "@/lib/api-client";
 import { formatAUD } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, Briefcase, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
 import { JobCard } from "@/components/jobs/JobCard";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -45,7 +45,7 @@ export function Dashboard() {
               <h3 className="text-4xl font-display font-bold">{allJobs.length}</h3>
             </div>
             <div className="p-3 bg-primary/10 rounded-lg text-primary">
-              <Briefcase size={24} />
+              <BriefcaseBusiness size={24} />
             </div>
           </div>
         </Card>

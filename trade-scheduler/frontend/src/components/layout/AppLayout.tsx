@@ -1,12 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Briefcase, Calendar, Users, Settings, Plus, X, Menu } from "lucide-react";
+import { LayoutDashboard, BriefcaseBusiness, Calendar, Users, Settings, Plus, X, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/jobs", label: "Jobs", icon: Briefcase },
+  { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/workers", label: "Workers", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
