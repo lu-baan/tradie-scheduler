@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "https://tradie-scheduler-api.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/trade-scheduler/frontend/index.html"
+    }
   ]
 }
