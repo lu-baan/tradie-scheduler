@@ -10,6 +10,7 @@ declare global {
 interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
+  onCoordinatesSelect?: (lat: number, lng: number) => void;
   onBlur?: () => void;
   placeholder?: string;
   name?: string;
@@ -18,6 +19,7 @@ interface AddressAutocompleteProps {
 export function AddressAutocomplete({
   value,
   onChange,
+  onCoordinatesSelect,
   onBlur,
   placeholder = "Start typing an address…",
   name,
@@ -48,13 +50,22 @@ export function AddressAutocomplete({
     const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
       componentRestrictions: { country: "au" },
       types: ["address"],
-      fields: ["formatted_address"],
+      // Request geometry to get latitude and longitude
+      fields: ["formatted_address", "geometry"],
     });
 
     autocomplete.addListener("place_changed", () => {
       const place = autocomplete.getPlace();
+      
       if (place?.formatted_address) {
         onChange(place.formatted_address);
+        
+        // Extract exact coordinates if the callback is provided
+        if (onCoordinatesSelect && place.geometry?.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          onCoordinatesSelect(lat, lng);
+        }
       }
     });
 
@@ -67,10 +78,9 @@ export function AddressAutocomplete({
         autocompleteRef.current = null;
       }
     };
-  }, [isLoaded, onChange]);
+  }, [isLoaded, onChange, onCoordinatesSelect]);
 
   // Keep the input's DOM value in sync when controlled value changes externally
-  // (e.g. when editing an existing job)
   useEffect(() => {
     if (inputRef.current && inputRef.current.value !== value) {
       inputRef.current.value = value;

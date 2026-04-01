@@ -19,6 +19,8 @@ const jobSchema = z.object({
   clientPhone: z.string().optional(),
   clientEmail: z.string().email("Invalid email").optional().or(z.literal("")),
   address: z.string().min(5, "Address is required"),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
   notes: z.string().optional(),
   
   // Step 2 fields
@@ -69,6 +71,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
       clientPhone: initialData.clientPhone || "",
       clientEmail: initialData.clientEmail || "",
       address: initialData.address,
+      latitude: initialData.latitude,
+      longitude: initialData.longitude,
       notes: initialData.notes || "",
       price: initialData.price,
       estimatedHours: initialData.estimatedHours,
@@ -84,6 +88,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
       clientPhone: "",
       clientEmail: "",
       address: "",
+      latitude: null,
+      longitude: null,
       notes: "",
       price: 0,
       estimatedHours: 1,
@@ -98,8 +104,12 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
     // Make sure we format date properly if empty
     const scheduledDate = data.scheduledDate ? new Date(data.scheduledDate).toISOString() : undefined;
     
+    // REQUIREMENT 2: Enforce 1-hour block for quotes regardless of input
+    const finalEstimatedHours = data.jobType === "quote" ? 1 : data.estimatedHours;
+
     const payload = {
       ...data,
+      estimatedHours: finalEstimatedHours,
       scheduledDate,
       assignedWorkerIds: selectedWorkerIds,
     };
@@ -149,7 +159,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
                       key={code}
                       type="button"
                       variant={isActive ? "default" : "outline"}
-                      className={`flex-1 ${isActive && code === 3 ? 'bg-orange-500 hover:bg-orange-600' : isActive && code === 2 ? 'bg-blue-500 hover:bg-blue-600' : isActive ? 'bg-gray-500 hover:bg-gray-600' : ''}`}
+                      className={`flex-1 ${isActive && code === 3 ? 'bg-orange-500 hover:bg-orange-600 text-white' : isActive && code === 2 ? 'bg-blue-500 hover:bg-blue-600 text-white' : isActive ? 'bg-gray-500 hover:bg-gray-600 text-white' : ''}`}
                       onClick={() => form.setValue("validityCode", code as ValidityCode)}
                     >
                       {code}
@@ -212,6 +222,10 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null, 
                     <AddressAutocomplete
                       value={field.value}
                       onChange={field.onChange}
+                      onCoordinatesSelect={(lat, lng) => {
+                        form.setValue("latitude", lat);
+                        form.setValue("longitude", lng);
+                      }}
                       onBlur={field.onBlur}
                       placeholder="Start typing an Australian address…"
                     />
