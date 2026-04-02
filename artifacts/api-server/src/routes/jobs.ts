@@ -133,7 +133,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.get("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
@@ -144,7 +144,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 router.put("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const body = UpdateJobBody.parse(req.body);
     const updateData: Record<string, unknown> = { ...body, updatedAt: new Date() };
@@ -163,7 +163,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [deleted] = await db.delete(jobsTable).where(eq(jobsTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Job not found" }); return; }
@@ -173,7 +173,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
 
 router.post("/:id/emergency", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
@@ -208,7 +208,7 @@ router.post("/:id/emergency", async (req: Request, res: Response) => {
 
 router.post("/:id/convert-to-booking", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const body = ConvertToBookingBody.parse(req.body);
     const [job] = await db.update(jobsTable).set({
@@ -230,7 +230,7 @@ router.post("/:id/convert-to-booking", async (req: Request, res: Response) => {
 
 router.get("/:id/suggest-times", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
@@ -275,7 +275,7 @@ router.get("/:id/suggest-times", async (req: Request, res: Response) => {
 
 router.get("/:id/invoice", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }

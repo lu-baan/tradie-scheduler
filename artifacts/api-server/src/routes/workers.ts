@@ -32,7 +32,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.put("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const body = CreateWorkerBody.parse(req.body);
     const [worker] = await db.update(workersTable).set(body).where(eq(workersTable.id, id)).returning();
@@ -46,7 +46,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [deleted] = await db.delete(workersTable).where(eq(workersTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Worker not found" }); return; }
