@@ -5,11 +5,14 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useCreateJob, useUpdateJob, useListWorkers, JobType, ValidityCode, Job } from "@/lib/api-client";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, CalendarIcon, AlertTriangle } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -61,11 +64,12 @@ const jobSchema = z.object({
   longitude: z.number().optional().nullable(),
   notes: z.string().max(NOTES_MAX, `Notes must be under ${NOTES_MAX} characters`).optional(),
 
-  // Step 2 fields
-  price: z.coerce
-    .number({ invalid_type_error: "Price must be a number" })
-    .min(0, "Price cannot be negative")
-    .max(MAX_PRICE, `Price cannot exceed $${MAX_PRICE.toLocaleString()}`),
+  // Step 2 fields — price is computed from labourPrice + materials + GST
+  price: z.coerce.number().min(0).max(MAX_PRICE).optional().default(0),
+  labourPrice: z.coerce
+    .number({ invalid_type_error: "Labour price must be a number" })
+    .min(0, "Cannot be negative")
+    .max(MAX_PRICE, `Cannot exceed $${MAX_PRICE.toLocaleString()}`),
   estimatedHours: z.coerce
     .number({ invalid_type_error: "Must be a number" })
     .min(0.5, "Minimum 0.5 hours")
@@ -93,6 +97,13 @@ const jobSchema = z.object({
 });
 
 type JobFormValues = z.infer<typeof jobSchema>;
+
+type MaterialLine = {
+  id: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+};
 
 // ── Label helper ──────────────────────────────────────────────────────────────
 
@@ -142,8 +153,12 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const { data: workers } = useListWorkers();
+  const { data: allJobs = [] } = useListJobs();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
   const [showValidityInfo, setShowValidityInfo] = useState(false);
+  const [includeGst, setIncludeGst] = useState(true);
+  const [materials, setMaterials] = useState<MaterialLine[]>([]);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const createJob = useCreateJob({
     mutation: {
@@ -197,6 +212,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           longitude: initialData.longitude,
           notes: initialData.notes || "",
           price: initialData.price,
+          labourPrice: initialData.price,
           estimatedHours: initialData.estimatedHours,
           numTradies: initialData.numTradies,
           callUpTimeHours: initialData.callUpTimeHours || 0,
@@ -218,6 +234,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           longitude: null,
           notes: "",
           price: 0,
+          labourPrice: 0,
           estimatedHours: 1,
           numTradies: 1,
           callUpTimeHours: 0,
@@ -231,6 +248,34 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const clientNameVal = form.watch("clientName") || "";
   const notesVal = form.watch("notes") || "";
   const validityVal = form.watch("validityCode");
+  const watchedDate = form.watch("scheduledDate");
+  const watchedTime = form.watch("scheduledTime");
+  const watchedHours = form.watch("estimatedHours");
+
+  // Double-booking detection: check assigned workers against existing jobs
+  const bookingConflicts: string[] = (() => {
+    if (jobType !== "booking" || !watchedDate || selectedWorkerIds.length === 0) return [];
+    const timePart = watchedTime || "08:00";
+    const newStart = new Date(`${watchedDate}T${timePart}:00`).getTime();
+    const newEnd = newStart + (Number(watchedHours) || 1) * 3600_000;
+    const conflicts: string[] = [];
+    for (const wid of selectedWorkerIds) {
+      const clashes = allJobs.filter(j => {
+        if (!j.scheduledDate || j.id === initialData?.id) return false;
+        const assigned = (j as any).assignedWorkers?.some((w: any) => w.id === wid)
+          || (j as any).assignedWorkerIds?.includes(wid);
+        if (!assigned) return false;
+        const jStart = new Date(j.scheduledDate).getTime();
+        const jEnd = jStart + (j.estimatedHours || 1) * 3600_000;
+        return newStart < jEnd && jStart < newEnd;
+      });
+      if (clashes.length > 0) {
+        const workerName = workers?.find(w => w.id === wid)?.name ?? `Worker #${wid}`;
+        clashes.forEach(j => conflicts.push(`${workerName} → "${j.title}"`));
+      }
+    }
+    return conflicts;
+  })();
 
   const onSubmit = (data: JobFormValues) => {
     let scheduledDate: string | undefined;
@@ -241,13 +286,21 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
 
     const finalEstimatedHours = data.jobType === "quote" ? 1 : data.estimatedHours;
 
+    // Compute final price: labour + materials subtotal, then optionally +10% GST
+    const labourAmt = data.labourPrice ?? 0;
+    const materialsTotal = materials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+    const subtotal = labourAmt + materialsTotal;
+    const computedPrice = includeGst ? subtotal * 1.1 : subtotal;
+
     const payload = {
       ...data,
+      price: Math.round(computedPrice * 100) / 100,
       estimatedHours: finalEstimatedHours,
       scheduledDate,
       assignedWorkerIds: selectedWorkerIds,
     };
     delete (payload as any).scheduledTime;
+    delete (payload as any).labourPrice;
 
     if (initialData) {
       updateJob.mutate({ id: initialData.id, data: payload });
@@ -257,7 +310,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   };
 
   const isPending = createJob.isPending || updateJob.isPending;
-  const minDate = new Date().toISOString().split("T")[0];
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -479,41 +531,184 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             </div>
           )}
 
-          {/* Price */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label required hint="Enter the total job price in AUD. Must be a positive number.">
-                Price (AUD)
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-3 text-muted-foreground">$</span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={MAX_PRICE}
-                  className="pl-8"
-                  {...form.register("price")}
-                  onKeyDown={e => {
-                    if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-                  }}
-                />
+          {/* ── Pricing Breakdown ── */}
+          <Card className="p-4 bg-secondary/30 border-white/5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-display uppercase text-sm text-primary flex items-center gap-2">
+                <ReceiptText size={15} />
+                Pricing
+              </h4>
+              {/* GST Toggle */}
+              <button
+                type="button"
+                onClick={() => setIncludeGst(g => !g)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                  includeGst
+                    ? "bg-primary/20 border-primary/40 text-primary"
+                    : "bg-white/5 border-white/10 text-muted-foreground line-through"
+                }`}
+              >
+                GST (10%)
+                <span className={`w-7 h-4 rounded-full relative transition-colors ${includeGst ? "bg-primary" : "bg-white/20"}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${includeGst ? "right-0.5" : "left-0.5"}`} />
+                </span>
+              </button>
+            </div>
+
+            {!includeGst && (
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-md px-3 py-2 text-xs text-orange-300">
+                Cash job — GST not applied. Ensure this complies with your obligations.
               </div>
-              {form.formState.errors.price && (
-                <p className="text-destructive text-sm mt-1">{form.formState.errors.price.message}</p>
+            )}
+
+            {/* Labour / service charge */}
+            <div className={jobType === "booking" ? "grid grid-cols-2 gap-4" : ""}>
+              <div>
+                <Label required hint="Labour or service charge (ex-GST)">Labour / Service (AUD)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-muted-foreground text-sm">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={MAX_PRICE}
+                    className="pl-7"
+                    {...form.register("labourPrice")}
+                    onKeyDown={e => { if (["e","E","+","-"].includes(e.key)) e.preventDefault(); }}
+                  />
+                </div>
+                {form.formState.errors.labourPrice && (
+                  <p className="text-destructive text-sm mt-1">{form.formState.errors.labourPrice.message}</p>
+                )}
+              </div>
+              {jobType === "booking" && (
+                <div>
+                  <Label required>Est. Hours</Label>
+                  <Input type="number" step="0.5" min="0.5" max="200" {...form.register("estimatedHours")} />
+                  {form.formState.errors.estimatedHours && (
+                    <p className="text-destructive text-sm mt-1">{form.formState.errors.estimatedHours.message}</p>
+                  )}
+                </div>
               )}
             </div>
 
-            {jobType === "booking" && (
-              <div>
-                <Label required>Est. Hours</Label>
-                <Input type="number" step="0.5" min="0.5" max="200" {...form.register("estimatedHours")} />
-                {form.formState.errors.estimatedHours && (
-                  <p className="text-destructive text-sm mt-1">{form.formState.errors.estimatedHours.message}</p>
-                )}
+            {/* Materials line items */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label hint="List individual materials for itemised invoicing">Materials</Label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMaterials(prev => [
+                      ...prev,
+                      { id: Math.random().toString(36).slice(2), description: "", qty: 1, unitPrice: 0 },
+                    ])
+                  }
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <Plus size={12} /> Add item
+                </button>
               </div>
-            )}
-          </div>
+
+              {materials.length > 0 && (
+                <div className="space-y-2">
+                  {/* Column headers */}
+                  <div className="grid grid-cols-[1fr_5rem_6rem_2rem] gap-2 text-[10px] uppercase text-muted-foreground font-bold px-1">
+                    <span>Description</span>
+                    <span className="text-right">Qty</span>
+                    <span className="text-right">Unit $</span>
+                    <span />
+                  </div>
+
+                  {materials.map(m => (
+                    <div key={m.id} className="grid grid-cols-[1fr_5rem_6rem_2rem] gap-2 items-center">
+                      <Input
+                        value={m.description}
+                        onChange={e =>
+                          setMaterials(prev =>
+                            prev.map(x => x.id === m.id ? { ...x, description: e.target.value } : x)
+                          )
+                        }
+                        placeholder="e.g. 10mm conduit (per m)"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={m.qty}
+                        onChange={e =>
+                          setMaterials(prev =>
+                            prev.map(x => x.id === m.id ? { ...x, qty: parseFloat(e.target.value) || 0 } : x)
+                          )
+                        }
+                        className="h-8 text-xs text-right"
+                      />
+                      <div className="relative">
+                        <span className="absolute left-2 top-1.5 text-muted-foreground text-xs">$</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={m.unitPrice}
+                          onChange={e =>
+                            setMaterials(prev =>
+                              prev.map(x => x.id === m.id ? { ...x, unitPrice: parseFloat(e.target.value) || 0 } : x)
+                            )
+                          }
+                          className="h-8 text-xs text-right pl-5"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMaterials(prev => prev.filter(x => x.id !== m.id))}
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Price summary */}
+            {(() => {
+              const labourAmt = parseFloat(String(form.watch("labourPrice") ?? 0)) || 0;
+              const matTotal = materials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+              const subtotal = labourAmt + matTotal;
+              const gstAmt = includeGst ? subtotal * 0.1 : 0;
+              const total = subtotal + gstAmt;
+              return (
+                <div className="border-t border-white/10 pt-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-muted-foreground text-xs">
+                    <span>Labour</span>
+                    <span>${labourAmt.toFixed(2)}</span>
+                  </div>
+                  {matTotal > 0 && (
+                    <div className="flex justify-between text-muted-foreground text-xs">
+                      <span>Materials</span>
+                      <span>${matTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-muted-foreground text-xs">
+                    <span>Subtotal (ex-GST)</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  {includeGst && (
+                    <div className="flex justify-between text-muted-foreground text-xs">
+                      <span>GST (10%)</span>
+                      <span>${gstAmt.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-foreground border-t border-white/10 pt-1.5 mt-1.5">
+                    <span>Total</span>
+                    <span className="text-primary">${total.toFixed(2)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </Card>
 
           {/* Booking-specific fields */}
           {jobType === "booking" && (
@@ -538,14 +733,51 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label hint="Must be today or a future date">Scheduled Date</Label>
-              <Input type="date" min={minDate} {...form.register("scheduledDate")} />
+              <Controller
+                name="scheduledDate"
+                control={form.control}
+                render={({ field }) => {
+                  const parsed = field.value ? new Date(`${field.value}T00:00:00`) : undefined;
+                  return (
+                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal h-12"
+                        >
+                          <CalendarIcon size={15} className="mr-2 text-muted-foreground shrink-0" />
+                          {parsed ? format(parsed, "EEE d MMM yyyy") : (
+                            <span className="text-muted-foreground">Pick a date…</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={parsed}
+                          onSelect={date => {
+                            field.onChange(date ? format(date, "yyyy-MM-dd") : "");
+                            setDatePickerOpen(false);
+                          }}
+                          disabled={date => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return date < today;
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  );
+                }}
+              />
               {form.formState.errors.scheduledDate && (
                 <p className="text-destructive text-sm mt-1">{form.formState.errors.scheduledDate.message}</p>
               )}
             </div>
             <div>
               <Label hint="Estimated start time for the job. Defaults to 8:00 AM if not set.">Start Time</Label>
-              <Input type="time" {...form.register("scheduledTime")} />
+              <Input type="time" className="h-12" {...form.register("scheduledTime")} />
             </div>
           </div>
 
@@ -584,6 +816,22 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Double-booking warning */}
+          {bookingConflicts.length > 0 && (
+            <div className="bg-orange-500/10 border border-orange-500/40 rounded-lg p-3 space-y-1">
+              <div className="flex items-center gap-2 text-orange-400 font-semibold text-sm">
+                <AlertTriangle size={15} />
+                Scheduling conflict detected
+              </div>
+              {bookingConflicts.map((c, i) => (
+                <p key={i} className="text-xs text-orange-300 pl-5">{c}</p>
+              ))}
+              <p className="text-[11px] text-orange-400/70 pl-5 pt-1">
+                You can still save — check with the workers before confirming.
+              </p>
             </div>
           )}
 

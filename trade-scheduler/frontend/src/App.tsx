@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
@@ -12,24 +12,34 @@ import { Settings } from "@/pages/Settings";
 import { AuthPage } from "@/pages/AuthPage";
 import NotFound from "@/pages/not-found";
 
+export type UserRole = "admin" | "worker";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     },
   },
 });
 
-function Router() {
+function Router({ userRole }: { userRole: UserRole }) {
   return (
-    <AppLayout>
+    <AppLayout userRole={userRole}>
       <Switch>
-        <Route path="/" component={Dashboard} />
+        <Route path="/">
+          {userRole === "admin" ? <Dashboard /> : <Redirect to="/jobs" />}
+        </Route>
         <Route path="/jobs" component={JobsList} />
-        <Route path="/calendar" component={CalendarView} />
-        <Route path="/workers" component={WorkersList} />
-        <Route path="/settings" component={Settings} />
+        <Route path="/calendar">
+          <CalendarView userRole={userRole} />
+        </Route>
+        <Route path="/workers">
+          {userRole === "admin" ? <WorkersList /> : <Redirect to="/jobs" />}
+        </Route>
+        <Route path="/settings">
+          {userRole === "admin" ? <Settings /> : <Redirect to="/jobs" />}
+        </Route>
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
@@ -37,14 +47,18 @@ function Router() {
 }
 
 function App() {
-  // Simple auth state — replace with proper auth context/provider in production
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem("ts2_auth") === "true";
   });
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    return (sessionStorage.getItem("ts2_role") as UserRole) ?? "worker";
+  });
 
-  const handleLogin = () => {
+  const handleLogin = (role: UserRole) => {
     sessionStorage.setItem("ts2_auth", "true");
+    sessionStorage.setItem("ts2_role", role);
     setIsAuthenticated(true);
+    setUserRole(role);
   };
 
   return (
@@ -61,7 +75,11 @@ function App() {
           }}
         />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          {isAuthenticated ? <Router /> : <AuthPage onLogin={handleLogin} />}
+          {isAuthenticated ? (
+            <Router userRole={userRole} />
+          ) : (
+            <AuthPage onLogin={handleLogin} />
+          )}
         </WouterRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -1,10 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, BriefcaseBusiness, Calendar, Users, Settings, Plus, X, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { LayoutDashboard, BriefcaseBusiness, Calendar, Users, Settings, X, Menu } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/App";
 
-const NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
   { href: "/calendar", label: "Calendar", icon: Calendar },
@@ -12,9 +12,22 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function AppLayout({ children }: { children: React.ReactNode }) {
+const WORKER_HREFS = new Set(["/jobs", "/calendar"]);
+
+export function AppLayout({
+  children,
+  userRole,
+}: {
+  children: React.ReactNode;
+  userRole: UserRole;
+}) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems =
+    userRole === "admin"
+      ? ALL_NAV_ITEMS
+      : ALL_NAV_ITEMS.filter(item => WORKER_HREFS.has(item.href));
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans">
@@ -35,7 +48,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 top-[73px] bg-background/95 backdrop-blur-lg z-30 p-4 animate-in slide-in-from-top-2">
           <nav className="flex flex-col space-y-2">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map(item => {
               const active = location === item.href;
               return (
                 <Link
@@ -71,7 +84,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map(item => {
             const active = location === item.href;
             return (
               <Link
@@ -86,14 +99,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <item.icon
                   size={20}
-                  className={cn("transition-transform group-hover:scale-110", active ? "text-white" : "text-muted-foreground")}
+                  className={cn(
+                    "transition-transform group-hover:scale-110",
+                    active ? "text-white" : "text-muted-foreground"
+                  )}
                 />
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        
+
         <div className="p-6">
           <div className="bg-secondary/50 rounded-xl p-4 border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-10 -mt-10" />
@@ -102,15 +118,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               SYSTEM ONLINE
             </div>
+            <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wide font-display">
+              {userRole === "admin" ? "Admin / Foreman" : "Worker"}
+            </p>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto relative">
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
-          {children}
-        </div>
+        <div className="max-w-7xl mx-auto p-4 md:p-8">{children}</div>
       </main>
     </div>
   );

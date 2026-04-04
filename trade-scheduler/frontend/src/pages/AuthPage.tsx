@@ -1,44 +1,36 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import type { UserRole } from "@/App";
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const signUpSchema = z.object({
-  businessName: z.string().min(2, "Business name is required").max(100, "Business name too long"),
-  fullName: z.string().min(2, "Full name is required").max(80, "Name too long"),
-  email: z.string().email("Enter a valid email address"),
-  phone: z
+  loginNumber: z
     .string()
-    .regex(/^(\+?61|0)[2-478]\d{8}$/, "Enter a valid Australian phone number (e.g. 0412345678)")
-    .optional()
-    .or(z.literal("")),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-}).refine(d => d.password === d.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
+    .length(6, "Enter your 6-digit login number")
+    .regex(/^\d{6}$/, "Must be 6 digits"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const forgotSchema = z.object({
   email: z.string().email("Enter a valid email address"),
 });
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Mock role lookup ──────────────────────────────────────────────────────────
+// Login numbers starting with "1" = admin, all others = worker
+// Demo: 100001 = admin, 200001 = worker
+function getRoleFromLoginNumber(num: string): UserRole {
+  return num.startsWith("1") ? "admin" : "worker";
+}
 
-type AuthView = "login" | "signup" | "forgot";
-
-// ── Required-field label helper ───────────────────────────────────────────────
+// ── Label helper ──────────────────────────────────────────────────────────────
 
 function Label({ children, required = false }: { children: React.ReactNode; required?: boolean }) {
   return (
@@ -51,8 +43,8 @@ function Label({ children, required = false }: { children: React.ReactNode; requ
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AuthPage({ onLogin }: { onLogin: () => void }) {
-  const [view, setView] = useState<AuthView>("login");
+export function AuthPage({ onLogin }: { onLogin: (role: UserRole) => void }) {
+  const [view, setView] = useState<"login" | "forgot">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -60,14 +52,7 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const signUpForm = useForm<z.infer<typeof signUpSchema>>({
-    resolver: zodResolver(signUpSchema),
-    defaultValues: {
-      businessName: "", fullName: "", email: "", phone: "", password: "", confirmPassword: "",
-    },
+    defaultValues: { loginNumber: "", password: "" },
   });
 
   const forgotForm = useForm<z.infer<typeof forgotSchema>>({
@@ -81,23 +66,10 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
     try {
       // TODO: Replace with actual auth API call
       await new Promise(r => setTimeout(r, 600));
-      onLogin();
+      const role = getRoleFromLoginNumber(data.loginNumber);
+      onLogin(role);
     } catch (err: any) {
       setServerError(err.message || "Login failed. Please check your credentials.");
-    } finally {
-      setIsPending(false);
-    }
-  };
-
-  const handleSignUp = async (data: z.infer<typeof signUpSchema>) => {
-    setIsPending(true);
-    setServerError(null);
-    try {
-      // TODO: Replace with actual auth API call
-      await new Promise(r => setTimeout(r, 800));
-      setView("login");
-    } catch (err: any) {
-      setServerError(err.message || "Sign-up failed. Please try again.");
     } finally {
       setIsPending(false);
     }
@@ -116,17 +88,6 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
       setIsPending(false);
     }
   };
-
-  const PasswordToggle = (
-    <button
-      type="button"
-      className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
-      onClick={() => setShowPassword(p => !p)}
-      tabIndex={-1}
-    >
-      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-    </button>
-  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -148,7 +109,7 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
         {view === "login" && (
           <Card className="p-8 bg-card border-white/5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
             <h2 className="font-display text-2xl font-bold text-foreground mb-1">Welcome back</h2>
-            <p className="text-muted-foreground text-sm mb-6">Sign in to manage your jobs and tradies.</p>
+            <p className="text-muted-foreground text-sm mb-6">Enter your login number to continue.</p>
 
             {serverError && (
               <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg p-3 mb-4">
@@ -156,14 +117,45 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
               </div>
             )}
 
-            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-6">
               <div>
-                <Label required>Email</Label>
-                <Input type="email" {...loginForm.register("email")} placeholder="you@business.com.au" />
-                {loginForm.formState.errors.email && (
-                  <p className="text-destructive text-sm mt-1">{loginForm.formState.errors.email.message}</p>
+                <Label required>Login Number</Label>
+                <div className="flex justify-center mt-2">
+                  <Controller
+                    name="loginNumber"
+                    control={loginForm.control}
+                    render={({ field }) => (
+                      <InputOTP
+                        maxLength={6}
+                        value={field.value}
+                        onChange={field.onChange}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                      >
+                        <InputOTPGroup>
+                          {[0, 1, 2, 3, 4, 5].map(i => (
+                            <InputOTPSlot
+                              key={i}
+                              index={i}
+                              className="h-14 w-12 text-xl font-bold font-mono"
+                            />
+                          ))}
+                        </InputOTPGroup>
+                      </InputOTP>
+                    )}
+                  />
+                </div>
+                {loginForm.formState.errors.loginNumber && (
+                  <p className="text-destructive text-sm mt-2 text-center">
+                    {loginForm.formState.errors.loginNumber.message}
+                  </p>
                 )}
+                <p className="text-center text-[11px] text-muted-foreground mt-2">
+                  Demo: <span className="font-mono text-primary">1xxxxx</span> = admin &nbsp;·&nbsp;
+                  <span className="font-mono text-primary">2xxxxx</span> = worker
+                </p>
               </div>
+
               <div>
                 <Label required>Password</Label>
                 <div className="relative">
@@ -171,15 +163,23 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
                     type={showPassword ? "text" : "password"}
                     {...loginForm.register("password")}
                     className="pr-10"
+                    placeholder="••••••••"
                   />
-                  {PasswordToggle}
+                  <button
+                    type="button"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(p => !p)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
                 {loginForm.formState.errors.password && (
                   <p className="text-destructive text-sm mt-1">{loginForm.formState.errors.password.message}</p>
                 )}
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end -mt-2">
                 <button
                   type="button"
                   className="text-sm text-primary hover:underline"
@@ -189,88 +189,12 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
                 </button>
               </div>
 
-              <Button type="submit" disabled={isPending} className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(234,88,12,0.4)]">
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(234,88,12,0.4)]"
+              >
                 {isPending ? <Loader2 className="animate-spin w-5 h-5" /> : "Sign In"}
-              </Button>
-            </form>
-
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              Don't have an account?{" "}
-              <button className="text-primary font-semibold hover:underline" onClick={() => { setView("signup"); setServerError(null); }}>
-                Create one
-              </button>
-            </p>
-          </Card>
-        )}
-
-        {/* SIGN UP VIEW */}
-        {view === "signup" && (
-          <Card className="p-8 bg-card border-white/5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <button
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
-              onClick={() => { setView("login"); setServerError(null); }}
-            >
-              <ArrowLeft size={14} /> Back to login
-            </button>
-
-            <h2 className="font-display text-2xl font-bold text-foreground mb-1">Create Account</h2>
-            <p className="text-muted-foreground text-sm mb-6">Set up your Trade Scheduler workspace.</p>
-
-            {serverError && (
-              <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg p-3 mb-4">
-                {serverError}
-              </div>
-            )}
-
-            <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="space-y-4">
-              <div>
-                <Label required>Business Name</Label>
-                <Input {...signUpForm.register("businessName")} placeholder="e.g. Smith's Electrical Pty Ltd" />
-                {signUpForm.formState.errors.businessName && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.businessName.message}</p>
-                )}
-              </div>
-              <div>
-                <Label required>Your Full Name</Label>
-                <Input {...signUpForm.register("fullName")} placeholder="e.g. John Smith" />
-                {signUpForm.formState.errors.fullName && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.fullName.message}</p>
-                )}
-              </div>
-              <div>
-                <Label required>Email</Label>
-                <Input type="email" {...signUpForm.register("email")} placeholder="you@business.com.au" />
-                {signUpForm.formState.errors.email && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              <div>
-                <Label>Phone (optional)</Label>
-                <Input {...signUpForm.register("phone")} placeholder="0412 345 678" />
-                {signUpForm.formState.errors.phone && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.phone.message}</p>
-                )}
-              </div>
-              <div>
-                <Label required>Password</Label>
-                <div className="relative">
-                  <Input type={showPassword ? "text" : "password"} {...signUpForm.register("password")} className="pr-10" />
-                  {PasswordToggle}
-                </div>
-                {signUpForm.formState.errors.password && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.password.message}</p>
-                )}
-              </div>
-              <div>
-                <Label required>Confirm Password</Label>
-                <Input type={showPassword ? "text" : "password"} {...signUpForm.register("confirmPassword")} />
-                {signUpForm.formState.errors.confirmPassword && (
-                  <p className="text-destructive text-sm mt-1">{signUpForm.formState.errors.confirmPassword.message}</p>
-                )}
-              </div>
-
-              <Button type="submit" disabled={isPending} className="w-full h-12 text-base font-bold shadow-[0_0_20px_rgba(234,88,12,0.4)]">
-                {isPending ? <Loader2 className="animate-spin w-5 h-5" /> : "Create Account"}
               </Button>
             </form>
           </Card>
@@ -306,7 +230,11 @@ export function AuthPage({ onLogin }: { onLogin: () => void }) {
               <form onSubmit={forgotForm.handleSubmit(handleForgot)} className="space-y-4">
                 <div>
                   <Label required>Email Address</Label>
-                  <Input type="email" {...forgotForm.register("email")} placeholder="you@business.com.au" />
+                  <Input
+                    type="email"
+                    {...forgotForm.register("email")}
+                    placeholder="you@business.com.au"
+                  />
                   {forgotForm.formState.errors.email && (
                     <p className="text-destructive text-sm mt-1">{forgotForm.formState.errors.email.message}</p>
                   )}
