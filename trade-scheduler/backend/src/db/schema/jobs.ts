@@ -33,6 +33,9 @@ export const jobsTable = pgTable("jobs", {
   customerConfirmed: boolean("customer_confirmed").notNull().default(false),
   invoiceNumber: text("invoice_number"),
   invoiceSentAt: text("invoice_sent_at"),
+  labourPrice: real("labour_price"),
+  includeGst: boolean("include_gst").notNull().default(true),
+  materialsJson: text("materials_json").notNull().default("[]"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
