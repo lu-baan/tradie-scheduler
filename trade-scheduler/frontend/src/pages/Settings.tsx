@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Building2, Clock, Bell, MapPin, DollarSign, Shield } from "lucide-react";
+import { Save, Building2, Clock, Bell, MapPin, DollarSign, Shield, Wrench, Plus, X } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
 
@@ -30,10 +30,23 @@ interface AppSettings {
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const TRADE_TYPES = [
-  "Electrical", "Plumbing", "Carpentry", "Painting",
-  "Roofing", "HVAC", "Landscaping", "General",
+const DEFAULT_TRADE_TYPES = [
+  "Carpenter", "Electrician", "General Builder", "HVAC",
+  "Landscaper", "Painter", "Plumber", "Roofer",
 ];
+
+function loadTradeTypes(): string[] {
+  try {
+    const stored = localStorage.getItem("tradeTypes");
+    return stored ? JSON.parse(stored) : DEFAULT_TRADE_TYPES;
+  } catch {
+    return DEFAULT_TRADE_TYPES;
+  }
+}
+
+function saveTradeTypes(types: string[]) {
+  localStorage.setItem("tradeTypes", JSON.stringify(types));
+}
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -121,6 +134,8 @@ export function Settings() {
   });
 
   const [hasChanges, setHasChanges] = useState(false);
+  const [tradeTypes, setTradeTypes] = useState<string[]>(loadTradeTypes);
+  const [newTradeType, setNewTradeType] = useState("");
 
   const update = (key: keyof AppSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -270,7 +285,7 @@ export function Settings() {
             onChange={e => update("defaultTradeType", e.target.value)}
             className="bg-background border border-input rounded-md px-3 py-1.5 text-sm"
           >
-            {TRADE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </SettingRow>
         <SettingRow label="Default Estimated Hours" description="Initial value for new bookings">
@@ -290,6 +305,69 @@ export function Settings() {
         >
           <ToggleSwitch checked={settings.autoAssignWorkers} onChange={c => update("autoAssignWorkers", c)} />
         </SettingRow>
+      </SectionCard>
+
+      {/* Trade Types */}
+      <SectionCard icon={Wrench} title="Trade Types">
+        <p className="text-xs text-muted-foreground -mt-2">
+          These appear in job forms, worker profiles, and filters throughout the app.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="e.g. Concreter"
+            value={newTradeType}
+            onChange={e => setNewTradeType(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const trimmed = newTradeType.trim();
+                if (!trimmed || tradeTypes.includes(trimmed)) return;
+                const updated = [...tradeTypes, trimmed].sort();
+                setTradeTypes(updated);
+                saveTradeTypes(updated);
+                setNewTradeType("");
+                toast.success(`"${trimmed}" added`);
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              const trimmed = newTradeType.trim();
+              if (!trimmed || tradeTypes.includes(trimmed)) return;
+              const updated = [...tradeTypes, trimmed].sort();
+              setTradeTypes(updated);
+              saveTradeTypes(updated);
+              setNewTradeType("");
+              toast.success(`"${trimmed}" added`);
+            }}
+          >
+            <Plus size={15} />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {tradeTypes.map(t => (
+            <div
+              key={t}
+              className="flex items-center gap-1.5 bg-secondary border border-border rounded-full px-3 py-1 text-sm"
+            >
+              <span>{t}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = tradeTypes.filter(x => x !== t);
+                  setTradeTypes(updated);
+                  saveTradeTypes(updated);
+                  toast.success(`"${t}" removed`);
+                }}
+                className="text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
       </SectionCard>
 
       {/* Notifications */}

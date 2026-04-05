@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, CalendarIcon, AlertTriangle } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, CalendarIcon, AlertTriangle, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { TimePicker } from "@/components/ui/TimePicker";
 import { toast } from "sonner";
@@ -157,6 +157,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const { data: workers } = useListWorkers();
   const { data: allJobs = [] } = useListJobs();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
+  const [workerTradeFilter, setWorkerTradeFilter] = useState<string>("all");
+  const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
   const [materials, setMaterials] = useState<MaterialLine[]>([]);
@@ -420,14 +422,11 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
               className="flex h-12 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-base focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Trade</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Plumbing">Plumbing</option>
-              <option value="Carpentry">Carpentry</option>
-              <option value="Painting">Painting</option>
-              <option value="Roofing">Roofing</option>
-              <option value="HVAC">HVAC</option>
-              <option value="Landscaping">Landscaping</option>
-              <option value="General">General Builder</option>
+              {((() => {
+                try { return JSON.parse(localStorage.getItem("tradeTypes") || "[]"); } catch { return []; }
+              })() as string[]).map((t: string) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
             {form.formState.errors.tradeType && (
               <p className="text-destructive text-sm mt-1">{form.formState.errors.tradeType.message}</p>
@@ -814,9 +813,57 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           {/* Assign Workers (booking only) */}
           {jobType === "booking" && workers && workers.length > 0 && (
             <div>
-              <Label hint="Select which tradies to assign to this job">Assign Workers</Label>
+              {(() => {
+                const cap = parseInt(String(form.watch("numTradies") ?? 1)) || 1;
+                const filled = selectedWorkerIds.length;
+                return (
+                  <div className="flex items-center gap-2 mb-1">
+                    <Label hint="Select which tradies to assign to this job">Assign Workers</Label>
+                    <span className={`ml-auto text-xs font-mono px-2 py-0.5 rounded ${filled >= cap ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {filled} / {cap}
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* Filter + sort controls */}
+              {(() => {
+                const tradeTypes = ["all", ...Array.from(new Set(workers.map(w => w.tradeType))).sort()];
+                return (
+                  <div className="flex items-center gap-2 mb-2">
+                    <select
+                      value={workerTradeFilter}
+                      onChange={e => setWorkerTradeFilter(e.target.value)}
+                      className="flex-1 bg-background border border-input rounded-md px-2 py-1.5 text-xs"
+                    >
+                      {tradeTypes.map(t => (
+                        <option key={t} value={t}>{t === "all" ? "All Trade Types" : t}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setWorkerSortDir(d => d === "asc" ? "desc" : "asc")}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-input text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                      title={workerSortDir === "asc" ? "A → Z (click to reverse)" : "Z → A (click to reverse)"}
+                    >
+                      {workerSortDir === "asc" ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
+                      {workerSortDir === "asc" ? "A–Z" : "Z–A"}
+                    </button>
+                  </div>
+                );
+              })()}
+
               <div className="space-y-2">
-                {workers.map(w => {
+                {(workerTradeFilter === "all"
+                  ? [...(workers ?? [])]
+                  : (workers ?? []).filter(w => w.tradeType === workerTradeFilter)
+                )
+                  .sort((a, b) =>
+                    workerSortDir === "asc"
+                      ? a.name.localeCompare(b.name)
+                      : b.name.localeCompare(a.name)
+                  )
+                  .map(w => {
                   const selectedDate = form.watch("scheduledDate");
                   const selectedTime = form.watch("scheduledTime");
                   const estimatedHrs = parseFloat(String(form.watch("estimatedHours") ?? 1)) || 1;
@@ -873,21 +920,28 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                         className={`flex gap-3 p-3 rounded-md border cursor-pointer transition-colors w-full ${
                           selectedWorkerIds.includes(w.id)
                             ? "bg-primary/20 border-primary"
-                            : w.isAvailable
-                            ? "bg-background border-input hover:bg-secondary"
-                            : "bg-background/50 border-input/50 opacity-50 cursor-not-allowed"
+                            : !w.isAvailable || (selectedWorkerIds.length >= (parseInt(String(form.watch("numTradies") ?? 1)) || 1) && !selectedWorkerIds.includes(w.id))
+                            ? "bg-background/50 border-input/50 opacity-40 cursor-not-allowed"
+                            : "bg-background border-input hover:bg-secondary"
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={selectedWorkerIds.includes(w.id)}
-                          disabled={!w.isAvailable}
-                          onChange={e => {
-                            if (e.target.checked) setSelectedWorkerIds(prev => [...prev, w.id]);
-                            else setSelectedWorkerIds(prev => prev.filter(id => id !== w.id));
-                          }}
-                        />
+                        {(() => {
+                          const cap = parseInt(String(form.watch("numTradies") ?? 1)) || 1;
+                          const isSelected = selectedWorkerIds.includes(w.id);
+                          const atCap = selectedWorkerIds.length >= cap && !isSelected;
+                          return (
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={isSelected}
+                              disabled={!w.isAvailable || atCap}
+                              onChange={e => {
+                                if (e.target.checked) setSelectedWorkerIds(prev => [...prev, w.id]);
+                                else setSelectedWorkerIds(prev => prev.filter(id => id !== w.id));
+                              }}
+                            />
+                          );
+                        })()}
 
                         {/* Left: name + dots */}
                         <div className="w-32 shrink-0">
