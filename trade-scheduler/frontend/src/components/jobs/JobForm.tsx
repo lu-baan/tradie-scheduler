@@ -615,15 +615,15 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
               {materials.length > 0 && (
                 <div className="space-y-2">
                   {/* Column headers */}
-                  <div className="grid grid-cols-[1fr_5rem_6rem_2rem] gap-2 text-[10px] uppercase text-muted-foreground font-bold px-1">
+                  <div className="grid grid-cols-[1fr_6rem_5rem_2rem] gap-2 text-[10px] uppercase text-muted-foreground font-bold px-1">
                     <span>Description</span>
+                    <span className="text-right">Unit Price</span>
                     <span className="text-right">Qty</span>
-                    <span className="text-right">Unit $</span>
                     <span />
                   </div>
 
                   {materials.map(m => (
-                    <div key={m.id} className="grid grid-cols-[1fr_5rem_6rem_2rem] gap-2 items-center">
+                    <div key={m.id} className="grid grid-cols-[1fr_6rem_5rem_2rem] gap-2 items-center">
                       <Input
                         value={m.description}
                         onChange={e =>
@@ -633,18 +633,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                         }
                         placeholder="e.g. 10mm conduit (per m)"
                         className="h-8 text-xs"
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={m.qty}
-                        onChange={e =>
-                          setMaterials(prev =>
-                            prev.map(x => x.id === m.id ? { ...x, qty: parseFloat(e.target.value) || 0 } : x)
-                          )
-                        }
-                        className="h-8 text-xs text-right"
                       />
                       <div className="relative">
                         <span className="absolute left-2 top-1.5 text-muted-foreground text-xs">$</span>
@@ -661,6 +649,18 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                           className="h-8 text-xs text-right pl-5"
                         />
                       </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={m.qty}
+                        onChange={e =>
+                          setMaterials(prev =>
+                            prev.map(x => x.id === m.id ? { ...x, qty: parseFloat(e.target.value) || 0 } : x)
+                          )
+                        }
+                        className="h-8 text-xs text-right"
+                      />
                       <button
                         type="button"
                         onClick={() => setMaterials(prev => prev.filter(x => x.id !== m.id))}
