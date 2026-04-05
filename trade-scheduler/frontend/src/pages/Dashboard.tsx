@@ -7,7 +7,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 
 export function Dashboard() {
   const { data: jobs, isLoading } = useListJobs();
-  console.log('jobs:', jobs, 'type:', typeof jobs, 'isArray:', Array.isArray(jobs));
 
   if (isLoading) {
     return <div className="h-[50vh] flex items-center justify-center font-display text-xl animate-pulse text-primary">Loading Systems...</div>;

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export function useGeolocation() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [suburb, setSuburb] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -13,13 +14,27 @@ export function useGeolocation() {
 
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
+      async (position) => {
+        const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        });
+        };
+        setLocation(coords);
         setLoading(false);
         setError(null);
+
+        // Reverse geocode to suburb via backend
+        try {
+          const res = await fetch(
+            `/api/geo/suburb?lat=${coords.lat}&lng=${coords.lng}`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setSuburb(data.suburb ?? null);
+          }
+        } catch {
+          // silently ignore — suburb display is non-critical
+        }
       },
       (err) => {
         setError(err.message);
@@ -29,5 +44,5 @@ export function useGeolocation() {
     );
   };
 
-  return { location, error, loading, requestLocation };
+  return { location, suburb, error, loading, requestLocation };
 }

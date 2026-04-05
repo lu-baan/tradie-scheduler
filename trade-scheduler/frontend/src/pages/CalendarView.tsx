@@ -20,7 +20,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
 import type { UserRole } from "@/App";
 
@@ -730,10 +730,13 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             >
               <div className="flex">
                 <div className="w-10 sm:w-12 shrink-0 bg-background/20">
-                  {HOURS.map(hour => (
+                  {HOURS.map((hour, i) => (
                     <div
                       key={hour}
-                      className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground -mt-2"
+                      className={cn(
+                        "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
+                        i > 0 && "-mt-2"
+                      )}
                       style={{ height: HOUR_H }}
                     >
                       {format(new Date(2000, 0, 1, hour), "ha")}
@@ -804,10 +807,13 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             >
               <div className="flex">
                 <div className="w-10 sm:w-12 shrink-0 bg-background/20">
-                  {HOURS.map(hour => (
+                  {HOURS.map((hour, i) => (
                     <div
                       key={hour}
-                      className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground -mt-2"
+                      className={cn(
+                        "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
+                        i > 0 && "-mt-2"
+                      )}
                       style={{ height: HOUR_H }}
                     >
                       {format(new Date(2000, 0, 1, hour), "ha")}
@@ -830,6 +836,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             <DialogTitle className="font-display text-lg">
               {dayPopup ? format(dayPopup, "EEEE, MMMM d") : ""}
             </DialogTitle>
+            <DialogDescription>Jobs scheduled for this day.</DialogDescription>
           </DialogHeader>
           {dayPopup && (
             <DaySchedulePopup
@@ -851,6 +858,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
           <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job #{selectedJob.id} – {selectedJob.title}</DialogTitle>
+              <DialogDescription>Update the details for this job.</DialogDescription>
             </DialogHeader>
             <JobForm
               initialData={selectedJob}

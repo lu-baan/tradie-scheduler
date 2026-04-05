@@ -355,6 +355,7 @@ export function JobCard({ job }: { job: Job }) {
           <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job #{job.id}</DialogTitle>
+              <DialogDescription>Update the details for this job.</DialogDescription>
             </DialogHeader>
             <JobForm initialData={job} onSuccess={() => setEditOpen(false)} />
           </DialogContent>

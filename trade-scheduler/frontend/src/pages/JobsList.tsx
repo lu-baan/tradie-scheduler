@@ -41,7 +41,7 @@ export function JobsList() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showSortInfo, setShowSortInfo] = useState(false);
 
-  const { location, requestLocation, loading: locLoading } = useGeolocation();
+  const { location, suburb, requestLocation, loading: locLoading } = useGeolocation();
 
   useEffect(() => {
     if ((sortBy === "distance" || sortBy === "smart") && !location) {
@@ -211,7 +211,7 @@ export function JobsList() {
                 {locLoading ? (
                   <><Loader2 className="animate-spin w-4 h-4" /> Locating...</>
                 ) : location ? (
-                  <><MapPin className="w-4 h-4 text-primary" /> Location active</>
+                  <><MapPin className="w-4 h-4 text-primary" /> Location active{suburb ? `: ${suburb}` : ""}</>
                 ) : (
                   <><MapPin className="w-4 h-4 text-destructive" /> Location required.{" "}
                     <button type="button" onClick={requestLocation} className="text-primary underline">Grant Permission</button>
