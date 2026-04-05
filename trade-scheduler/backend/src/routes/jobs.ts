@@ -3,7 +3,7 @@ import { db, jobsTable, workersTable } from "../db";
 import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "../api-zod";
-import { sendJobCompletedSMS } from "../lib/sms";
+import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances } from "../lib/maps";
 
@@ -129,6 +129,13 @@ router.post("/", async (req: Request, res: Response) => {
     }).returning();
 
     const [hydrated] = await hydrateJobs([job]);
+
+    // Send confirmation SMS for new bookings
+    if (job.jobType === "booking" && job.clientPhone) {
+      sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
+        .catch(err => console.error("Booking confirmation SMS failed:", err));
+    }
+
     res.status(201).json(hydrated);
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -237,6 +244,14 @@ router.post("/:id/emergency", async (req: Request, res: Response) => {
           .returning()
       : [];
 
+    // Notify bumped clients via SMS (non-blocking)
+    for (const bumpedJob of bumped) {
+      if (bumpedJob.clientPhone) {
+        sendBumpedSMS(bumpedJob.clientName, bumpedJob.clientPhone, bumpedJob.title, bumpedJob.scheduledDate ?? null)
+          .catch(err => console.error(`Bumped SMS failed for job ${bumpedJob.id}:`, err));
+      }
+    }
+
     const [hydrated] = await hydrateJobs([emergencyJob]);
     res.json({
       emergencyJob: hydrated,
@@ -263,6 +278,13 @@ router.post("/:id/convert-to-booking", async (req: Request, res: Response) => {
       updatedAt: new Date(),
     }).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    // Send booking confirmation SMS
+    if (job.clientPhone) {
+      sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
+        .catch(err => console.error("Booking confirmation SMS failed:", err));
+    }
+
     const [hydrated] = await hydrateJobs([job]);
     res.json(hydrated);
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
