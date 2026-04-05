@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { MailtrapClient } from "mailtrap";
 
 interface InvoiceEmailData {
   clientName: string;
@@ -9,19 +9,20 @@ interface InvoiceEmailData {
   pdfBuffer: Buffer;
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.MAILTRAP_HOST ?? "sandbox.smtp.mailtrap.io",
-  port: parseInt(process.env.MAILTRAP_PORT ?? "587"),
-  auth: {
-    user: process.env.MAILTRAP_USER!,
-    pass: process.env.MAILTRAP_PASS!,
-  },
+const client = new MailtrapClient({
+  token: process.env.MAILTRAP_TOKEN!,
+  testInboxId: 4517515,
 });
 
+const sender = {
+  email: process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au",
+  name: process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler",
+};
+
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
-  await transporter.sendMail({
-    from: `"${process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler"}" <${process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au"}>`,
-    to: `"${data.clientName}" <${data.clientEmail}>`,
+  await client.testing.send({
+    from: sender,
+    to: [{ email: data.clientEmail, name: data.clientName }],
     subject: `Invoice ${data.invoiceNumber} — ${data.jobTitle}`,
     text: `Hi ${data.clientName},\n\nThank you for your business! Please find your invoice attached.\n\nInvoice: ${data.invoiceNumber}\nJob: ${data.jobTitle}\nTotal (inc. GST): $${data.totalWithGst.toFixed(2)}\n\nRegards,\nTrade Scheduler`,
     html: `
@@ -55,9 +56,11 @@ export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
     attachments: [
       {
         filename: `invoice-${data.invoiceNumber}.pdf`,
-        content: data.pdfBuffer,
-        contentType: "application/pdf",
+        content: data.pdfBuffer.toString("base64"),
+        type: "application/pdf",
+        disposition: "attachment",
       },
     ],
+    category: "Invoice",
   });
 }
