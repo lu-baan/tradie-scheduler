@@ -1,5 +1,3 @@
-Here is the complete, unified `README.md` file in a single block, ready to be copied and pasted directly into your repository.
-
 ```markdown
 # Job Sorter / Trade Scheduler
 

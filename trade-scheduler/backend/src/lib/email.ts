@@ -1,5 +1,3 @@
-import { MailtrapClient } from "mailtrap";
-
 interface InvoiceEmailData {
   clientName: string;
   clientEmail: string;
@@ -9,19 +7,15 @@ interface InvoiceEmailData {
   pdfBuffer: Buffer;
 }
 
-const client = new MailtrapClient({
-  token: process.env.MAILTRAP_TOKEN!,
-  testInboxId: 4517515,
-});
-
-const sender = {
-  email: process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au",
-  name: process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler",
-};
-
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
-  await client.testing.send({
-    from: sender,
+  const token = process.env.MAILTRAP_TOKEN;
+  const inboxId = 4517515;
+
+  const body = {
+    from: {
+      email: process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au",
+      name: process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler",
+    },
     to: [{ email: data.clientEmail, name: data.clientName }],
     subject: `Invoice ${data.invoiceNumber} — ${data.jobTitle}`,
     text: `Hi ${data.clientName},\n\nThank you for your business! Please find your invoice attached.\n\nInvoice: ${data.invoiceNumber}\nJob: ${data.jobTitle}\nTotal (inc. GST): $${data.totalWithGst.toFixed(2)}\n\nRegards,\nTrade Scheduler`,
@@ -62,5 +56,19 @@ export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
       },
     ],
     category: "Invoice",
+  };
+
+  const res = await fetch(`https://sandbox.api.mailtrap.io/api/send/${inboxId}`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Mailtrap API error ${res.status}: ${text}`);
+  }
 }

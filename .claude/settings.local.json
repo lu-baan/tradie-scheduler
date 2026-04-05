@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(grep -l \"AuthPage\\\\|Settings\" e:/Job-Sorter/trade-scheduler/frontend/src/pages/*.tsx)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(ls e:/Job-Sorter/trade-scheduler/backend/.env*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"require\\('crypto'\\); console.log\\('crypto ok'\\)\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"require\\('./node_modules/multer'\\)\")"
     ]
   }
 }
