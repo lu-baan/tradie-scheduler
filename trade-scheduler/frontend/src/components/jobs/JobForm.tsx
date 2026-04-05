@@ -11,6 +11,7 @@ import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, Valid
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, CalendarIcon, AlertTriangle } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -783,7 +784,13 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             </div>
             <div>
               <Label hint="Estimated start time for the job. Defaults to 8:00 AM if not set.">Start Time</Label>
-              <Input type="time" className="h-12" {...form.register("scheduledTime")} />
+              <Controller
+                name="scheduledTime"
+                control={form.control}
+                render={({ field }) => (
+                  <TimePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
+              />
             </div>
             <div>
               <Label hint="Computed from start time + estimated hours">Est. End Time</Label>
