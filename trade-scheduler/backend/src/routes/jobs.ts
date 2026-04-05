@@ -4,6 +4,7 @@ import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "../api-zod";
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
+import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances } from "../lib/maps";
 
@@ -185,11 +186,46 @@ router.put("/:id", async (req: Request, res: Response) => {
     const [job] = await db.update(jobsTable).set(updateData).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
 
-    // Send SMS after DB update, non-blocking
-    if (isNowCompleted && job.clientPhone) {
+    // Send SMS + invoice email after DB update, non-blocking
+    if (isNowCompleted) {
       const invoiceNum = (updateData.invoiceNumber as string) || job.invoiceNumber || generateInvoiceNumber(id);
-      sendJobCompletedSMS(job.clientName, job.clientPhone, job.title, invoiceNum)
-        .catch(err => console.error("SMS send failed:", err));
+
+      if (job.clientPhone) {
+        sendJobCompletedSMS(job.clientName, job.clientPhone, job.title, invoiceNum)
+          .catch(err => console.error("SMS send failed:", err));
+      }
+
+      if (job.clientEmail) {
+        // Build invoice data to generate PDF attachment
+        const [hydratedForEmail] = await hydrateJobs([job]);
+        const gst = Math.round(job.price * 0.1 * 100) / 100;
+        generateInvoicePDF({
+          invoiceNumber: invoiceNum,
+          jobTitle: job.title,
+          clientName: job.clientName,
+          clientPhone: job.clientPhone ?? null,
+          clientEmail: job.clientEmail,
+          address: job.address,
+          tradeType: job.tradeType,
+          estimatedHours: job.estimatedHours,
+          price: job.price,
+          gst,
+          totalWithGst: Math.round((job.price + gst) * 100) / 100,
+          scheduledDate: job.scheduledDate ?? null,
+          completedDate: job.completedDate ?? null,
+          notes: job.notes ?? null,
+          assignedWorkers: hydratedForEmail.assignedWorkers,
+        }).then(pdfBuffer =>
+          sendInvoiceEmail({
+            clientName: job.clientName,
+            clientEmail: job.clientEmail!,
+            jobTitle: job.title,
+            invoiceNumber: invoiceNum,
+            totalWithGst: Math.round((job.price + gst) * 100) / 100,
+            pdfBuffer,
+          })
+        ).catch(err => console.error("Invoice email failed:", err));
+      }
     }
 
     const [hydrated] = await hydrateJobs([job]);
