@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, workersTable } from "../db";
+import { usersTable } from "../db/schema/users";
 import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateWorkerBody } from "../api-zod";
@@ -9,7 +10,20 @@ const router: IRouter = Router();
 router.get("/", async (_req: Request, res: Response) => {
   try {
     const workers = await db.select().from(workersTable);
-    res.json(workers.map(w => ({ ...w, createdAt: w.createdAt.toISOString() })));
+
+    // Attach loginNumber from users table for workers that have an account
+    const users = await db
+      .select({ workerId: usersTable.workerId, loginNumber: usersTable.loginNumber })
+      .from(usersTable)
+      .where(eq(usersTable.role, "worker"));
+
+    const loginMap = new Map(users.map(u => [u.workerId, u.loginNumber]));
+
+    res.json(workers.map(w => ({
+      ...w,
+      createdAt: w.createdAt.toISOString(),
+      loginNumber: loginMap.get(w.id) ?? null,
+    })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });

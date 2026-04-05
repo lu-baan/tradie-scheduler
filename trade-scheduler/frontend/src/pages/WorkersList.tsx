@@ -257,9 +257,15 @@ export function WorkersList() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-display text-xl font-bold text-foreground">{worker.name}</h3>
-                    <span className="font-mono text-xs bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-bold" title="Worker ID — used as login reference">
-                      ID:{worker.id}
-                    </span>
+                    {(worker as any).loginNumber ? (
+                      <span className="font-mono text-xs bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-bold" title="Login number">
+                        {(worker as any).loginNumber}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-xs bg-secondary text-muted-foreground border border-border px-1.5 py-0.5 rounded" title="No account linked">
+                        No login
+                      </span>
+                    )}
                   </div>
                   <p className="text-primary text-sm font-semibold">{worker.tradeType}</p>
                 </div>
