@@ -36,7 +36,12 @@ const SORT_DEFAULT_DIR: Record<ListJobsSortBy, SortDir> = {
 
 export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
   const userRoleFromSession = (sessionStorage.getItem("ts2_role") as UserRole) ?? userRole;
-  const workerId = (() => { const v = sessionStorage.getItem("ts2_worker_id"); return v ? parseInt(v) : null; })();
+  const workerId = (() => {
+    const v = sessionStorage.getItem("ts2_worker_id");
+    if (!v || v === "" || v === "null") return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
+  })();
   const [sortBy, setSortBy] = useState<ListJobsSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [priceWeight, setPriceWeight] = useState(0.5);
@@ -72,11 +77,13 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
   const getFilteredJobs = (tab: typeof filterType) => {
     let all = jobs || [];
     // Workers only see their assigned jobs
-    if (userRoleFromSession === "worker" && workerId) {
-      all = all.filter(j =>
-        (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
-        (j as any).assignedWorkerIds?.includes(workerId)
-      );
+    if (userRoleFromSession === "worker") {
+      all = workerId
+        ? all.filter(j =>
+            (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
+            (j as any).assignedWorkerIds?.includes(workerId)
+          )
+        : []; // worker with no linked workerId sees nothing
     }
     let result: typeof all;
     if (tab === "all") result = all.filter(job => job.status !== "completed" && job.status !== "cancelled");

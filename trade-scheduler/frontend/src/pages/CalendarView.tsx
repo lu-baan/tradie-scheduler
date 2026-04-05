@@ -487,7 +487,9 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   // For workers: filter to only their assigned jobs
   const workerId = (() => {
     const v = sessionStorage.getItem("ts2_worker_id");
-    return v ? parseInt(v) : null;
+    if (!v || v === "" || v === "null") return null;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? null : n;
   })();
 
   const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -513,10 +515,13 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   }, [viewMode]);
 
   // Workers only see their own jobs; admins can filter by worker
-  const baseJobs = userRole === "worker" && workerId
-    ? jobs.filter(j =>
-        (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
-        (j as any).assignedWorkerIds?.includes(workerId)
+  const baseJobs = userRole === "worker"
+    ? (workerId
+        ? jobs.filter(j =>
+            (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
+            (j as any).assignedWorkerIds?.includes(workerId)
+          )
+        : [] // worker with no linked workerId sees nothing
       )
     : jobs;
 
