@@ -62,10 +62,10 @@ function getDayHours(jobs: any[], date: Date): number {
 }
 
 function jobColorClass(job: any): string {
-  if (job.isEmergency) return "bg-destructive/25 border-destructive/50 text-red-200 hover:bg-destructive/35";
-  if (job.status === "completed") return "bg-green-500/20 border-green-500/30 text-green-200 hover:bg-green-500/30";
-  if (job.jobType === "quote") return "bg-blue-500/20 border-blue-500/30 text-blue-200 hover:bg-blue-500/30";
-  return "bg-primary/20 border-primary/40 text-primary-foreground hover:bg-primary/30";
+  if (job.isEmergency) return "bg-destructive/25 border-destructive/50 text-foreground hover:bg-destructive/35";
+  if (job.status === "completed") return "bg-green-500/20 border-green-500/30 text-foreground hover:bg-green-500/30";
+  if (job.jobType === "quote") return "bg-blue-500/20 border-blue-500/30 text-foreground hover:bg-blue-500/30";
+  return "bg-primary/20 border-primary/40 text-foreground hover:bg-primary/30";
 }
 
 /** Find the next free block of ≥1h in the workday */
@@ -102,8 +102,8 @@ function JobDots({ count, active = false }: { count: number; active?: boolean })
           className={cn(
             "w-1 h-1 rounded-full transition-colors",
             i < count
-              ? active ? "bg-white" : "bg-primary"
-              : active ? "bg-white/30" : "bg-white/10"
+              ? active ? "bg-primary-foreground" : "bg-primary"
+              : active ? "bg-primary-foreground/30" : "bg-muted-foreground/20"
           )}
         />
       ))}
@@ -137,7 +137,7 @@ function MiniCalendar({
         <button
           type="button"
           onClick={() => setMonth(m => subMonths(m, 1))}
-          className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft size={13} />
         </button>
@@ -147,7 +147,7 @@ function MiniCalendar({
         <button
           type="button"
           onClick={() => setMonth(m => addMonths(m, 1))}
-          className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight size={13} />
         </button>
@@ -177,7 +177,7 @@ function MiniCalendar({
                 !inMonth && "opacity-25",
                 selected && "bg-primary text-primary-foreground rounded-md",
                 !selected && today && "text-primary font-bold",
-                !selected && inMonth && "hover:bg-white/10"
+                !selected && inMonth && "hover:bg-muted"
               )}
             >
               <span className="leading-4 w-5 text-center">{format(day, "d")}</span>
@@ -206,12 +206,12 @@ function TimeColumn({
   return (
     <div className="relative" style={{ height: HOURS.length * HOUR_H }}>
       {HOURS.map((_, i) => (
-        <div key={i} className="absolute w-full border-t border-white/[0.06]" style={{ top: i * HOUR_H }} />
+        <div key={i} className="absolute w-full border-t border-border" style={{ top: i * HOUR_H }} />
       ))}
       {HOURS.map((_, i) => (
         <div
           key={`h${i}`}
-          className="absolute w-full border-t border-white/[0.03]"
+          className="absolute w-full border-t border-border/40"
           style={{ top: i * HOUR_H + HOUR_H / 2 }}
         />
       ))}
@@ -293,7 +293,7 @@ function DaySchedulePopup({
             {totalHours}h / 8h ({pct}%)
           </span>
         </div>
-        <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-all",
@@ -340,7 +340,7 @@ function DaySchedulePopup({
 
       {/* Next free slot */}
       {nextSlot && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-400">
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 text-xs text-green-600">
           Next free slot: <span className="font-semibold">{nextSlot}</span>
         </div>
       )}
@@ -457,7 +457,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   "w-full text-left px-3 py-2 rounded-md text-xs font-display uppercase tracking-wide transition-all",
                   viewMode === m
                     ? "bg-primary text-primary-foreground shadow-[0_0_10px_rgba(234,88,12,0.3)]"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 {m}
@@ -480,7 +480,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   "w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2",
                   workerFilter === "all"
                     ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <Users size={11} />
@@ -495,7 +495,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                     "w-full text-left px-3 py-1.5 rounded-md text-xs transition-all",
                     workerFilter === w.id
                       ? "bg-primary/20 text-primary border border-primary/30 font-semibold"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                 >
                   <span className="truncate block">{w.name}</span>
@@ -555,7 +555,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   "px-2 sm:px-2.5 py-1 rounded text-[11px] font-display uppercase tracking-wide transition-all",
                   viewMode === m
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-white/10"
+                    : "text-muted-foreground hover:bg-muted"
                 )}
               >
                 {m.charAt(0).toUpperCase() + m.slice(1)}
@@ -601,7 +601,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                         "border-r border-b border-border last:border-r-0 p-1 sm:p-1.5 cursor-pointer transition-colors overflow-hidden",
                         !inMonth && "bg-background/20 opacity-40 pointer-events-none",
                         today && "bg-primary/5",
-                        inMonth && "hover:bg-white/[0.03]"
+                        inMonth && "hover:bg-muted/40"
                       )}
                     >
                       <div className="flex items-start justify-between mb-0.5 sm:mb-1">
@@ -621,7 +621,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                                   key={i}
                                   className={cn(
                                     "w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full",
-                                    i < dots ? "bg-primary" : "bg-white/10"
+                                    i < dots ? "bg-primary" : "bg-muted-foreground/20"
                                   )}
                                 />
                               ))}
@@ -688,7 +688,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                 return (
                   <div
                     key={day.toISOString()}
-                    className="flex-1 py-1.5 sm:py-2 text-center border-l border-border cursor-pointer hover:bg-white/5 transition-colors min-w-0"
+                    className="flex-1 py-1.5 sm:py-2 text-center border-l border-border cursor-pointer hover:bg-muted transition-colors min-w-0"
                     onClick={() => setDayPopup(day)}
                   >
                     <div className="text-[8px] sm:text-[9px] font-display uppercase text-muted-foreground tracking-wider">

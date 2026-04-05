@@ -1,7 +1,7 @@
 import { useListJobs } from "@/lib/api-client";
 import { formatAUD } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import { JobCard } from "@/components/jobs/JobCard";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -17,7 +17,10 @@ export function Dashboard() {
   const pendingJobs = (allJobs ?? []).filter(j => j.status === "pending" || j.status === "confirmed");
   const emergencyJobs = allJobs.filter(j => j.isEmergency && j.status !== "completed");
   
-  const revenue = completedJobs.reduce((acc, job) => acc + job.price, 0);
+  const activeJobs = allJobs.filter(j => j.status !== "completed" && j.status !== "cancelled");
+  const totalRevenue = completedJobs.reduce((acc, job) => acc + job.price, 0);
+  const predictedRevenue = activeJobs.reduce((acc, job) => acc + job.price, 0);
+  const expectedRevenue = totalRevenue + predictedRevenue;
 
   // Mock chart data for visual appeal based on job types
   const chartData = [
@@ -36,7 +39,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-white/10 hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-start">
             <div>
@@ -73,11 +76,27 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-card to-primary/5 border-white/10 shadow-[0_0_30px_rgba(234,88,12,0.1)] hover:border-primary transition-colors">
+        <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-white/10 hover:border-green-500/50 transition-colors">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-muted-foreground font-display uppercase tracking-widest text-xs mb-2">Total Revenue</p>
-              <h3 className="text-4xl font-display font-bold text-primary">{formatAUD(revenue)}</h3>
+              <h3 className="text-3xl font-display font-bold text-green-500">{formatAUD(totalRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Completed jobs only</p>
+            </div>
+            <div className="p-3 bg-green-500/10 rounded-lg text-green-500">
+              <CheckCircle2 size={24} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-card to-primary/5 border-white/10 shadow-[0_0_30px_rgba(234,88,12,0.1)] hover:border-primary transition-colors">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-muted-foreground font-display uppercase tracking-widest text-xs mb-2">Expected Revenue</p>
+              <h3 className="text-3xl font-display font-bold text-primary">{formatAUD(expectedRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                + {formatAUD(predictedRevenue)} predicted
+              </p>
             </div>
             <div className="p-3 bg-primary/20 rounded-lg text-primary">
               <TrendingUp size={24} />

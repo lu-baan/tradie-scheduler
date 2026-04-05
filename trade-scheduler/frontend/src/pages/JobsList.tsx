@@ -37,7 +37,7 @@ export function JobsList() {
   const [sortBy, setSortBy] = useState<ListJobsSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [priceWeight, setPriceWeight] = useState(0.5);
-  const [filterType, setFilterType] = useState<"all" | "quote" | "booking" | "completed">("all");
+  const [filterType, setFilterType] = useState<"all" | "quote" | "booking" | "completed" | "cancelled">("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showSortInfo, setShowSortInfo] = useState(false);
 
@@ -69,9 +69,10 @@ export function JobsList() {
   const getFilteredJobs = (tab: typeof filterType) => {
     const all = jobs || [];
     let result: typeof all;
-    if (tab === "all") result = all.filter(job => job.status !== "completed");
+    if (tab === "all") result = all.filter(job => job.status !== "completed" && job.status !== "cancelled");
     else if (tab === "completed") result = all.filter(job => job.status === "completed");
-    else result = all.filter(job => job.jobType === tab && job.status !== "completed");
+    else if (tab === "cancelled") result = all.filter(job => job.status === "cancelled");
+    else result = all.filter(job => job.jobType === tab && job.status !== "completed" && job.status !== "cancelled");
 
     return sortDir === "asc" ? result : [...result].reverse();
   };
@@ -102,13 +103,13 @@ export function JobsList() {
       <div className="bg-card border border-white/5 rounded-xl p-3 sm:p-4 shadow-xl">
         <Tabs.Root value={filterType} onValueChange={v => setFilterType(v as any)}>
           <Tabs.List className="flex overflow-x-auto border-b border-border mb-4 sm:mb-6 no-scrollbar">
-            {["all", "quote", "booking", "completed"].map(tab => (
+            {["all", "quote", "booking", "completed", "cancelled"].map(tab => (
               <Tabs.Trigger
                 key={tab}
                 value={tab}
                 className="px-3 sm:px-6 py-2.5 sm:py-3 font-display uppercase tracking-wider font-semibold text-xs sm:text-sm transition-colors data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-muted-foreground hover:text-foreground whitespace-nowrap"
               >
-                {tab === "all" ? "Active Jobs" : tab === "completed" ? "Completed" : tab + "s"}
+                {tab === "all" ? "Active Jobs" : tab === "completed" ? "Completed" : tab === "cancelled" ? "Cancelled" : tab + "s"}
               </Tabs.Trigger>
             ))}
           </Tabs.List>
@@ -222,7 +223,7 @@ export function JobsList() {
           </div>
 
           {/* Job cards */}
-          {(["all", "quote", "booking", "completed"] as const).map(tab => {
+          {(["all", "quote", "booking", "completed", "cancelled"] as const).map(tab => {
             const tabJobs = getFilteredJobs(tab);
             return (
               <Tabs.Content key={tab} value={tab} className="outline-none">

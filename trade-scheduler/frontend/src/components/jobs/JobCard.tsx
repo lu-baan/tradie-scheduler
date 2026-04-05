@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText,
-  Check, Trash2, Edit2, CheckCircle2, Car,
+  Check, Trash2, Edit2, CheckCircle2, Car, XCircle,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -73,6 +73,7 @@ export function JobCard({ job }: { job: Job }) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [emergencyConfirmOpen, setEmergencyConfirmOpen] = useState(false);
   const [resolveEmergencyOpen, setResolveEmergencyOpen] = useState(false);
 
@@ -127,6 +128,16 @@ export function JobCard({ job }: { job: Job }) {
         toast.success("Emergency resolved", { description: `"${job.title}" returned to normal status.` });
       },
       onError: () => toast.error("Failed to resolve emergency"),
+    },
+  });
+
+  const cancelMutation = useUpdateJob({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+        toast.success("Job cancelled", { description: `"${job.title}" has been cancelled.` });
+      },
+      onError: () => toast.error("Failed to cancel job"),
     },
   });
 
@@ -329,6 +340,17 @@ export function JobCard({ job }: { job: Job }) {
                       <CheckCircle2 size={13} className="mr-1" /> Complete
                     </Button>
                   )}
+                  {!isCompleted && !isCancelled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-gray-500 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                      onClick={() => setCancelConfirmOpen(true)}
+                      disabled={cancelMutation.isPending}
+                    >
+                      <XCircle size={13} className="mr-1" /> Cancel
+                    </Button>
+                  )}
                   {!job.isEmergency && !isCompleted && !isCancelled && (
                     <Button
                       size="sm"
@@ -415,6 +437,16 @@ export function JobCard({ job }: { job: Job }) {
         onConfirm={() =>
           completeMutation.mutate({ id: job.id, data: { status: "completed", completedDate: new Date().toISOString() } })
         }
+      />
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        onOpenChange={setCancelConfirmOpen}
+        title="Cancel Job"
+        description={`Are you sure you want to cancel "${job.title}"? The job will be moved to the Cancelled tab.`}
+        confirmLabel="Cancel Job"
+        variant="destructive"
+        isPending={cancelMutation.isPending}
+        onConfirm={() => cancelMutation.mutate({ id: job.id, data: { status: "cancelled" } })}
       />
       <ConfirmDialog
         open={emergencyConfirmOpen}
