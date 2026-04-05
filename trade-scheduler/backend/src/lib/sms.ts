@@ -5,6 +5,13 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN!
 );
 
+function toE164AU(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("61")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+61${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
 export async function sendJobCompletedSMS(
   clientName: string,
   clientPhone: string,
@@ -16,7 +23,7 @@ export async function sendJobCompletedSMS(
   await client.messages.create({
     body: message,
     from: process.env.TWILIO_PHONE_NUMBER!,
-    to: clientPhone,
+    to: toE164AU(clientPhone),
   });
 }
 
@@ -34,7 +41,7 @@ export async function sendBookingConfirmationSMS(
   await client.messages.create({
     body: message,
     from: process.env.TWILIO_PHONE_NUMBER!,
-    to: clientPhone,
+    to: toE164AU(clientPhone),
   });
 }
 
@@ -52,6 +59,6 @@ export async function sendBumpedSMS(
   await client.messages.create({
     body: message,
     from: process.env.TWILIO_PHONE_NUMBER!,
-    to: clientPhone,
+    to: toE164AU(clientPhone),
   });
 }
