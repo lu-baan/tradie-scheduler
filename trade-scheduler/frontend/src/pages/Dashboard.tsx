@@ -2,6 +2,7 @@ import { useListJobs } from "@/lib/api-client";
 import { formatAUD } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+
 import { JobCard } from "@/components/jobs/JobCard";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -20,7 +21,6 @@ export function Dashboard() {
   const activeJobs = allJobs.filter(j => j.status !== "completed" && j.status !== "cancelled");
   const totalRevenue = completedJobs.reduce((acc, job) => acc + job.price, 0);
   const predictedRevenue = activeJobs.reduce((acc, job) => acc + job.price, 0);
-  const expectedRevenue = totalRevenue + predictedRevenue;
 
   // Mock chart data for visual appeal based on job types
   const chartData = [
@@ -39,7 +39,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-white/10 hover:border-primary/50 transition-colors">
           <div className="flex justify-between items-start">
             <div>
@@ -76,27 +76,12 @@ export function Dashboard() {
           </div>
         </Card>
 
-        <Card className="p-6 bg-gradient-to-br from-card to-card/50 border-white/10 hover:border-green-500/50 transition-colors">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-muted-foreground font-display uppercase tracking-widest text-xs mb-2">Total Revenue</p>
-              <h3 className="text-3xl font-display font-bold text-green-500">{formatAUD(totalRevenue)}</h3>
-              <p className="text-[10px] text-muted-foreground mt-1">Completed jobs only</p>
-            </div>
-            <div className="p-3 bg-green-500/10 rounded-lg text-green-500">
-              <CheckCircle2 size={24} />
-            </div>
-          </div>
-        </Card>
-
         <Card className="p-6 bg-gradient-to-br from-card to-primary/5 border-white/10 shadow-[0_0_30px_rgba(234,88,12,0.1)] hover:border-primary transition-colors">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-muted-foreground font-display uppercase tracking-widest text-xs mb-2">Expected Revenue</p>
-              <h3 className="text-3xl font-display font-bold text-primary">{formatAUD(expectedRevenue)}</h3>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                + {formatAUD(predictedRevenue)} predicted
-              </p>
+              <p className="text-muted-foreground font-display uppercase tracking-widest text-xs mb-2">Total Revenue</p>
+              <h3 className="text-3xl font-display font-bold text-primary">{formatAUD(totalRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Completed jobs only</p>
             </div>
             <div className="p-3 bg-primary/20 rounded-lg text-primary">
               <TrendingUp size={24} />
@@ -133,18 +118,25 @@ export function Dashboard() {
 
         <div>
           <Card className="p-6 border-white/5 sticky top-24">
-            <h3 className="font-display text-xl font-bold mb-6 border-b border-border pb-4">Activity Breakdown</h3>
-            <div className="h-64">
+            <h3 className="font-display text-xl font-bold mb-4 border-b border-border pb-4">Activity Breakdown</h3>
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <XAxis dataKey="name" stroke="#666" tick={{fontFamily: 'Inter', fontSize: 12}} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
                     itemStyle={{ color: '#ea580c' }}
                   />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Predicted Revenue</span>
+                <span className="font-display font-bold text-primary">{formatAUD(predictedRevenue)}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">From all active (non-completed) jobs</p>
             </div>
           </Card>
         </div>
