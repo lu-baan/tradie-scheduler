@@ -5,24 +5,19 @@ import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "../api-zod";
 import { sendJobCompletedSMS } from "../lib/sms";
 import { generateInvoicePDF } from "../lib/pdf";
+import { getDrivingDistances } from "../lib/maps";
 
 const router: IRouter = Router();
-
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function parseWorkerIds(raw: string): number[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
-async function hydrateJobs(jobs: (typeof jobsTable.$inferSelect)[], userLat?: number, userLng?: number) {
+async function hydrateJobs(
+  jobs: (typeof jobsTable.$inferSelect)[],
+  userLat?: number,
+  userLng?: number,
+) {
   const allWorkerIds = [...new Set(jobs.flatMap(j => parseWorkerIds(j.assignedWorkerIds)))];
   const workersMap: Record<number, typeof workersTable.$inferSelect> = {};
   if (allWorkerIds.length > 0) {
@@ -30,23 +25,35 @@ async function hydrateJobs(jobs: (typeof jobsTable.$inferSelect)[], userLat?: nu
     workers.forEach(w => { workersMap[w.id] = w; });
   }
 
+  // Fetch real driving distances (toll-free, suburb → job address) via Google Maps
+  let driveMap = new Map<number, { distanceKm: number | null; durationMinutes: number | null }>();
+  if (userLat !== undefined && userLng !== undefined) {
+    try {
+      driveMap = await getDrivingDistances(userLat, userLng, jobs.map(j => ({
+        id: j.id,
+        address: j.address,
+        latitude: j.latitude,
+        longitude: j.longitude,
+      })));
+    } catch (err) {
+      console.error("[jobs] getDrivingDistances failed:", err);
+    }
+  }
+
   return jobs.map(job => {
     const ids = parseWorkerIds(job.assignedWorkerIds);
-    const distanceKm = (userLat !== undefined && userLng !== undefined && job.latitude && job.longitude)
-      ? Math.round(haversineKm(userLat, userLng, job.latitude, job.longitude) * 10) / 10
-      : null;
-    const travelTimeMinutes = distanceKm !== null ? Math.round((distanceKm / 50) * 60) : null;
+    const drive = driveMap.get(job.id) ?? { distanceKm: null, durationMinutes: null };
     return {
       ...job,
       validityCode: job.validityCode ?? 2,
       numTradies: job.numTradies ?? 1,
       assignedWorkerIds: ids,
       assignedWorkers: ids.map(id => workersMap[id]).filter(Boolean).map(w => ({
-        ...w, createdAt: w.createdAt.toISOString()
+        ...w, createdAt: w.createdAt.toISOString(),
       })),
-      distanceKm,
+      distanceKm: drive.distanceKm,
+      travelTimeMinutes: drive.durationMinutes,
       smartScore: null as number | null,
-      travelTimeMinutes,
       createdAt: job.createdAt.toISOString(),
       updatedAt: job.updatedAt.toISOString(),
     };

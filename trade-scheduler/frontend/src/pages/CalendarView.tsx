@@ -135,6 +135,7 @@ function MiniCalendar({
     <div className="select-none">
       <div className="flex items-center justify-between mb-2">
         <button
+          type="button"
           onClick={() => setMonth(m => subMonths(m, 1))}
           className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -144,6 +145,7 @@ function MiniCalendar({
           {format(month, "MMM yyyy")}
         </span>
         <button
+          type="button"
           onClick={() => setMonth(m => addMonths(m, 1))}
           className="p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -167,6 +169,7 @@ function MiniCalendar({
           const dots = userRole === "worker" && inMonth ? getDots(jobs, day) : 0;
           return (
             <button
+              type="button"
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
               className={cn(
@@ -267,12 +270,10 @@ function DaySchedulePopup({
   day,
   jobs,
   onViewFull,
-  onClose,
 }: {
   day: Date;
   jobs: any[];
   onViewFull: () => void;
-  onClose: () => void;
 }) {
   const dayJobs = jobs
     .filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day))
@@ -420,7 +421,10 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   const openJob = (job: any) => { setSelectedJob(job); setEditOpen(true); };
 
   return (
-    <div className="flex animate-in fade-in" style={{ height: "calc(100vh - 130px)", minHeight: 600 }}>
+    <div
+      className="flex animate-in fade-in overflow-hidden rounded-lg"
+      style={{ height: "calc(100dvh - 130px)", minHeight: 480 }}
+    >
 
       {/* ── Left Sidebar ── */}
       <div className="hidden lg:flex w-52 shrink-0 flex-col gap-4 p-4 border-r border-border overflow-y-auto bg-card/30">
@@ -429,7 +433,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
           <p className="text-[11px] text-muted-foreground mt-0.5">Operations calendar</p>
         </div>
 
-        <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="w-full text-xs h-8">
+        <Button type="button" variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="w-full text-xs h-8">
           Today
         </Button>
 
@@ -446,6 +450,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
           <div className="space-y-1">
             {(["month", "week", "day"] as ViewMode[]).map(m => (
               <button
+                type="button"
                 key={m}
                 onClick={() => setViewMode(m)}
                 className={cn(
@@ -469,6 +474,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             </p>
             <div className="space-y-1">
               <button
+                type="button"
                 onClick={() => setWorkerFilter("all")}
                 className={cn(
                   "w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2",
@@ -482,6 +488,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               </button>
               {workers.map(w => (
                 <button
+                  type="button"
                   key={w.id}
                   onClick={() => setWorkerFilter(w.id)}
                   className={cn(
@@ -502,6 +509,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
         {/* Active filter pill */}
         {workerFilter !== "all" && (
           <button
+            type="button"
             onClick={() => setWorkerFilter("all")}
             className="flex items-center gap-1.5 text-[10px] bg-primary/10 border border-primary/20 text-primary rounded-full px-2.5 py-1 hover:bg-primary/20 transition-colors self-start"
           >
@@ -512,37 +520,39 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
       </div>
 
       {/* ── Main Calendar ── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-card border-l border-border">
+      <div className="flex-1 flex flex-col overflow-hidden bg-card border-l border-border min-w-0">
 
         {/* Header bar */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border bg-card/60">
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8">
+        <div className="shrink-0 flex items-center justify-between px-2 sm:px-4 py-2 border-b border-border bg-card/60 gap-2 flex-wrap">
+          <div className="flex items-center gap-1 min-w-0">
+            <Button type="button" variant="ghost" size="icon" onClick={goPrev} className="h-8 w-8 shrink-0">
               <ChevronLeft size={15} />
             </Button>
-            <h2 className="font-display font-bold text-base uppercase tracking-wide min-w-[200px] text-center">
+            <h2 className="font-display font-bold text-xs sm:text-base uppercase tracking-wide text-center truncate max-w-[140px] sm:max-w-none">
               {headerLabel}
             </h2>
-            <Button variant="ghost" size="icon" onClick={goNext} className="h-8 w-8">
+            <Button type="button" variant="ghost" size="icon" onClick={goNext} className="h-8 w-8 shrink-0">
               <ChevronRight size={15} />
             </Button>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={() => setCurrentDate(new Date())}
-              className="hidden lg:flex text-xs h-7 mr-2"
+              className="hidden lg:flex text-xs h-7 mr-1"
             >
               Today
             </Button>
             {(["month", "week", "day"] as ViewMode[]).map(m => (
               <button
+                type="button"
                 key={m}
                 onClick={() => setViewMode(m)}
                 className={cn(
-                  "px-2.5 py-1 rounded text-[11px] font-display uppercase tracking-wide transition-all",
+                  "px-2 sm:px-2.5 py-1 rounded text-[11px] font-display uppercase tracking-wide transition-all",
                   viewMode === m
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-white/10"
@@ -556,127 +566,138 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
         {/* ── Month View ── */}
         {viewMode === "month" && (
-          <div className="flex-1 overflow-y-auto flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {/* Day-of-week header — sticky */}
             <div className="grid grid-cols-7 shrink-0 border-b border-border bg-background/40">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
                 <div
                   key={d}
-                  className="py-2 text-center text-[10px] font-display uppercase text-muted-foreground font-bold tracking-wider border-r border-border last:border-r-0"
+                  className="py-2 text-center text-[9px] sm:text-[10px] font-display uppercase text-muted-foreground font-bold tracking-wider border-r border-border last:border-r-0"
                 >
-                  {d}
+                  <span className="hidden sm:inline">{d}</span>
+                  <span className="sm:hidden">{d.charAt(0)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="flex-1 grid grid-cols-7 auto-rows-fr">
-              {monthDays.map(day => {
-                const dayJobs = filteredJobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day));
-                const inMonth = isSameMonth(day, currentDate);
-                const today = isToday(day);
-                const dots = userRole === "worker" ? getDots(filteredJobs, day) : 0;
-                const dayHours = getDayHours(filteredJobs, day);
+            {/* Month grid — scrollable */}
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
+              <div
+                className="grid grid-cols-7"
+                style={{ gridAutoRows: "minmax(80px, 1fr)" }}
+              >
+                {monthDays.map(day => {
+                  const dayJobs = filteredJobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day));
+                  const inMonth = isSameMonth(day, currentDate);
+                  const today = isToday(day);
+                  const dots = userRole === "worker" ? getDots(filteredJobs, day) : 0;
+                  const dayHours = getDayHours(filteredJobs, day);
 
-                return (
-                  <div
-                    key={day.toISOString()}
-                    onClick={() => inMonth && setDayPopup(day)}
-                    className={cn(
-                      "border-r border-b border-border last:border-r-0 p-1.5 cursor-pointer transition-colors min-h-[90px]",
-                      !inMonth && "bg-background/20 opacity-40 pointer-events-none",
-                      today && "bg-primary/5",
-                      inMonth && "hover:bg-white/[0.03]"
-                    )}
-                  >
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex flex-col items-start">
-                        <span
-                          className={cn(
-                            "text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full",
-                            today ? "bg-primary text-primary-foreground" : "text-foreground"
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      onClick={() => inMonth && setDayPopup(day)}
+                      className={cn(
+                        "border-r border-b border-border last:border-r-0 p-1 sm:p-1.5 cursor-pointer transition-colors overflow-hidden",
+                        !inMonth && "bg-background/20 opacity-40 pointer-events-none",
+                        today && "bg-primary/5",
+                        inMonth && "hover:bg-white/[0.03]"
+                      )}
+                    >
+                      <div className="flex items-start justify-between mb-0.5 sm:mb-1">
+                        <div className="flex flex-col items-start">
+                          <span
+                            className={cn(
+                              "text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full",
+                              today ? "bg-primary text-primary-foreground" : "text-foreground"
+                            )}
+                          >
+                            {format(day, "d")}
+                          </span>
+                          {userRole === "worker" && inMonth && (
+                            <div className="flex gap-0.5 mt-0.5 pl-0.5">
+                              {[0, 1, 2, 3].map(i => (
+                                <div
+                                  key={i}
+                                  className={cn(
+                                    "w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full",
+                                    i < dots ? "bg-primary" : "bg-white/10"
+                                  )}
+                                />
+                              ))}
+                            </div>
                           )}
-                        >
-                          {format(day, "d")}
-                        </span>
-                        {userRole === "worker" && inMonth && (
-                          <div className="flex gap-0.5 mt-0.5 pl-0.5">
-                            {[0, 1, 2, 3].map(i => (
-                              <div
-                                key={i}
-                                className={cn(
-                                  "w-1.5 h-1.5 rounded-full",
-                                  i < dots ? "bg-primary" : "bg-white/10"
-                                )}
-                              />
-                            ))}
+                        </div>
+                        {/* Hour count badge */}
+                        {dayHours > 0 && inMonth && (
+                          <span
+                            className={cn(
+                              "text-[8px] sm:text-[9px] font-bold px-1 py-0.5 rounded",
+                              dayHours >= 8
+                                ? "bg-destructive/20 text-destructive"
+                                : dayHours >= 6
+                                ? "bg-orange-500/20 text-orange-400"
+                                : "bg-primary/15 text-primary"
+                            )}
+                          >
+                            {dayHours}h
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-0.5">
+                        {dayJobs.slice(0, 2).map(job => (
+                          <div
+                            key={job.id}
+                            onClick={e => { e.stopPropagation(); openJob(job); }}
+                            className={cn(
+                              "text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded truncate font-semibold cursor-pointer",
+                              jobColorClass(job)
+                            )}
+                          >
+                            <span className="hidden sm:inline">
+                              {job.scheduledDate && (
+                                <span className="opacity-75 mr-1">{format(new Date(job.scheduledDate), "h:mm")}</span>
+                              )}
+                            </span>
+                            {job.title}
+                          </div>
+                        ))}
+                        {dayJobs.length > 2 && (
+                          <div className="text-[9px] sm:text-[10px] text-muted-foreground px-1 sm:px-1.5">
+                            +{dayJobs.length - 2} more
                           </div>
                         )}
                       </div>
-                      {/* Hour count badge */}
-                      {dayHours > 0 && inMonth && (
-                        <span
-                          className={cn(
-                            "text-[9px] font-bold px-1 py-0.5 rounded",
-                            dayHours >= 8
-                              ? "bg-destructive/20 text-destructive"
-                              : dayHours >= 6
-                              ? "bg-orange-500/20 text-orange-400"
-                              : "bg-primary/15 text-primary"
-                          )}
-                        >
-                          {dayHours}h
-                        </span>
-                      )}
                     </div>
-
-                    <div className="space-y-0.5">
-                      {dayJobs.slice(0, 3).map(job => (
-                        <div
-                          key={job.id}
-                          onClick={e => { e.stopPropagation(); openJob(job); }}
-                          className={cn(
-                            "text-[10px] px-1.5 py-0.5 rounded truncate font-semibold cursor-pointer",
-                            jobColorClass(job)
-                          )}
-                        >
-                          {job.scheduledDate && (
-                            <span className="opacity-75 mr-1">{format(new Date(job.scheduledDate), "h:mm")}</span>
-                          )}
-                          {job.title}
-                        </div>
-                      ))}
-                      {dayJobs.length > 3 && (
-                        <div className="text-[10px] text-muted-foreground px-1.5">
-                          +{dayJobs.length - 3} more
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
         {/* ── Week View ── */}
         {viewMode === "week" && (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="shrink-0 flex border-b border-border bg-background/40">
-              <div className="w-12 shrink-0" />
+              <div className="w-10 sm:w-12 shrink-0" />
               {weekDays.map(day => {
                 const dots = userRole === "worker" ? getDots(filteredJobs, day) : 0;
                 const dayHours = getDayHours(filteredJobs, day);
                 return (
                   <div
                     key={day.toISOString()}
-                    className="flex-1 py-2 text-center border-l border-border cursor-pointer hover:bg-white/5 transition-colors"
+                    className="flex-1 py-1.5 sm:py-2 text-center border-l border-border cursor-pointer hover:bg-white/5 transition-colors min-w-0"
                     onClick={() => setDayPopup(day)}
                   >
-                    <div className="text-[9px] font-display uppercase text-muted-foreground tracking-wider">
-                      {format(day, "EEE")}
+                    <div className="text-[8px] sm:text-[9px] font-display uppercase text-muted-foreground tracking-wider">
+                      <span className="hidden sm:inline">{format(day, "EEE")}</span>
+                      <span className="sm:hidden">{format(day, "EEEEE")}</span>
                     </div>
                     <div
                       className={cn(
-                        "text-lg font-bold mx-auto w-8 h-8 flex items-center justify-center rounded-full mt-0.5",
+                        "text-sm sm:text-lg font-bold mx-auto w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full mt-0.5",
                         isToday(day) ? "bg-primary text-primary-foreground" : "text-foreground"
                       )}
                     >
@@ -685,7 +706,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                     {dayHours > 0 && (
                       <span
                         className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 inline-block",
+                          "text-[8px] sm:text-[9px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full mt-0.5 inline-block",
                           dayHours >= 8
                             ? "bg-destructive/20 text-destructive"
                             : dayHours >= 6
@@ -702,13 +723,17 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               })}
             </div>
 
-            <div ref={timeGridRef} className="flex-1 overflow-y-auto">
+            <div
+              ref={timeGridRef}
+              className="flex-1 overflow-y-auto overscroll-contain"
+              style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+            >
               <div className="flex">
-                <div className="w-12 shrink-0 bg-background/20">
+                <div className="w-10 sm:w-12 shrink-0 bg-background/20">
                   {HOURS.map(hour => (
                     <div
                       key={hour}
-                      className="text-right pr-2 text-[9px] text-muted-foreground -mt-2"
+                      className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground -mt-2"
                       style={{ height: HOUR_H }}
                     >
                       {format(new Date(2000, 0, 1, hour), "ha")}
@@ -716,7 +741,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   ))}
                 </div>
                 {weekDays.map(day => (
-                  <div key={day.toISOString()} className="flex-1 border-l border-border/50">
+                  <div key={day.toISOString()} className="flex-1 border-l border-border/50 min-w-0">
                     <TimeColumn day={day} jobs={filteredJobs} onJobClick={openJob} />
                   </div>
                 ))}
@@ -727,7 +752,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
         {/* ── Day View ── */}
         {viewMode === "day" && (
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="shrink-0 flex items-center justify-center py-3 border-b border-border bg-background/40">
               <div className="text-center">
                 <div className="text-[10px] font-display uppercase text-muted-foreground tracking-widest">
@@ -772,20 +797,24 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               </div>
             </div>
 
-            <div ref={timeGridRef} className="flex-1 overflow-y-auto">
+            <div
+              ref={timeGridRef}
+              className="flex-1 overflow-y-auto overscroll-contain"
+              style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+            >
               <div className="flex">
-                <div className="w-12 shrink-0 bg-background/20">
+                <div className="w-10 sm:w-12 shrink-0 bg-background/20">
                   {HOURS.map(hour => (
                     <div
                       key={hour}
-                      className="text-right pr-2 text-[9px] text-muted-foreground -mt-2"
+                      className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground -mt-2"
                       style={{ height: HOUR_H }}
                     >
                       {format(new Date(2000, 0, 1, hour), "ha")}
                     </div>
                   ))}
                 </div>
-                <div className="flex-1 border-l border-border/50">
+                <div className="flex-1 border-l border-border/50 min-w-0">
                   <TimeColumn day={currentDate} jobs={filteredJobs} onJobClick={openJob} />
                 </div>
               </div>
@@ -796,7 +825,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
       {/* ── Day Popup Dialog ── */}
       <Dialog open={!!dayPopup} onOpenChange={o => !o && setDayPopup(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-lg">
               {dayPopup ? format(dayPopup, "EEEE, MMMM d") : ""}
@@ -811,7 +840,6 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                 setViewMode("day");
                 setDayPopup(null);
               }}
-              onClose={() => setDayPopup(null)}
             />
           )}
         </DialogContent>
@@ -820,7 +848,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
       {/* ── Edit Job Dialog ── */}
       {selectedJob && (
         <Dialog open={editOpen} onOpenChange={o => { setEditOpen(o); if (!o) setSelectedJob(null); }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job #{selectedJob.id} – {selectedJob.title}</DialogTitle>
             </DialogHeader>

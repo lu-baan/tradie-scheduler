@@ -44,7 +44,7 @@ function ConfirmDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -137,20 +137,21 @@ export function JobCard({ job }: { job: Job }) {
       >
         {/* Top Banners */}
         {job.isEmergency && (
-          <div className="bg-destructive text-destructive-foreground font-display font-bold uppercase text-center py-1.5 text-sm emergency-pulse tracking-widest flex items-center justify-center gap-2">
-            <AlertTriangle size={16} /> CODE 9 EMERGENCY
+          <div className="bg-destructive text-destructive-foreground font-display font-bold uppercase text-center py-1.5 text-xs sm:text-sm emergency-pulse tracking-widest flex items-center justify-center gap-2">
+            <AlertTriangle size={14} /> CODE 9 EMERGENCY
           </div>
         )}
         {isCompleted && (
-          <div className="bg-green-600 text-white font-display font-bold uppercase text-center py-1.5 text-sm tracking-widest flex items-center justify-center gap-2">
-            <CheckCircle2 size={16} /> JOB COMPLETED
+          <div className="bg-green-600 text-white font-display font-bold uppercase text-center py-1.5 text-xs sm:text-sm tracking-widest flex items-center justify-center gap-2">
+            <CheckCircle2 size={14} /> JOB COMPLETED
           </div>
         )}
 
-        <div className="p-5">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="flex gap-2 items-center mb-2 flex-wrap">
+        <div className="p-4 sm:p-5">
+          {/* Title / Price row — constrained so neither overflows */}
+          <div className="flex items-start gap-3 mb-4 min-w-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex gap-1.5 items-center mb-2 flex-wrap">
                 <Badge variant={job.jobType === "quote" ? "secondary" : "default"}>
                   {job.jobType}
                 </Badge>
@@ -159,18 +160,22 @@ export function JobCard({ job }: { job: Job }) {
                   <Badge variant={`validity${job.validityCode}` as any} className="cursor-help">
                     Code {job.validityCode}
                   </Badge>
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-48 p-2 rounded-lg bg-popover border border-border shadow-lg text-xs text-popover-foreground">
+                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-44 sm:w-48 p-2 rounded-lg bg-popover border border-border shadow-lg text-xs text-popover-foreground">
                     <span className="font-semibold">{validity.label} Priority:</span> {validity.description}
                   </div>
                 </div>
                 <Badge variant={job.status as any}>{job.status.replace("_", " ")}</Badge>
               </div>
-              <h3 className="font-display text-2xl font-bold text-foreground leading-tight">{job.title}</h3>
+              <h3 className="font-display text-lg sm:text-2xl font-bold text-foreground leading-tight break-words">
+                {job.title}
+              </h3>
               <p className="text-primary font-semibold text-sm">{job.tradeType}</p>
             </div>
 
-            <div className="text-right">
-              <div className="font-display text-2xl font-bold text-foreground">{formatAUD(job.price)}</div>
+            <div className="text-right shrink-0">
+              <div className="font-display text-xl sm:text-2xl font-bold text-foreground whitespace-nowrap">
+                {formatAUD(job.price)}
+              </div>
               {job.smartScore !== null && job.smartScore !== undefined && (
                 <div className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded mt-1">
                   Score: {job.smartScore.toFixed(2)}
@@ -179,13 +184,14 @@ export function JobCard({ job }: { job: Job }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground mt-6">
+          {/* Details grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground mt-2">
             {/* Left column */}
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <MapPin size={16} className="text-primary shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-foreground block">{job.address}</span>
+            <div className="space-y-2 min-w-0">
+              <div className="flex items-start gap-2 min-w-0">
+                <MapPin size={15} className="text-primary shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <span className="text-foreground block break-words">{job.address}</span>
                   {job.distanceKm !== null && job.distanceKm !== undefined && (
                     <span className="text-xs text-orange-400">{job.distanceKm} km away</span>
                   )}
@@ -193,26 +199,26 @@ export function JobCard({ job }: { job: Job }) {
               </div>
               {job.travelTimeMinutes !== null && job.travelTimeMinutes !== undefined && (
                 <div className="flex items-center gap-2">
-                  <Car size={16} className="text-primary shrink-0" />
+                  <Car size={15} className="text-primary shrink-0" />
                   <span className="text-xs">~{job.travelTimeMinutes} min travel</span>
                 </div>
               )}
-              <div className="flex items-center gap-2">
-                <Users size={16} className="text-primary shrink-0" />
-                <span className="text-foreground">{job.clientName}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <Users size={15} className="text-primary shrink-0" />
+                <span className="text-foreground truncate">{job.clientName}</span>
               </div>
               {job.clientPhone && (
-                <div className="flex items-center gap-2">
-                  <Phone size={16} className="text-primary shrink-0" />
-                  <a href={`tel:${job.clientPhone}`} className="hover:text-primary transition-colors">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Phone size={15} className="text-primary shrink-0" />
+                  <a href={`tel:${job.clientPhone}`} className="hover:text-primary transition-colors truncate">
                     {job.clientPhone}
                   </a>
                 </div>
               )}
               {job.clientEmail && (
-                <div className="flex items-center gap-2">
-                  <Mail size={16} className="text-primary shrink-0" />
-                  <a href={`mailto:${job.clientEmail}`} className="truncate hover:text-primary transition-colors">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Mail size={15} className="text-primary shrink-0" />
+                  <a href={`mailto:${job.clientEmail}`} className="truncate hover:text-primary transition-colors text-xs sm:text-sm">
                     {job.clientEmail}
                   </a>
                 </div>
@@ -222,12 +228,12 @@ export function JobCard({ job }: { job: Job }) {
             {/* Right column */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-primary shrink-0" />
+                <Calendar size={15} className="text-primary shrink-0" />
                 <span>{formatAusDate(job.scheduledDate)}</span>
               </div>
               {job.scheduledDate && (
                 <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-primary shrink-0" />
+                  <Clock size={15} className="text-primary shrink-0" />
                   <span>
                     {new Date(job.scheduledDate).toLocaleTimeString("en-AU", {
                       hour: "2-digit",
@@ -238,13 +244,13 @@ export function JobCard({ job }: { job: Job }) {
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <Clock size={16} className="text-primary shrink-0" />
+                <Clock size={15} className="text-primary shrink-0" />
                 <span>{job.estimatedHours} hrs est.</span>
               </div>
               {!isQuote && (
                 <>
                   <div className="flex items-center gap-2">
-                    <Users size={16} className="text-primary shrink-0" />
+                    <Users size={15} className="text-primary shrink-0" />
                     <span>{job.numTradies} Tradies Req.</span>
                   </div>
                   {job.assignedWorkers && job.assignedWorkers.length > 0 && (
@@ -264,15 +270,15 @@ export function JobCard({ job }: { job: Job }) {
           {/* Notes preview */}
           {job.notes && (
             <div className="mt-4 p-3 bg-secondary/30 rounded-lg border border-white/5">
-              <p className="text-xs text-muted-foreground line-clamp-2">{job.notes}</p>
+              <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.notes}</p>
             </div>
           )}
 
           {/* Actions Footer */}
-          <div className="mt-6 pt-4 border-t border-border flex flex-wrap gap-2 justify-between items-center">
+          <div className="mt-4 sm:mt-6 pt-4 border-t border-border flex flex-wrap gap-2 justify-between items-center">
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-                <Edit2 size={14} className="mr-1" /> Edit
+                <Edit2 size={13} className="mr-1" /> Edit
               </Button>
               <Button
                 size="sm"
@@ -280,11 +286,11 @@ export function JobCard({ job }: { job: Job }) {
                 className="text-destructive hover:bg-destructive/20 hover:text-destructive hover:border-destructive"
                 onClick={() => setDeleteConfirmOpen(true)}
               >
-                <Trash2 size={14} />
+                <Trash2 size={13} />
               </Button>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {isQuote ? (
                 <Button
                   size="sm"
@@ -292,7 +298,7 @@ export function JobCard({ job }: { job: Job }) {
                   onClick={() => convertMutation.mutate({ id: job.id, data: { estimatedHours: job.estimatedHours || 1 } })}
                   disabled={convertMutation.isPending}
                 >
-                  <Check size={14} className="mr-1" /> Convert to Booking
+                  <Check size={13} className="mr-1" /> Convert
                 </Button>
               ) : (
                 <>
@@ -304,7 +310,7 @@ export function JobCard({ job }: { job: Job }) {
                       onClick={() => setCompleteConfirmOpen(true)}
                       disabled={completeMutation.isPending}
                     >
-                      <CheckCircle2 size={14} className="mr-1" /> Mark Complete
+                      <CheckCircle2 size={13} className="mr-1" /> Complete
                     </Button>
                   )}
                   {!job.isEmergency && !isCompleted && !isCancelled && (
@@ -315,7 +321,7 @@ export function JobCard({ job }: { job: Job }) {
                       onClick={() => setEmergencyConfirmOpen(true)}
                       disabled={emergencyMutation.isPending}
                     >
-                      <AlertTriangle size={14} className="mr-1" /> CODE 9
+                      <AlertTriangle size={13} className="mr-1" /> CODE 9
                     </Button>
                   )}
                 </>
@@ -333,11 +339,11 @@ export function JobCard({ job }: { job: Job }) {
                     setTimeout(() => URL.revokeObjectURL(url), 10000);
                   }}
                 >
-                  <FileText size={14} className="mr-1" /> Download Invoice
+                  <FileText size={13} className="mr-1" /> Invoice
                 </Button>
               ) : (
                 <Button size="sm" variant="secondary" disabled>
-                  <FileText size={14} className="mr-1" /> Invoice
+                  <FileText size={13} className="mr-1" /> Invoice
                 </Button>
               )}
             </div>
@@ -346,7 +352,7 @@ export function JobCard({ job }: { job: Job }) {
 
         {/* Edit Dialog */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job #{job.id}</DialogTitle>
             </DialogHeader>
