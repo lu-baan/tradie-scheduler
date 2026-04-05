@@ -15,7 +15,6 @@ interface AppSettings {
   gstRate: number;
   currency: string;
   distanceUnits: string;
-  defaultTradeType: string;
   workStartHour: string;
   workEndHour: string;
   workDays: string[];
@@ -120,7 +119,6 @@ export function Settings() {
     gstRate: 10,
     currency: "AUD",
     distanceUnits: "km",
-    defaultTradeType: "General",
     workStartHour: "07:00",
     workEndHour: "17:00",
     workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
@@ -279,15 +277,6 @@ export function Settings() {
 
       {/* Job Defaults */}
       <SectionCard icon={MapPin} title="Job Defaults">
-        <SettingRow label="Default Trade Type" description="Pre-selected when creating a new job">
-          <select
-            value={settings.defaultTradeType}
-            onChange={e => update("defaultTradeType", e.target.value)}
-            className="bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-          >
-            {tradeTypes.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </SettingRow>
         <SettingRow label="Default Estimated Hours" description="Initial value for new bookings">
           <Input
             type="number"
