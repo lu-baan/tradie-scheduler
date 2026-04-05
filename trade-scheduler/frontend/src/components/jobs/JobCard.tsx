@@ -157,6 +157,11 @@ export function JobCard({ job }: { job: Job }) {
             <CheckCircle2 size={14} /> JOB COMPLETED
           </div>
         )}
+        {!isQuote && !isCompleted && !isCancelled && job.assignedWorkers.length === 0 && (
+          <div className="bg-blue-600 text-white font-display font-bold uppercase text-center py-1.5 text-xs sm:text-sm tracking-widest flex items-center justify-center gap-2">
+            <Users size={14} /> Attention: Assign Worker
+          </div>
+        )}
 
         <div className="p-4 sm:p-5">
           {/* Title / Price row — constrained so neither overflows */}

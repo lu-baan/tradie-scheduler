@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, workersTable } from "../db";
+import { db, workersTable, jobsTable } from "../db";
 import { usersTable } from "../db/schema/users";
-import { eq } from "drizzle-orm";
+import { eq, not, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateWorkerBody } from "../api-zod";
 
@@ -62,6 +62,19 @@ router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    // Remove this worker from all jobs that have them assigned
+    const allJobs = await db.select().from(jobsTable);
+    for (const job of allJobs) {
+      const ids: number[] = JSON.parse(job.assignedWorkerIds || "[]");
+      if (ids.includes(id)) {
+        const updated = ids.filter(wid => wid !== id);
+        await db.update(jobsTable)
+          .set({ assignedWorkerIds: JSON.stringify(updated), updatedAt: new Date() })
+          .where(eq(jobsTable.id, job.id));
+      }
+    }
+
     const [deleted] = await db.delete(workersTable).where(eq(workersTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Worker not found" }); return; }
     res.status(204).send();
