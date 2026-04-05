@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "../db";
 import { usersTable } from "../db/schema/users";
+import { workersTable } from "../db/schema/workers";
 import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import crypto from "crypto";
@@ -32,6 +33,8 @@ const RegisterBody = z.object({
   password: z.string().min(8),
   email: z.string().email().optional().nullable(),
   role: z.enum(["admin", "worker"]),
+  tradeType: z.string().min(2).optional().nullable(),
+  phone: z.string().optional().nullable(),
 });
 
 const LoginBody = z.object({
@@ -59,6 +62,22 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const passwordHash = await hashPassword(body.password);
 
+    // For worker accounts, create a worker record first so they appear in the Workers panel
+    let workerId: number | null = null;
+    if (body.role === "worker") {
+      const [worker] = await db
+        .insert(workersTable)
+        .values({
+          name: body.fullName,
+          email: body.email ?? null,
+          phone: body.phone ?? null,
+          tradeType: body.tradeType ?? "General",
+          isAvailable: true,
+        })
+        .returning({ id: workersTable.id });
+      workerId = worker.id;
+    }
+
     const [user] = await db
       .insert(usersTable)
       .values({
@@ -67,6 +86,7 @@ router.post("/register", async (req: Request, res: Response) => {
         passwordHash,
         role: body.role,
         email: body.email ?? null,
+        workerId,
       })
       .returning({
         id: usersTable.id,
@@ -74,6 +94,7 @@ router.post("/register", async (req: Request, res: Response) => {
         loginNumber: usersTable.loginNumber,
         role: usersTable.role,
         email: usersTable.email,
+        workerId: usersTable.workerId,
         createdAt: usersTable.createdAt,
       });
 

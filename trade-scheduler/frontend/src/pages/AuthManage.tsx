@@ -25,6 +25,8 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   email: z.string().email("Enter a valid email address"),
   role: z.enum(["admin", "worker"]),
+  tradeType: z.string().min(2, "Trade specialization is required").optional().or(z.literal("")),
+  phone: z.string().optional().or(z.literal("")),
 }).refine(d => d.password === d.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -55,6 +57,8 @@ export function AuthManage() {
       confirmPassword: "",
       email: "",
       role: "worker",
+      tradeType: "",
+      phone: "",
     },
   });
 
@@ -76,6 +80,8 @@ export function AuthManage() {
           password: data.password,
           email: data.email || null,
           role: data.role,
+          tradeType: data.tradeType || null,
+          phone: data.phone || null,
         }),
       });
 
@@ -191,6 +197,32 @@ export function AuthManage() {
               <p className="text-destructive text-xs mt-1">{form.formState.errors.email.message}</p>
             )}
           </div>
+
+          {/* Worker-only fields */}
+          {selectedRole === "worker" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label required>Trade Specialization</Label>
+                <Input
+                  {...form.register("tradeType")}
+                  placeholder="e.g. Master Plumber"
+                  className="mt-1"
+                />
+                {form.formState.errors.tradeType && (
+                  <p className="text-destructive text-xs mt-1">{form.formState.errors.tradeType.message}</p>
+                )}
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  {...form.register("phone")}
+                  placeholder="0412 345 678"
+                  inputMode="tel"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Password */}
           <div>
