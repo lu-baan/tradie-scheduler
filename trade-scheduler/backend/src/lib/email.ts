@@ -1,3 +1,5 @@
+import nodemailer from "nodemailer";
+
 interface InvoiceEmailData {
   clientName: string;
   clientEmail: string;
@@ -7,21 +9,19 @@ interface InvoiceEmailData {
   pdfBuffer: Buffer;
 }
 
-async function getMailtrapToken(): Promise<string> {
-  return process.env.MAILTRAP_API_KEY!;
-}
+const transporter = nodemailer.createTransport({
+  host: process.env.MAILTRAP_HOST ?? "sandbox.smtp.mailtrap.io",
+  port: parseInt(process.env.MAILTRAP_PORT ?? "587"),
+  auth: {
+    user: process.env.MAILTRAP_USER!,
+    pass: process.env.MAILTRAP_PASS!,
+  },
+});
 
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
-  const token = await getMailtrapToken();
-
-  const pdfBase64 = data.pdfBuffer.toString("base64");
-
-  const payload = {
-    from: {
-      email: process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au",
-      name: process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler",
-    },
-    to: [{ email: data.clientEmail, name: data.clientName }],
+  await transporter.sendMail({
+    from: `"${process.env.MAILTRAP_FROM_NAME ?? "Trade Scheduler"}" <${process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au"}>`,
+    to: `"${data.clientName}" <${data.clientEmail}>`,
     subject: `Invoice ${data.invoiceNumber} — ${data.jobTitle}`,
     text: `Hi ${data.clientName},\n\nThank you for your business! Please find your invoice attached.\n\nInvoice: ${data.invoiceNumber}\nJob: ${data.jobTitle}\nTotal (inc. GST): $${data.totalWithGst.toFixed(2)}\n\nRegards,\nTrade Scheduler`,
     html: `
@@ -55,24 +55,9 @@ export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
     attachments: [
       {
         filename: `invoice-${data.invoiceNumber}.pdf`,
-        content: pdfBase64,
-        type: "application/pdf",
-        disposition: "attachment",
+        content: data.pdfBuffer,
+        contentType: "application/pdf",
       },
     ],
-  };
-
-  const res = await fetch("https://send.api.mailtrap.io/api/send", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Mailtrap API error ${res.status}: ${body}`);
-  }
 }
