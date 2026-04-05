@@ -1,4 +1,4 @@
-import { useListJobs, useListWorkers } from "@/lib/api-client";
+import { useListJobs, useListWorkers, useUpdateJob } from "@/lib/api-client";
 import {
   format,
   addDays,
@@ -18,10 +18,12 @@ import {
 } from "date-fns";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { UserRole } from "@/App";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -355,11 +357,138 @@ function DaySchedulePopup({
   );
 }
 
+// ── Worker Job Panel ──────────────────────────────────────────────────────────
+
+function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState(job.notes ?? "");
+  const [completeOpen, setCompleteOpen] = useState(false);
+
+  const saveMutation = useUpdateJob({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+        toast.success("Notes saved");
+      },
+      onError: () => toast.error("Failed to save notes"),
+    },
+  });
+
+  const completeMutation = useUpdateJob({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+        toast.success("Job marked as complete!");
+        onClose();
+      },
+      onError: () => toast.error("Failed to mark complete"),
+    },
+  });
+
+  const isCompleted = job.status === "completed";
+
+  return (
+    <div className="space-y-4">
+      {/* Job info */}
+      <div className="space-y-2 text-sm">
+        <div className="flex items-start gap-2 text-muted-foreground">
+          <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
+          <span className="text-foreground">{job.address}</span>
+        </div>
+        {job.clientPhone && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Phone size={14} className="text-primary shrink-0" />
+            <a href={`tel:${job.clientPhone}`} className="text-foreground hover:text-primary">{job.clientPhone}</a>
+          </div>
+        )}
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Clock size={14} className="text-primary shrink-0" />
+          <span className="text-foreground">
+            {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "No time set"}
+            {" · "}{job.estimatedHours}h est.
+          </span>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="text-xs uppercase text-muted-foreground font-display mb-1 block">Notes</label>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          disabled={isCompleted}
+          rows={4}
+          placeholder="Add job notes, observations, or anything the client mentioned…"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+        />
+        {!isCompleted && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-1.5"
+            disabled={saveMutation.isPending || notes === (job.notes ?? "")}
+            onClick={() => saveMutation.mutate({ id: job.id, data: { notes } })}
+          >
+            <FileText size={13} className="mr-1" /> Save Notes
+          </Button>
+        )}
+      </div>
+
+      {/* Complete */}
+      {!isCompleted ? (
+        <>
+          {!completeOpen ? (
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={() => setCompleteOpen(true)}
+            >
+              <CheckCircle2 size={15} className="mr-2" /> Mark Job Complete
+            </Button>
+          ) : (
+            <div className="border border-green-500/30 bg-green-500/5 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-semibold">Confirm job complete?</p>
+              <p className="text-xs text-muted-foreground">An invoice will be generated and sent to the client.</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setCompleteOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  disabled={completeMutation.isPending}
+                  onClick={() => completeMutation.mutate({ id: job.id, data: { status: "completed", completedDate: new Date().toISOString() } })}
+                >
+                  Confirm Complete
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex items-center justify-center gap-2 py-3 text-green-500 font-semibold text-sm">
+          <CheckCircle2 size={16} /> Job Completed
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   const { data: jobs = [] } = useListJobs();
   const { data: workers = [] } = useListWorkers();
+
+  // For workers: filter to only their assigned jobs
+  const workerId = (() => {
+    const v = sessionStorage.getItem("ts2_worker_id");
+    return v ? parseInt(v) : null;
+  })();
 
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -383,11 +512,18 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
     }
   }, [viewMode]);
 
-  // Filter jobs by selected worker
+  // Workers only see their own jobs; admins can filter by worker
+  const baseJobs = userRole === "worker" && workerId
+    ? jobs.filter(j =>
+        (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
+        (j as any).assignedWorkerIds?.includes(workerId)
+      )
+    : jobs;
+
   const filteredJobs =
     workerFilter === "all"
-      ? jobs
-      : jobs.filter(j =>
+      ? baseJobs
+      : baseJobs.filter(j =>
           (j as any).assignedWorkers?.some((w: any) => w.id === workerFilter) ||
           (j as any).assignedWorkerIds?.includes(workerFilter)
         );
@@ -857,13 +993,20 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
         <Dialog open={editOpen} onOpenChange={o => { setEditOpen(o); if (!o) setSelectedJob(null); }}>
           <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Job #{selectedJob.id} – {selectedJob.title}</DialogTitle>
-              <DialogDescription>Update the details for this job.</DialogDescription>
+              <DialogTitle>{userRole === "worker" ? selectedJob.title : `Edit Job #${selectedJob.id} – ${selectedJob.title}`}</DialogTitle>
+              <DialogDescription>{userRole === "worker" ? `${selectedJob.tradeType} · ${selectedJob.clientName}` : "Update the details for this job."}</DialogDescription>
             </DialogHeader>
-            <JobForm
-              initialData={selectedJob}
-              onSuccess={() => { setEditOpen(false); setSelectedJob(null); }}
-            />
+            {userRole === "worker" ? (
+              <WorkerJobPanel
+                job={selectedJob}
+                onClose={() => { setEditOpen(false); setSelectedJob(null); }}
+              />
+            ) : (
+              <JobForm
+                initialData={selectedJob}
+                onSuccess={() => { setEditOpen(false); setSelectedJob(null); }}
+              />
+            )}
           </DialogContent>
         </Dialog>
       )}

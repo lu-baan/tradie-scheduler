@@ -1,4 +1,5 @@
 import { Job, Worker, useDeleteJob, useTriggerEmergency, useConvertToBooking, useUpdateJob } from "@/lib/api-client";
+import type { UserRole } from "@/App";
 import { formatAUD, formatAusDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +69,7 @@ function ConfirmDialog({
 
 // ── JobCard ───────────────────────────────────────────────────────────────────
 
-export function JobCard({ job }: { job: Job }) {
+export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: UserRole }) {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -304,21 +305,25 @@ export function JobCard({ job }: { job: Job }) {
           {/* Actions Footer */}
           <div className="mt-4 sm:mt-6 pt-4 border-t border-border flex flex-wrap gap-2 justify-between items-center">
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-                <Edit2 size={13} className="mr-1" /> Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:bg-destructive/20 hover:text-destructive hover:border-destructive"
-                onClick={() => setDeleteConfirmOpen(true)}
-              >
-                <Trash2 size={13} />
-              </Button>
+              {userRole === "admin" && (
+                <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                  <Edit2 size={13} className="mr-1" /> Edit
+                </Button>
+              )}
+              {userRole === "admin" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:bg-destructive/20 hover:text-destructive hover:border-destructive"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {isQuote ? (
+              {isQuote && userRole === "admin" ? (
                 <Button
                   size="sm"
                   variant="default"
@@ -327,7 +332,7 @@ export function JobCard({ job }: { job: Job }) {
                 >
                   <Check size={13} className="mr-1" /> Convert
                 </Button>
-              ) : (
+              ) : !isQuote ? (
                 <>
                   {!isCompleted && !isCancelled && (
                     <Button
@@ -340,7 +345,7 @@ export function JobCard({ job }: { job: Job }) {
                       <CheckCircle2 size={13} className="mr-1" /> Complete
                     </Button>
                   )}
-                  {!isCompleted && !isCancelled && (
+                  {userRole === "admin" && !isCompleted && !isCancelled && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -351,7 +356,7 @@ export function JobCard({ job }: { job: Job }) {
                       <XCircle size={13} className="mr-1" /> Cancel
                     </Button>
                   )}
-                  {!job.isEmergency && !isCompleted && !isCancelled && (
+                  {userRole === "admin" && !job.isEmergency && !isCompleted && !isCancelled && (
                     <Button
                       size="sm"
                       variant="destructive"
@@ -362,7 +367,7 @@ export function JobCard({ job }: { job: Job }) {
                       <AlertTriangle size={13} className="mr-1" /> CODE 9
                     </Button>
                   )}
-                  {job.isEmergency && !isCompleted && !isCancelled && (
+                  {userRole === "admin" && job.isEmergency && !isCompleted && !isCancelled && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -374,7 +379,7 @@ export function JobCard({ job }: { job: Job }) {
                     </Button>
                   )}
                 </>
-              )}
+              ) : null}
 
               {isCompleted ? (
                 <Button

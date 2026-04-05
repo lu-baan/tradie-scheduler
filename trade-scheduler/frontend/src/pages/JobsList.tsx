@@ -12,6 +12,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, SlidersHorizontal, MapPin, Loader2, BriefcaseBusiness, Info, ArrowUp, ArrowDown } from "lucide-react";
+import type { UserRole } from "@/App";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Slider from "@radix-ui/react-slider";
 
@@ -33,7 +34,9 @@ const SORT_DEFAULT_DIR: Record<ListJobsSortBy, SortDir> = {
   validityCode: "desc",
 };
 
-export function JobsList() {
+export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
+  const userRoleFromSession = (sessionStorage.getItem("ts2_role") as UserRole) ?? userRole;
+  const workerId = (() => { const v = sessionStorage.getItem("ts2_worker_id"); return v ? parseInt(v) : null; })();
   const [sortBy, setSortBy] = useState<ListJobsSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [priceWeight, setPriceWeight] = useState(0.5);
@@ -67,7 +70,14 @@ export function JobsList() {
   };
 
   const getFilteredJobs = (tab: typeof filterType) => {
-    const all = jobs || [];
+    let all = jobs || [];
+    // Workers only see their assigned jobs
+    if (userRoleFromSession === "worker" && workerId) {
+      all = all.filter(j =>
+        (j as any).assignedWorkers?.some((w: any) => w.id === workerId) ||
+        (j as any).assignedWorkerIds?.includes(workerId)
+      );
+    }
     let result: typeof all;
     if (tab === "all") result = all.filter(job => job.status !== "completed" && job.status !== "cancelled");
     else if (tab === "completed") result = all.filter(job => job.status === "completed");
@@ -85,19 +95,21 @@ export function JobsList() {
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">Schedule, dispatch, and track all operations.</p>
         </div>
 
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="font-bold text-base shadow-[0_0_20px_rgba(234,88,12,0.4)] w-full sm:w-auto">
-              <Plus className="mr-2" /> New Enquiry
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Enquiry</DialogTitle>
-            </DialogHeader>
-            <JobForm onSuccess={() => setIsAddOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        {userRoleFromSession === "admin" && (
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg" className="font-bold text-base shadow-[0_0_20px_rgba(234,88,12,0.4)] w-full sm:w-auto">
+                <Plus className="mr-2" /> New Enquiry
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Enquiry</DialogTitle>
+              </DialogHeader>
+              <JobForm onSuccess={() => setIsAddOpen(false)} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="bg-card border border-white/5 rounded-xl p-3 sm:p-4 shadow-xl">
@@ -241,7 +253,7 @@ export function JobsList() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                    {tabJobs.map(job => <JobCard key={job.id} job={job} />)}
+                    {tabJobs.map(job => <JobCard key={job.id} job={job} userRole={userRoleFromSession} />)}
                   </div>
                 )}
               </Tabs.Content>

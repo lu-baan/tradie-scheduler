@@ -31,7 +31,9 @@ function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRo
         <Route path="/">
           {userRole === "admin" ? <Dashboard /> : <Redirect to="/jobs" />}
         </Route>
-        <Route path="/jobs" component={JobsList} />
+        <Route path="/jobs">
+          <JobsList userRole={userRole} />
+        </Route>
         <Route path="/calendar">
           <CalendarView userRole={userRole} />
         </Route>

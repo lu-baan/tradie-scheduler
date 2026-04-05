@@ -23,13 +23,6 @@ const forgotSchema = z.object({
   email: z.string().email("Enter a valid email address"),
 });
 
-// ── Mock role lookup ──────────────────────────────────────────────────────────
-// Login numbers starting with "1" = admin, all others = worker
-// Demo: 100001 = admin, 200001 = worker
-function getRoleFromLoginNumber(num: string): UserRole {
-  return num.startsWith("1") ? "admin" : "worker";
-}
-
 // ── Label helper ──────────────────────────────────────────────────────────────
 
 function Label({ children, required = false }: { children: React.ReactNode; required?: boolean }) {
@@ -64,10 +57,19 @@ export function AuthPage({ onLogin, theme, onToggleTheme }: { onLogin: (role: Us
     setIsPending(true);
     setServerError(null);
     try {
-      // TODO: Replace with actual auth API call
-      await new Promise(r => setTimeout(r, 600));
-      const role = getRoleFromLoginNumber(data.loginNumber);
-      onLogin(role);
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginNumber: data.loginNumber, password: data.password }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Login failed");
+      }
+      const user = await res.json();
+      sessionStorage.setItem("ts2_worker_id", String(user.workerId ?? ""));
+      sessionStorage.setItem("ts2_full_name", user.fullName ?? "");
+      onLogin(user.role as UserRole);
     } catch (err: any) {
       setServerError(err.message || "Login failed. Please check your credentials.");
     } finally {

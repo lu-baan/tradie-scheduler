@@ -138,6 +138,7 @@ router.post("/login", async (req: Request, res: Response) => {
       loginNumber: user.loginNumber,
       role: user.role,
       email: user.email,
+      workerId: user.workerId ?? null,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
