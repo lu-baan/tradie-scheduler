@@ -244,6 +244,12 @@ router.post("/:id/emergency", async (req: Request, res: Response) => {
           .returning()
       : [];
 
+    // Notify the emergency job's client
+    if (emergencyJob.clientPhone) {
+      sendBookingConfirmationSMS(emergencyJob.clientName, emergencyJob.clientPhone, emergencyJob.title, emergencyJob.scheduledDate ?? null)
+        .catch(err => console.error("Emergency confirmation SMS failed:", err));
+    }
+
     // Notify bumped clients via SMS (non-blocking)
     for (const bumpedJob of bumped) {
       if (bumpedJob.clientPhone) {
