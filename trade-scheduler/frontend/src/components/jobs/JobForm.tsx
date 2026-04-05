@@ -815,31 +815,62 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           {jobType === "booking" && workers && workers.length > 0 && (
             <div>
               <Label hint="Select which tradies to assign to this job">Assign Workers</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
                 {workers.map(w => {
                   const selectedDate = form.watch("scheduledDate");
-                  // Count jobs assigned to this worker on the selected date
-                  const jobsOnDay = selectedDate
+                  const selectedTime = form.watch("scheduledTime");
+                  const estimatedHrs = parseFloat(String(form.watch("estimatedHours") ?? 1)) || 1;
+
+                  // Jobs this worker has on the selected day
+                  const dayJobs = selectedDate
                     ? allJobs.filter(j =>
                         j.scheduledDate?.startsWith(selectedDate) &&
                         j.assignedWorkerIds.includes(w.id) &&
                         j.status !== "cancelled" && j.status !== "bumped"
-                      ).length
-                    : 0;
-                  // 4-dot availability: 4=free, 0=fully booked
-                  const dotsAvailable = Math.max(0, 4 - jobsOnDay);
-                  const tooltipText = !w.isAvailable
-                    ? `Off duty — cannot be assigned`
-                    : selectedDate
-                    ? jobsOnDay === 0
-                      ? `Free on this day — no other jobs`
-                      : `${jobsOnDay} job${jobsOnDay > 1 ? "s" : ""} already on this day`
-                    : `Currently ${w.isAvailable ? "available" : "off duty"}`;
+                      )
+                    : [];
+
+                  const dotsAvailable = Math.max(0, 4 - dayJobs.length);
+
+                  // Timeline helpers — 6am to 8pm = 840 mins window
+                  const DAY_START = 6 * 60;   // 6:00 AM in minutes
+                  const DAY_MINS  = 14 * 60;  // 840 minutes visible
+
+                  function toMins(timeStr: string | null | undefined): number | null {
+                    if (!timeStr) return null;
+                    // Try parsing as HH:mm
+                    const parts = timeStr.split(":");
+                    if (parts.length >= 2) {
+                      const h = parseInt(parts[0]);
+                      const m = parseInt(parts[1]);
+                      if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+                    }
+                    return null;
+                  }
+
+                  function pct(mins: number): number {
+                    return Math.max(0, Math.min(100, ((mins - DAY_START) / DAY_MINS) * 100));
+                  }
+
+                  function fmtMins(mins: number): string {
+                    const h = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    const period = h >= 12 ? "PM" : "AM";
+                    const display = h % 12 === 0 ? 12 : h % 12;
+                    return `${display}:${String(m).padStart(2, "0")} ${period}`;
+                  }
+
+                  // Proposed slot from current form values
+                  const proposedStart = selectedTime ? toMins(selectedTime) : null;
+                  const proposedEnd   = proposedStart !== null ? proposedStart + Math.round(estimatedHrs * 60) : null;
+
+                  // Hour tick marks: 6am, 8am, 10am, 12pm, 2pm, 4pm, 6pm, 8pm
+                  const ticks = [6, 8, 10, 12, 14, 16, 18, 20];
 
                   return (
                     <div key={w.id} className="relative group">
                       <label
-                        className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition-colors w-full ${
+                        className={`flex gap-3 p-3 rounded-md border cursor-pointer transition-colors w-full ${
                           selectedWorkerIds.includes(w.id)
                             ? "bg-primary/20 border-primary"
                             : w.isAvailable
@@ -857,58 +888,113 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                             else setSelectedWorkerIds(prev => prev.filter(id => id !== w.id));
                           }}
                         />
-                        <div className="flex-1 min-w-0">
+
+                        {/* Left: name + dots */}
+                        <div className="w-32 shrink-0">
                           <span className="font-semibold text-sm block truncate">{w.name}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground block truncate">
                             {w.tradeType}{!w.isAvailable && " (Off Duty)"}
                           </span>
+                          <div className="flex gap-0.5 mt-1.5">
+                            {[0, 1, 2, 3].map(i => (
+                              <div
+                                key={i}
+                                className={`w-2 h-2 rounded-full ${
+                                  !w.isAvailable
+                                    ? "bg-destructive/40"
+                                    : i < dotsAvailable
+                                    ? dotsAvailable === 4 ? "bg-green-400" : dotsAvailable >= 3 ? "bg-yellow-400" : "bg-orange-400"
+                                    : "bg-muted"
+                                }`}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        {/* 4-dot workload indicator */}
-                        <div className="flex gap-0.5 shrink-0">
-                          {[0, 1, 2, 3].map(i => (
-                            <div
-                              key={i}
-                              className={`w-2 h-2 rounded-full ${
-                                !w.isAvailable
-                                  ? "bg-destructive/40"
-                                  : i < dotsAvailable
-                                  ? dotsAvailable === 4 ? "bg-green-400" : dotsAvailable >= 3 ? "bg-yellow-400" : "bg-orange-400"
-                                  : "bg-muted"
-                              }`}
-                            />
-                          ))}
+
+                        {/* Right: mini day timeline */}
+                        <div className="flex-1 min-w-0">
+                          {selectedDate ? (
+                            <div>
+                              {/* Hour labels */}
+                              <div className="relative h-3 mb-0.5">
+                                {ticks.map(h => (
+                                  <span
+                                    key={h}
+                                    className="absolute text-[9px] text-muted-foreground -translate-x-1/2"
+                                    style={{ left: `${pct(h * 60)}%` }}
+                                  >
+                                    {h === 12 ? "12p" : h > 12 ? `${h - 12}p` : `${h}a`}
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* Track */}
+                              <div className="relative h-6 bg-secondary rounded overflow-hidden">
+                                {/* Tick lines */}
+                                {ticks.map(h => (
+                                  <div
+                                    key={h}
+                                    className="absolute top-0 h-full w-px bg-border/50"
+                                    style={{ left: `${pct(h * 60)}%` }}
+                                  />
+                                ))}
+
+                                {/* Existing jobs */}
+                                {dayJobs.map(j => {
+                                  const jTime = j.scheduledDate ? j.scheduledDate.split("T")[1]?.slice(0, 5) : null;
+                                  const start = toMins(jTime);
+                                  if (start === null) return null;
+                                  const end = start + Math.round((j.estimatedHours || 1) * 60);
+                                  const left = pct(start);
+                                  const width = pct(end) - left;
+                                  return (
+                                    <div
+                                      key={j.id}
+                                      className="absolute top-0.5 bottom-0.5 bg-primary/70 rounded text-[8px] text-white flex items-center px-1 overflow-hidden"
+                                      style={{ left: `${left}%`, width: `${Math.max(width, 3)}%` }}
+                                      title={`${j.title} (${fmtMins(start)} – ${fmtMins(end)})`}
+                                    >
+                                      <span className="truncate">{j.title}</span>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Proposed slot */}
+                                {proposedStart !== null && proposedEnd !== null && (
+                                  <div
+                                    className="absolute top-0.5 bottom-0.5 rounded border-2 border-blue-400 bg-blue-400/20 text-[8px] text-blue-300 flex items-center px-1 overflow-hidden"
+                                    style={{ left: `${pct(proposedStart)}%`, width: `${Math.max(pct(proposedEnd) - pct(proposedStart), 3)}%` }}
+                                    title={`This job: ${fmtMins(proposedStart)} – ${fmtMins(proposedEnd)}`}
+                                  >
+                                    <span className="truncate">This job</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Legend */}
+                              <div className="flex gap-3 mt-1">
+                                {dayJobs.length > 0 && (
+                                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                                    <span className="w-2 h-2 rounded-sm bg-primary/70 inline-block" /> Booked
+                                  </span>
+                                )}
+                                {proposedStart !== null && (
+                                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                                    <span className="w-2 h-2 rounded-sm border border-blue-400 bg-blue-400/20 inline-block" /> This job
+                                  </span>
+                                )}
+                                {dayJobs.length === 0 && proposedStart === null && (
+                                  <span className="text-[9px] text-green-400">Free all day</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="h-6 flex items-center">
+                              <span className="text-[10px] text-muted-foreground italic">Pick a date to see schedule</span>
+                            </div>
+                          )}
                         </div>
                       </label>
-                      {/* Hover tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
-                        <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs text-popover-foreground whitespace-nowrap">
-                          <div className="font-semibold mb-1">{w.name}</div>
-                          <div className={`${w.isAvailable ? "text-green-400" : "text-destructive"}`}>
-                            {w.isAvailable ? "● Available" : "● Off Duty"}
-                          </div>
-                          <div className="text-muted-foreground mt-0.5">{tooltipText}</div>
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            <span className="text-muted-foreground">Capacity:</span>
-                            <div className="flex gap-0.5">
-                              {[0, 1, 2, 3].map(i => (
-                                <div
-                                  key={i}
-                                  className={`w-2.5 h-2.5 rounded-full ${
-                                    !w.isAvailable
-                                      ? "bg-destructive/40"
-                                      : i < dotsAvailable
-                                      ? dotsAvailable === 4 ? "bg-green-400" : dotsAvailable >= 3 ? "bg-yellow-400" : "bg-orange-400"
-                                      : "bg-muted"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-muted-foreground">{dotsAvailable}/4</span>
-                          </div>
-                        </div>
-                        {/* Arrow */}
-                        <div className="w-2 h-2 bg-popover border-r border-b border-border rotate-45 mx-auto -mt-1" />
-                      </div>
                     </div>
                   );
                 })}
