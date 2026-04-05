@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -6,8 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, EyeOff, UserPlus, ShieldCheck } from "lucide-react";
+import { Loader2, Eye, EyeOff, UserPlus, ShieldCheck, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+
+function generateLoginNumber(role: "admin" | "worker"): string {
+  const prefix = role === "admin" ? "1" : "2";
+  const rest = Math.floor(10000 + Math.random() * 89999).toString();
+  return prefix + rest;
+}
 
 const registerSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
@@ -17,7 +23,7 @@ const registerSchema = z.object({
     .regex(/^\d{6}$/, "Must be 6 digits only"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
-  email: z.string().email("Enter a valid email").or(z.literal("")),
+  email: z.string().email("Enter a valid email address"),
   role: z.enum(["admin", "worker"]),
 }).refine(d => d.password === d.confirmPassword, {
   message: "Passwords do not match",
@@ -44,7 +50,7 @@ export function AuthManage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
-      loginNumber: "",
+      loginNumber: generateLoginNumber("worker"),
       password: "",
       confirmPassword: "",
       email: "",
@@ -53,6 +59,10 @@ export function AuthManage() {
   });
 
   const selectedRole = form.watch("role");
+
+  const regenerateLoginNumber = useCallback(() => {
+    form.setValue("loginNumber", generateLoginNumber(selectedRole));
+  }, [form, selectedRole]);
 
   const handleRegister = async (data: RegisterForm) => {
     setIsPending(true);
@@ -112,7 +122,10 @@ export function AuthManage() {
                 <button
                   type="button"
                   key={role}
-                  onClick={() => form.setValue("role", role)}
+                  onClick={() => {
+                    form.setValue("role", role);
+                    form.setValue("loginNumber", generateLoginNumber(role));
+                  }}
                   className={`flex-1 py-2.5 rounded-lg border text-sm font-display uppercase tracking-wide transition-all ${
                     selectedRole === role
                       ? "border-primary bg-primary/10 text-primary"
@@ -143,34 +156,37 @@ export function AuthManage() {
             )}
           </div>
 
-          {/* Login number */}
+          {/* Login number — auto-generated, read-only */}
           <div>
             <Label required>Login Number</Label>
-            <Input
-              {...form.register("loginNumber")}
-              placeholder="6-digit number (e.g. 100002)"
-              maxLength={6}
-              inputMode="numeric"
-              className="mt-1 font-mono tracking-widest"
-            />
-            {form.formState.errors.loginNumber ? (
-              <p className="text-destructive text-xs mt-1">{form.formState.errors.loginNumber.message}</p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Admin accounts start with <span className="font-mono text-primary">1</span>, workers with any other digit.
-              </p>
-            )}
+            <div className="flex gap-2 mt-1">
+              <div className="flex-1 h-10 flex items-center px-3 rounded-md border border-input bg-secondary/40 font-mono tracking-widest text-lg font-bold text-primary">
+                {form.watch("loginNumber")}
+              </div>
+              <button
+                type="button"
+                onClick={regenerateLoginNumber}
+                className="px-3 h-10 rounded-md border border-input bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Regenerate login number"
+              >
+                <RefreshCw size={15} />
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Auto-generated. Admins start with <span className="font-mono text-primary">1</span>, workers with <span className="font-mono text-primary">2</span>. Share this with the user after creation.
+            </p>
           </div>
 
-          {/* Email */}
+          {/* Email — required for account recovery */}
           <div>
-            <Label>Email Address</Label>
+            <Label required>Email Address</Label>
             <Input
               {...form.register("email")}
               type="email"
-              placeholder="jane@business.com.au (optional)"
+              placeholder="jane@business.com.au"
               className="mt-1"
             />
+            <p className="text-[11px] text-muted-foreground mt-1">Required for password recovery.</p>
             {form.formState.errors.email && (
               <p className="text-destructive text-xs mt-1">{form.formState.errors.email.message}</p>
             )}

@@ -809,35 +809,102 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             <div>
               <Label hint="Select which tradies to assign to this job">Assign Workers</Label>
               <div className="grid grid-cols-2 gap-2">
-                {workers.map(w => (
-                  <label
-                    key={w.id}
-                    className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition-colors ${
-                      selectedWorkerIds.includes(w.id)
-                        ? "bg-primary/20 border-primary"
-                        : w.isAvailable
-                        ? "bg-background border-input hover:bg-secondary"
-                        : "bg-background/50 border-input/50 opacity-50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={selectedWorkerIds.includes(w.id)}
-                      disabled={!w.isAvailable}
-                      onChange={e => {
-                        if (e.target.checked) setSelectedWorkerIds(prev => [...prev, w.id]);
-                        else setSelectedWorkerIds(prev => prev.filter(id => id !== w.id));
-                      }}
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-sm">{w.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {w.tradeType}{!w.isAvailable && " (Off Duty)"}
-                      </span>
+                {workers.map(w => {
+                  const selectedDate = form.watch("scheduledDate");
+                  // Count jobs assigned to this worker on the selected date
+                  const jobsOnDay = selectedDate
+                    ? allJobs.filter(j =>
+                        j.scheduledDate?.startsWith(selectedDate) &&
+                        j.assignedWorkerIds.includes(w.id) &&
+                        j.status !== "cancelled" && j.status !== "bumped"
+                      ).length
+                    : 0;
+                  // 4-dot availability: 4=free, 0=fully booked
+                  const dotsAvailable = Math.max(0, 4 - jobsOnDay);
+                  const tooltipText = !w.isAvailable
+                    ? `Off duty — cannot be assigned`
+                    : selectedDate
+                    ? jobsOnDay === 0
+                      ? `Free on this day — no other jobs`
+                      : `${jobsOnDay} job${jobsOnDay > 1 ? "s" : ""} already on this day`
+                    : `Currently ${w.isAvailable ? "available" : "off duty"}`;
+
+                  return (
+                    <div key={w.id} className="relative group">
+                      <label
+                        className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer transition-colors w-full ${
+                          selectedWorkerIds.includes(w.id)
+                            ? "bg-primary/20 border-primary"
+                            : w.isAvailable
+                            ? "bg-background border-input hover:bg-secondary"
+                            : "bg-background/50 border-input/50 opacity-50 cursor-not-allowed"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={selectedWorkerIds.includes(w.id)}
+                          disabled={!w.isAvailable}
+                          onChange={e => {
+                            if (e.target.checked) setSelectedWorkerIds(prev => [...prev, w.id]);
+                            else setSelectedWorkerIds(prev => prev.filter(id => id !== w.id));
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-sm block truncate">{w.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {w.tradeType}{!w.isAvailable && " (Off Duty)"}
+                          </span>
+                        </div>
+                        {/* 4-dot workload indicator */}
+                        <div className="flex gap-0.5 shrink-0">
+                          {[0, 1, 2, 3].map(i => (
+                            <div
+                              key={i}
+                              className={`w-2 h-2 rounded-full ${
+                                !w.isAvailable
+                                  ? "bg-destructive/40"
+                                  : i < dotsAvailable
+                                  ? dotsAvailable === 4 ? "bg-green-400" : dotsAvailable >= 3 ? "bg-yellow-400" : "bg-orange-400"
+                                  : "bg-muted"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </label>
+                      {/* Hover tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                        <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs text-popover-foreground whitespace-nowrap">
+                          <div className="font-semibold mb-1">{w.name}</div>
+                          <div className={`${w.isAvailable ? "text-green-400" : "text-destructive"}`}>
+                            {w.isAvailable ? "● Available" : "● Off Duty"}
+                          </div>
+                          <div className="text-muted-foreground mt-0.5">{tooltipText}</div>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <span className="text-muted-foreground">Capacity:</span>
+                            <div className="flex gap-0.5">
+                              {[0, 1, 2, 3].map(i => (
+                                <div
+                                  key={i}
+                                  className={`w-2.5 h-2.5 rounded-full ${
+                                    !w.isAvailable
+                                      ? "bg-destructive/40"
+                                      : i < dotsAvailable
+                                      ? dotsAvailable === 4 ? "bg-green-400" : dotsAvailable >= 3 ? "bg-yellow-400" : "bg-orange-400"
+                                      : "bg-muted"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-muted-foreground">{dotsAvailable}/4</span>
+                          </div>
+                        </div>
+                        {/* Arrow */}
+                        <div className="w-2 h-2 bg-popover border-r border-b border-border rotate-45 mx-auto -mt-1" />
+                      </div>
                     </div>
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

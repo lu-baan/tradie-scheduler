@@ -75,6 +75,35 @@
   --radius: 0.5rem;
 }
 
+/* ── Light Theme ─────────────────────────────────────────────────────────────── */
+.light {
+  --background: 0 0% 97%;
+  --foreground: 0 0% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 8%;
+  --primary: 24 100% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 92%;
+  --secondary-foreground: 0 0% 15%;
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 38%;
+  --accent: 24 100% 47%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 82%;
+  --input: 0 0% 86%;
+  --ring: 24 100% 47%;
+  --status-pending: 45 93% 38%;
+  --status-confirmed: 180 100% 32%;
+  --status-progress: 217 91% 48%;
+  --status-completed: 142 71% 35%;
+  --status-cancelled: 0 0% 45%;
+  --status-bumped: 0 84% 52%;
+}
+
 @layer base {
   * {
     @apply border-border;

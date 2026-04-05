@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowLeft, Sun, Moon } from "lucide-react";
 import type { UserRole } from "@/App";
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function Label({ children, required = false }: { children: React.ReactNode; requ
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AuthPage({ onLogin }: { onLogin: (role: UserRole) => void }) {
+export function AuthPage({ onLogin, theme, onToggleTheme }: { onLogin: (role: UserRole) => void; theme: "dark" | "light"; onToggleTheme: () => void }) {
   const [view, setView] = useState<"login" | "forgot">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -91,6 +91,14 @@ export function AuthPage({ onLogin }: { onLogin: (role: UserRole) => void }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <button
+        type="button"
+        onClick={onToggleTheme}
+        className="fixed top-4 right-4 p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
+        title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">

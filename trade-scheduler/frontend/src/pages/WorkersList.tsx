@@ -255,7 +255,12 @@ export function WorkersList() {
               <div className={`absolute top-0 left-0 w-1 h-full ${worker.isAvailable ? "bg-green-500" : "bg-destructive"}`} />
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-display text-xl font-bold text-foreground">{worker.name}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-display text-xl font-bold text-foreground">{worker.name}</h3>
+                    <span className="font-mono text-xs bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded font-bold" title="Worker ID — used as login reference">
+                      ID:{worker.id}
+                    </span>
+                  </div>
                   <p className="text-primary text-sm font-semibold">{worker.tradeType}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">

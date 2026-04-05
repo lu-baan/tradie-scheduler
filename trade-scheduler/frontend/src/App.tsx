@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,9 +24,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router({ userRole, onLogout }: { userRole: UserRole; onLogout: () => void }) {
+function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRole; onLogout: () => void; theme: "dark" | "light"; onToggleTheme: () => void }) {
   return (
-    <AppLayout userRole={userRole} onLogout={onLogout}>
+    <AppLayout userRole={userRole} onLogout={onLogout} theme={theme} onToggleTheme={onToggleTheme}>
       <Switch>
         <Route path="/">
           {userRole === "admin" ? <Dashboard /> : <Redirect to="/jobs" />}
@@ -57,6 +57,18 @@ function App() {
   const [userRole, setUserRole] = useState<UserRole>(() => {
     return (sessionStorage.getItem("ts2_role") as UserRole) ?? "worker";
   });
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("ts2_theme") as "dark" | "light") ?? "dark";
+  });
+
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+    localStorage.setItem("ts2_theme", theme);
+  }, [theme]);
 
   const handleLogin = (role: UserRole) => {
     sessionStorage.setItem("ts2_auth", "true");
@@ -70,6 +82,8 @@ function App() {
     sessionStorage.removeItem("ts2_role");
     setIsAuthenticated(false);
   };
+
+  const handleToggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -86,9 +100,9 @@ function App() {
         />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           {isAuthenticated ? (
-            <Router userRole={userRole} onLogout={handleLogout} />
+            <Router userRole={userRole} onLogout={handleLogout} theme={theme} onToggleTheme={handleToggleTheme} />
           ) : (
-            <AuthPage onLogin={handleLogin} />
+            <AuthPage onLogin={handleLogin} theme={theme} onToggleTheme={handleToggleTheme} />
           )}
         </WouterRouter>
       </TooltipProvider>

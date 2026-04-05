@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, BriefcaseBusiness, Calendar, Users, Settings,
-  X, Menu, LogOut, ShieldCheck, UserPlus,
+  X, Menu, LogOut, ShieldCheck, UserPlus, Sun, Moon,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -23,10 +23,14 @@ export function AppLayout({
   children,
   userRole,
   onLogout,
+  theme,
+  onToggleTheme,
 }: {
   children: React.ReactNode;
   userRole: UserRole;
   onLogout: () => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -71,6 +75,14 @@ export function AppLayout({
           <span className="font-display font-bold text-xl tracking-wide">Trade Sched</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
+          </button>
           <button
             type="button"
             onClick={onLogout}
@@ -197,6 +209,14 @@ export function AppLayout({
             </p>
           </div>
 
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-display uppercase tracking-wider text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+          >
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
           <button
             type="button"
             onClick={onLogout}
