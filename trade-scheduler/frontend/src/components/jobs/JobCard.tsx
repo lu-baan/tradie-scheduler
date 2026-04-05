@@ -74,6 +74,7 @@ export function JobCard({ job }: { job: Job }) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [emergencyConfirmOpen, setEmergencyConfirmOpen] = useState(false);
+  const [resolveEmergencyOpen, setResolveEmergencyOpen] = useState(false);
 
   const deleteMutation = useDeleteJob({
     mutation: {
@@ -116,6 +117,16 @@ export function JobCard({ job }: { job: Job }) {
         });
       },
       onError: () => toast.error("Failed to mark as complete"),
+    },
+  });
+
+  const resolveEmergencyMutation = useUpdateJob({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+        toast.success("Emergency resolved", { description: `"${job.title}" returned to normal status.` });
+      },
+      onError: () => toast.error("Failed to resolve emergency"),
     },
   });
 
@@ -324,6 +335,17 @@ export function JobCard({ job }: { job: Job }) {
                       <AlertTriangle size={13} className="mr-1" /> CODE 9
                     </Button>
                   )}
+                  {job.isEmergency && !isCompleted && !isCancelled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-orange-500 text-orange-400 hover:bg-orange-500/20 font-bold"
+                      onClick={() => setResolveEmergencyOpen(true)}
+                      disabled={resolveEmergencyMutation.isPending}
+                    >
+                      <AlertTriangle size={13} className="mr-1" /> Resolve
+                    </Button>
+                  )}
                 </>
               )}
 
@@ -352,7 +374,12 @@ export function JobCard({ job }: { job: Job }) {
 
         {/* Edit Dialog */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+            onInteractOutside={(e) => {
+              if ((e.target as Element).closest?.(".pac-container")) e.preventDefault();
+            }}
+          >
             <DialogHeader>
               <DialogTitle>Edit Job #{job.id}</DialogTitle>
               <DialogDescription>Update the details for this job.</DialogDescription>
@@ -393,6 +420,15 @@ export function JobCard({ job }: { job: Job }) {
         variant="destructive"
         isPending={emergencyMutation.isPending}
         onConfirm={() => emergencyMutation.mutate({ id: job.id })}
+      />
+      <ConfirmDialog
+        open={resolveEmergencyOpen}
+        onOpenChange={setResolveEmergencyOpen}
+        title="Resolve Code 9 Emergency"
+        description={`Remove the CODE 9 status from "${job.title}"? It will return to a standard confirmed booking.`}
+        confirmLabel="Resolve Emergency"
+        isPending={resolveEmergencyMutation.isPending}
+        onConfirm={() => resolveEmergencyMutation.mutate({ id: job.id, data: { isEmergency: false, priority: "high" } })}
       />
     </>
   );

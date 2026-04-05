@@ -11,7 +11,12 @@ interface JobDialogProps {
 export function JobDialog({ open, onOpenChange, job }: JobDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border/50 shadow-2xl">
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border/50 shadow-2xl"
+        onInteractOutside={(e) => {
+          if ((e.target as Element).closest?.(".pac-container")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-foreground">
             {job ? "Edit Job" : "New Job"}

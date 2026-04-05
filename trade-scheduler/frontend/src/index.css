@@ -124,3 +124,9 @@
 .emergency-pulse {
   animation: pulse-red 2s infinite;
 }
+
+/* Google Places Autocomplete dropdown — must sit above Radix dialogs */
+.pac-container {
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}

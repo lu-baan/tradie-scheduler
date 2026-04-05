@@ -19,7 +19,8 @@ import { format } from "date-fns";
 const JOB_TITLE_MAX = 80;
 const CLIENT_NAME_MAX = 80;
 const NOTES_MAX = 500;
-const MAX_PRICE = 999999.99;
+const MAX_PRICE = 50000;
+const HIGH_VALUE_THRESHOLD = 10000;
 
 const VALIDITY_DESCRIPTIONS: Record<number, { label: string; description: string; color: string }> = {
   1: {
@@ -705,6 +706,11 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                     <span>Total</span>
                     <span className="text-primary">${total.toFixed(2)}</span>
                   </div>
+                  {total > HIGH_VALUE_THRESHOLD && (
+                    <div className="bg-orange-500/10 border border-orange-500/30 rounded-md px-3 py-2 text-xs text-orange-300 mt-2">
+                      High-value job (over $10,000) — confirm pricing with client before saving.
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -730,7 +736,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           )}
 
           {/* Schedule Date + Time */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label hint="Must be today or a future date">Scheduled Date</Label>
               <Controller
@@ -778,6 +784,23 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             <div>
               <Label hint="Estimated start time for the job. Defaults to 8:00 AM if not set.">Start Time</Label>
               <Input type="time" className="h-12" {...form.register("scheduledTime")} />
+            </div>
+            <div>
+              <Label hint="Computed from start time + estimated hours">Est. End Time</Label>
+              <div className="h-12 flex items-center px-3 rounded-md border border-input bg-background/30 text-sm text-muted-foreground">
+                {(() => {
+                  const startTime = form.watch("scheduledTime");
+                  const hours = parseFloat(String(form.watch("estimatedHours") ?? 0)) || 0;
+                  if (!startTime || !hours) return <span className="italic">—</span>;
+                  const [h, m] = startTime.split(":").map(Number);
+                  const totalMins = h * 60 + m + Math.round(hours * 60);
+                  const endH = Math.floor(totalMins / 60) % 24;
+                  const endM = totalMins % 60;
+                  const period = endH >= 12 ? "PM" : "AM";
+                  const displayH = endH % 12 || 12;
+                  return `${displayH}:${String(endM).padStart(2, "0")} ${period}`;
+                })()}
+              </div>
             </div>
           </div>
 
