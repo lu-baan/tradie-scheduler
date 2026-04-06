@@ -208,8 +208,67 @@ function TimeColumn({
   jobs: any[];
   onJobClick: (j: any) => void;
 }) {
-  const allDayJobs = jobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && isAllDay(j));
-  const timedJobs  = jobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && !isAllDay(j));
+  const gridMaxPx = HOURS.length * HOUR_H;
+
+  const allDayJobs = jobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && isAllDay(j));
+  const timedJobs  = jobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && !isAllDay(j));
+
+  // Jobs that started yesterday and overflow into today
+  const prevDay = addDays(day, -1);
+  const overflowJobs: Array<{ job: any; height: number }> = jobs
+    .filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), prevDay) && !isAllDay(j))
+    .flatMap((job: any) => {
+      const pos = getJobPosition(job);
+      if (!pos) return [];
+      const overflow = pos.top + pos.height - gridMaxPx;
+      if (overflow <= 0) return [];
+      return [{ job, height: Math.min(overflow, gridMaxPx) }];
+    });
+
+  function renderJobBlock(job: any, top: number, height: number, col: number, totalCols: number, continuation = false) {
+    const w = 100 / totalCols;
+    const left = col * w;
+    const clippedHeight = Math.min(height, gridMaxPx - top);
+    const overflows = top + height > gridMaxPx;
+    return (
+      <div
+        key={`${job.id}-${continuation ? "cont" : "orig"}`}
+        onClick={() => onJobClick(job)}
+        className={cn(
+          "absolute rounded border px-1.5 py-1 text-[11px] cursor-pointer overflow-hidden transition-all z-10",
+          continuation ? "border-dashed opacity-80" : "",
+          jobColorClass(job)
+        )}
+        style={{
+          top: top + 1,
+          height: Math.max(clippedHeight - 2, 18),
+          left: `calc(${left}% + 2px)`,
+          width: `calc(${w}% - 4px)`,
+        }}
+      >
+        {continuation && (
+          <div className="text-[9px] opacity-60 mb-0.5">↳ continued</div>
+        )}
+        <div className="font-semibold leading-tight truncate">{job.title}</div>
+        {clippedHeight > 38 && (
+          <div className="text-[10px] opacity-75 truncate">{job.clientName}</div>
+        )}
+        {clippedHeight > 54 && job.scheduledDate && (
+          <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
+            <Clock size={8} />
+            {format(new Date(job.scheduledDate), "h:mm a")}
+            {overflows && <span className="ml-0.5">→</span>}
+          </div>
+        )}
+        {clippedHeight > 68 && job.assignedWorkers?.length > 0 && (
+          <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
+            <Users size={8} />
+            {job.assignedWorkers.map((w: any) => w.name.split(" ")[0]).join(", ")}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">
@@ -231,97 +290,66 @@ function TimeColumn({
         </div>
       )}
 
-    <div className="relative" style={{ height: HOURS.length * HOUR_H }}>
-      {HOURS.map((_, i) => (
-        <div key={i} className="absolute w-full border-t border-border" style={{ top: i * HOUR_H }} />
-      ))}
-      {HOURS.map((_, i) => (
-        <div
-          key={`h${i}`}
-          className="absolute w-full border-t border-border/40"
-          style={{ top: i * HOUR_H + HOUR_H / 2 }}
-        />
-      ))}
+      <div className="relative" style={{ height: gridMaxPx }}>
+        {HOURS.map((_, i) => (
+          <div key={i} className="absolute w-full border-t border-border" style={{ top: i * HOUR_H }} />
+        ))}
+        {HOURS.map((_, i) => (
+          <div
+            key={`h${i}`}
+            className="absolute w-full border-t border-border/40"
+            style={{ top: i * HOUR_H + HOUR_H / 2 }}
+          />
+        ))}
 
-      {isToday(day) && (() => {
-        const now = new Date();
-        const top = (getHours(now) + getMinutes(now) / 60 - HOUR_START) * HOUR_H;
-        if (top < 0 || top > HOURS.length * HOUR_H) return null;
-        return (
-          <div className="absolute w-full z-20 flex items-center pointer-events-none" style={{ top }}>
-            <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shrink-0" />
-            <div className="flex-1 h-px bg-red-500 opacity-80" />
-          </div>
-        );
-      })()}
-
-      {(() => {
-        // Compute overlap columns so jobs share width instead of stacking
-        const positioned = timedJobs
-          .map((job: any) => ({ job, pos: getJobPosition(job) }))
-          .filter((x): x is { job: any; pos: { top: number; height: number } } => x.pos !== null)
-          .sort((a: { pos: { top: number } }, b: { pos: { top: number } }) => a.pos.top - b.pos.top);
-
-        // Assign each job a column slot
-        const cols: number[] = [];     // which column each job is in
-        const colEnds: number[] = [];  // bottom pixel of the last job in each column
-        for (const { pos } of positioned) {
-          let placed = false;
-          for (let c = 0; c < colEnds.length; c++) {
-            if (pos.top >= colEnds[c]) {
-              cols.push(c);
-              colEnds[c] = pos.top + pos.height;
-              placed = true;
-              break;
-            }
-          }
-          if (!placed) {
-            cols.push(colEnds.length);
-            colEnds.push(pos.top + pos.height);
-          }
-        }
-        const totalCols = Math.max(1, colEnds.length);
-
-        return positioned.map(({ job, pos }, i) => {
-          const col = cols[i];
-          const w = 100 / totalCols;
-          const left = col * w;
+        {isToday(day) && (() => {
+          const now = new Date();
+          const top = (getHours(now) + getMinutes(now) / 60 - HOUR_START) * HOUR_H;
+          if (top < 0 || top > gridMaxPx) return null;
           return (
-            <div
-              key={job.id}
-              onClick={() => onJobClick(job)}
-              className={cn(
-                "absolute rounded border px-1.5 py-1 text-[11px] cursor-pointer overflow-hidden transition-all z-10",
-                jobColorClass(job)
-              )}
-              style={{
-                top: pos.top + 1,
-                height: Math.max(pos.height - 2, 18),
-                left: `calc(${left}% + 2px)`,
-                width: `calc(${w}% - 4px)`,
-              }}
-            >
-              <div className="font-semibold leading-tight truncate">{job.title}</div>
-              {pos.height > 38 && (
-                <div className="text-[10px] opacity-75 truncate">{job.clientName}</div>
-              )}
-              {pos.height > 54 && job.scheduledDate && (
-                <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
-                  <Clock size={8} />
-                  {format(new Date(job.scheduledDate), "h:mm a")}
-                </div>
-              )}
-              {pos.height > 68 && job.assignedWorkers?.length > 0 && (
-                <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
-                  <Users size={8} />
-                  {job.assignedWorkers.map((w: any) => w.name.split(" ")[0]).join(", ")}
-                </div>
-              )}
+            <div className="absolute w-full z-20 flex items-center pointer-events-none" style={{ top }}>
+              <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 shrink-0" />
+              <div className="flex-1 h-px bg-red-500 opacity-80" />
             </div>
           );
-        });
-      })()}
-    </div>
+        })()}
+
+        {/* Overflow continuations from previous day */}
+        {overflowJobs.map(({ job, height }, i) =>
+          renderJobBlock(job, 0, height, i, Math.max(1, overflowJobs.length), true)
+        )}
+
+        {/* Current day timed jobs */}
+        {(() => {
+          const positioned = timedJobs
+            .map((job: any) => ({ job, pos: getJobPosition(job) }))
+            .filter((x): x is { job: any; pos: { top: number; height: number } } => x.pos !== null)
+            .sort((a, b) => a.pos.top - b.pos.top);
+
+          const cols: number[] = [];
+          const colEnds: number[] = [];
+          for (const { pos } of positioned) {
+            let placed = false;
+            for (let c = 0; c < colEnds.length; c++) {
+              if (pos.top >= colEnds[c]) {
+                cols.push(c);
+                colEnds[c] = pos.top + pos.height;
+                placed = true;
+                break;
+              }
+            }
+            if (!placed) {
+              cols.push(colEnds.length);
+              colEnds.push(pos.top + pos.height);
+            }
+          }
+          const totalCols = Math.max(1, colEnds.length);
+
+          return positioned.map(({ job, pos }, i) =>
+            renderJobBlock(job, pos.top, pos.height, cols[i], totalCols)
+          );
+        })()}
+      </div>
     </div>
   );
 }
