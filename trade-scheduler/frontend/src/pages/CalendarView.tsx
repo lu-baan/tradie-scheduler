@@ -230,38 +230,72 @@ function TimeColumn({
         );
       })()}
 
-      {dayJobs.map(job => {
-        const pos = getJobPosition(job);
-        if (!pos) return null;
-        return (
-          <div
-            key={job.id}
-            onClick={() => onJobClick(job)}
-            className={cn(
-              "absolute left-0.5 right-0.5 rounded border px-1.5 py-1 text-[11px] cursor-pointer overflow-hidden transition-all z-10",
-              jobColorClass(job)
-            )}
-            style={{ top: pos.top + 1, height: Math.max(pos.height - 2, 18) }}
-          >
-            <div className="font-semibold leading-tight truncate">{job.title}</div>
-            {pos.height > 38 && (
-              <div className="text-[10px] opacity-75 truncate">{job.clientName}</div>
-            )}
-            {pos.height > 54 && job.scheduledDate && (
-              <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
-                <Clock size={8} />
-                {format(new Date(job.scheduledDate), "h:mm a")}
-              </div>
-            )}
-            {pos.height > 68 && job.assignedWorkers?.length > 0 && (
-              <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
-                <Users size={8} />
-                {job.assignedWorkers.map((w: any) => w.name.split(" ")[0]).join(", ")}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {(() => {
+        // Compute overlap columns so jobs share width instead of stacking
+        const positioned = dayJobs
+          .map(job => ({ job, pos: getJobPosition(job) }))
+          .filter((x): x is { job: any; pos: { top: number; height: number } } => x.pos !== null)
+          .sort((a, b) => a.pos.top - b.pos.top);
+
+        // Assign each job a column slot
+        const cols: number[] = [];     // which column each job is in
+        const colEnds: number[] = [];  // bottom pixel of the last job in each column
+        for (const { pos } of positioned) {
+          let placed = false;
+          for (let c = 0; c < colEnds.length; c++) {
+            if (pos.top >= colEnds[c]) {
+              cols.push(c);
+              colEnds[c] = pos.top + pos.height;
+              placed = true;
+              break;
+            }
+          }
+          if (!placed) {
+            cols.push(colEnds.length);
+            colEnds.push(pos.top + pos.height);
+          }
+        }
+        const totalCols = Math.max(1, colEnds.length);
+
+        return positioned.map(({ job, pos }, i) => {
+          const col = cols[i];
+          const w = 100 / totalCols;
+          const left = col * w;
+          return (
+            <div
+              key={job.id}
+              onClick={() => onJobClick(job)}
+              className={cn(
+                "absolute rounded border px-1.5 py-1 text-[11px] cursor-pointer overflow-hidden transition-all z-10",
+                jobColorClass(job)
+              )}
+              style={{
+                top: pos.top + 1,
+                height: Math.max(pos.height - 2, 18),
+                left: `calc(${left}% + 2px)`,
+                width: `calc(${w}% - 4px)`,
+              }}
+            >
+              <div className="font-semibold leading-tight truncate">{job.title}</div>
+              {pos.height > 38 && (
+                <div className="text-[10px] opacity-75 truncate">{job.clientName}</div>
+              )}
+              {pos.height > 54 && job.scheduledDate && (
+                <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
+                  <Clock size={8} />
+                  {format(new Date(job.scheduledDate), "h:mm a")}
+                </div>
+              )}
+              {pos.height > 68 && job.assignedWorkers?.length > 0 && (
+                <div className="flex items-center gap-0.5 text-[9px] opacity-60 mt-0.5">
+                  <Users size={8} />
+                  {job.assignedWorkers.map((w: any) => w.name.split(" ")[0]).join(", ")}
+                </div>
+              )}
+            </div>
+          );
+        });
+      })()}
     </div>
   );
 }
