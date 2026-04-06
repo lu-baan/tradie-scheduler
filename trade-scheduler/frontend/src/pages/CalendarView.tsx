@@ -389,26 +389,56 @@ function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
 
   return (
     <div className="space-y-4">
+      {/* Status badge row */}
+      <div className="flex gap-2 flex-wrap">
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+          job.status === "completed" ? "bg-green-500/20 text-green-400" :
+          job.status === "in_progress" ? "bg-blue-500/20 text-blue-400" :
+          job.status === "cancelled" ? "bg-red-500/20 text-red-400" :
+          "bg-muted text-muted-foreground"
+        }`}>{job.status?.replace("_", " ")}</span>
+        {job.isEmergency && (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-destructive/20 text-destructive">CODE 9</span>
+        )}
+        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-muted text-muted-foreground">{job.tradeType}</span>
+      </div>
+
       {/* Job info */}
       <div className="space-y-2 text-sm">
-        <div className="flex items-start gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Users size={14} className="text-primary shrink-0" />
+          <span className="font-semibold text-foreground">{job.clientName}</span>
+        </div>
+        <div className="flex items-start gap-2">
           <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
-          <span className="text-foreground">{job.address}</span>
+          <a
+            href={`https://maps.google.com/?q=${encodeURIComponent(job.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground hover:text-primary underline-offset-2 hover:underline"
+          >{job.address}</a>
         </div>
         {job.clientPhone && (
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2">
             <Phone size={14} className="text-primary shrink-0" />
             <a href={`tel:${job.clientPhone}`} className="text-foreground hover:text-primary">{job.clientPhone}</a>
           </div>
         )}
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="flex items-center gap-2">
           <Clock size={14} className="text-primary shrink-0" />
           <span className="text-foreground">
-            {job.scheduledDate ? format(new Date(job.scheduledDate), "h:mm a") : "No time set"}
+            {job.scheduledDate ? format(new Date(job.scheduledDate), "EEE d MMM · h:mm a") : "No time set"}
             {" · "}{job.estimatedHours}h est.
           </span>
         </div>
       </div>
+
+      {/* Description */}
+      {job.description && (
+        <div className="rounded-md bg-muted/40 border border-border px-3 py-2.5 text-sm text-foreground leading-relaxed">
+          {job.description}
+        </div>
+      )}
 
       {/* Notes */}
       <div>
