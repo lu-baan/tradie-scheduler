@@ -194,6 +194,11 @@ function MiniCalendar({
 
 // ── Time grid column ──────────────────────────────────────────────────────────
 
+/** True if the scheduled_date has no time component (date-only string like "2026-04-07") */
+function isAllDay(job: any): boolean {
+  return typeof job.scheduledDate === "string" && job.scheduledDate.length === 10;
+}
+
 function TimeColumn({
   day,
   jobs,
@@ -203,9 +208,29 @@ function TimeColumn({
   jobs: any[];
   onJobClick: (j: any) => void;
 }) {
-  const dayJobs = jobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day));
+  const allDayJobs = jobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && isAllDay(j));
+  const timedJobs  = jobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && !isAllDay(j));
 
   return (
+    <div className="flex flex-col">
+      {/* All-day band */}
+      {allDayJobs.length > 0 && (
+        <div className="flex flex-col gap-0.5 px-0.5 py-1 border-b border-border bg-muted/20">
+          {allDayJobs.map((job: any) => (
+            <div
+              key={job.id}
+              onClick={() => onJobClick(job)}
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer truncate border",
+                jobColorClass(job)
+              )}
+            >
+              {job.title}
+            </div>
+          ))}
+        </div>
+      )}
+
     <div className="relative" style={{ height: HOURS.length * HOUR_H }}>
       {HOURS.map((_, i) => (
         <div key={i} className="absolute w-full border-t border-border" style={{ top: i * HOUR_H }} />
@@ -232,10 +257,10 @@ function TimeColumn({
 
       {(() => {
         // Compute overlap columns so jobs share width instead of stacking
-        const positioned = dayJobs
-          .map(job => ({ job, pos: getJobPosition(job) }))
+        const positioned = timedJobs
+          .map((job: any) => ({ job, pos: getJobPosition(job) }))
           .filter((x): x is { job: any; pos: { top: number; height: number } } => x.pos !== null)
-          .sort((a, b) => a.pos.top - b.pos.top);
+          .sort((a: { pos: { top: number } }, b: { pos: { top: number } }) => a.pos.top - b.pos.top);
 
         // Assign each job a column slot
         const cols: number[] = [];     // which column each job is in
@@ -296,6 +321,7 @@ function TimeColumn({
           );
         });
       })()}
+    </div>
     </div>
   );
 }
