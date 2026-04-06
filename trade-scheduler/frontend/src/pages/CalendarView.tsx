@@ -271,26 +271,7 @@ function TimeColumn({
   }
 
   return (
-    <div className="flex flex-col">
-      {/* All-day band */}
-      {allDayJobs.length > 0 && (
-        <div className="flex flex-col gap-0.5 px-0.5 py-1 border-b border-border bg-muted/20">
-          {allDayJobs.map((job: any) => (
-            <div
-              key={job.id}
-              onClick={() => onJobClick(job)}
-              className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer truncate border",
-                jobColorClass(job)
-              )}
-            >
-              {job.title}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="relative" style={{ height: gridMaxPx }}>
+    <div className="relative" style={{ height: gridMaxPx }}>
         {HOURS.map((_, i) => (
           <div key={i} className="absolute w-full border-t border-border" style={{ top: i * HOUR_H }} />
         ))}
@@ -349,7 +330,6 @@ function TimeColumn({
             renderJobBlock(job, pos.top, pos.height, cols[i], totalCols)
           );
         })()}
-      </div>
     </div>
   );
 }
@@ -982,6 +962,38 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               })}
             </div>
 
+            {/* Shared all-day row */}
+            {(() => {
+              const maxCount = Math.max(0, ...weekDays.map(d =>
+                filteredJobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), d) && isAllDay(j)).length
+              ));
+              if (maxCount === 0) return null;
+              const rowH = maxCount * 22 + 8;
+              return (
+                <div className="shrink-0 flex border-b border-border bg-muted/10" style={{ height: rowH }}>
+                  <div className="w-10 sm:w-12 shrink-0 flex items-start justify-end pr-1 pt-1">
+                    <span className="text-[8px] text-muted-foreground">all day</span>
+                  </div>
+                  {weekDays.map(day => {
+                    const dayAllDay = filteredJobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day) && isAllDay(j));
+                    return (
+                      <div key={day.toISOString()} className="flex-1 border-l border-border/50 flex flex-col gap-0.5 px-0.5 pt-1 min-w-0">
+                        {dayAllDay.map((job: any) => (
+                          <div
+                            key={job.id}
+                            onClick={() => openJob(job)}
+                            className={cn("rounded px-1 py-0.5 text-[10px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                          >
+                            {job.title}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             <div
               ref={timeGridRef}
               className="flex-1 overflow-y-auto overscroll-contain"
@@ -1058,6 +1070,26 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                 )}
               </div>
             </div>
+
+            {/* All-day band – day view */}
+            {(() => {
+              const dayAllDay = filteredJobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), currentDate) && isAllDay(j));
+              if (dayAllDay.length === 0) return null;
+              return (
+                <div className="shrink-0 flex flex-col gap-0.5 px-2 py-1.5 border-b border-border bg-muted/10">
+                  <span className="text-[8px] text-muted-foreground mb-0.5">all day</span>
+                  {dayAllDay.map((job: any) => (
+                    <div
+                      key={job.id}
+                      onClick={() => openJob(job)}
+                      className={cn("rounded px-2 py-0.5 text-[11px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                    >
+                      {job.title}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             <div
               ref={timeGridRef}
