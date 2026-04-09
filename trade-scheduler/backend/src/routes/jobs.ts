@@ -2,11 +2,12 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, jobsTable, workersTable } from "../db";
 import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
-import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "../api-zod";
+import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "@workspace/api-zod";
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
 import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances } from "../lib/maps";
+import { requireAdmin } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -72,6 +73,16 @@ router.get("/", async (req: Request, res: Response) => {
 
     let rows = await db.select().from(jobsTable);
 
+    // Workers only see jobs they are assigned to — strip client PII for safety
+    if (req.session.role === "worker") {
+      const workerDbId = req.session.workerId;
+      if (!workerDbId) {
+        res.json([]);
+        return;
+      }
+      rows = rows.filter(j => parseWorkerIds(j.assignedWorkerIds).includes(workerDbId));
+    }
+
     const hydrated = await hydrateJobs(rows, lat, lng);
 
     if (sortBy === "smart" || sortBy === "distance") {
@@ -111,7 +122,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireAdmin, async (req: Request, res: Response) => {
   try {
     const body = CreateJobBody.parse(req.body);
     if (!body.clientPhone && !body.clientEmail) {
@@ -148,9 +159,9 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
@@ -159,9 +170,9 @@ router.get("/:id", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     // Fetch existing job to detect status change
@@ -236,9 +247,9 @@ router.put("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [deleted] = await db.delete(jobsTable).where(eq(jobsTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Job not found" }); return; }
@@ -246,9 +257,9 @@ router.delete("/:id", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.post("/:id/emergency", async (req: Request, res: Response) => {
+router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
@@ -303,9 +314,9 @@ router.post("/:id/emergency", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.post("/:id/convert-to-booking", async (req: Request, res: Response) => {
+router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const body = ConvertToBookingBody.parse(req.body);
     const [job] = await db.update(jobsTable).set({
@@ -332,9 +343,9 @@ router.post("/:id/convert-to-booking", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.get("/:id/suggest-times", async (req: Request, res: Response) => {
+router.get("/:id/suggest-times", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
@@ -399,9 +410,9 @@ router.get("/:id/suggest-times", async (req: Request, res: Response) => {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.get("/:id/invoice", async (req: Request, res: Response) => {
+router.get("/:id/invoice", requireAdmin, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }

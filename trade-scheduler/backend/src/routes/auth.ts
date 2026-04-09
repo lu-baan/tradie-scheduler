@@ -1,14 +1,23 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db } from "../db";
-import { usersTable } from "../db/schema/users";
-import { workersTable } from "../db/schema/workers";
-import { eq } from "drizzle-orm";
+import { db, usersTable, workersTable } from "../db";
+import { eq, count } from "drizzle-orm";
 import { z } from "zod/v4";
 import crypto from "crypto";
 import { promisify } from "util";
+import rateLimit from "express-rate-limit";
+import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 const scrypt = promisify(crypto.scrypt);
+
+// Stricter rate-limit for auth endpoints — 10 attempts per 15 minutes per IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts — try again later" },
+});
 
 // ── Password hashing ──────────────────────────────────────────────────────────
 
@@ -43,12 +52,30 @@ const LoginBody = z.object({
 });
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
+// Requires an active admin session, UNLESS no admin account exists yet (bootstrap).
 
-router.post("/register", async (req: Request, res: Response) => {
+async function requireAdminOrBootstrap(req: Request, res: Response, next: Function) {
+  // Allow if the caller is already an admin
+  if (req.session.userId && req.session.role === "admin") {
+    next();
+    return;
+  }
+  // Allow if there are no admins in the database yet (first-time setup)
+  const [{ adminCount }] = await db
+    .select({ adminCount: count() })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+  if (adminCount === 0) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: "Admin account required to register new users" });
+}
+
+router.post("/register", authLimiter, requireAdminOrBootstrap, async (req: Request, res: Response) => {
   try {
     const body = RegisterBody.parse(req.body);
 
-    // Check if login number already exists
     const existing = await db
       .select({ id: usersTable.id })
       .from(usersTable)
@@ -62,7 +89,6 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const passwordHash = await hashPassword(body.password);
 
-    // For worker accounts, create a worker record first so they appear in the Workers panel
     let workerId: number | null = null;
     if (body.role === "worker") {
       const [worker] = await db
@@ -111,7 +137,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", authLimiter, async (req: Request, res: Response) => {
   try {
     const body = LoginBody.parse(req.body);
 
@@ -132,13 +158,26 @@ router.post("/login", async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({
-      id: user.id,
-      fullName: user.fullName,
-      loginNumber: user.loginNumber,
-      role: user.role,
-      email: user.email,
-      workerId: user.workerId ?? null,
+    // Regenerate session ID before writing credentials to prevent session fixation.
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error("[auth] session regeneration error:", err);
+        res.status(500).json({ error: "Internal server error" });
+        return;
+      }
+      req.session.userId = user.id;
+      req.session.role = user.role as "admin" | "worker";
+      req.session.loginNumber = user.loginNumber;
+      req.session.workerId = user.workerId ?? null;
+
+      res.json({
+        id: user.id,
+        fullName: user.fullName,
+        loginNumber: user.loginNumber,
+        role: user.role,
+        email: user.email,
+        workerId: user.workerId ?? null,
+      });
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -150,9 +189,53 @@ router.post("/login", async (req: Request, res: Response) => {
   }
 });
 
-// ── GET /api/auth/users (admin use — list all accounts) ──────────────────────
+// ── POST /api/auth/logout ─────────────────────────────────────────────────────
 
-router.get("/users", async (_req: Request, res: Response) => {
+router.post("/logout", (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error("[auth] logout error:", err);
+      res.status(500).json({ error: "Logout failed" });
+      return;
+    }
+    res.clearCookie("connect.sid");
+    res.json({ ok: true });
+  });
+});
+
+// ── GET /api/auth/me ─────────────────────────────────────────────────────────
+
+router.get("/me", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const [user] = await db
+      .select({
+        id: usersTable.id,
+        fullName: usersTable.fullName,
+        loginNumber: usersTable.loginNumber,
+        role: usersTable.role,
+        email: usersTable.email,
+        workerId: usersTable.workerId,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.session.userId!))
+      .limit(1);
+
+    if (!user) {
+      req.session.destroy(() => {});
+      res.status(401).json({ error: "Session user not found" });
+      return;
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error("[auth] me error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── GET /api/auth/users (admin only) ─────────────────────────────────────────
+
+router.get("/users", requireAdmin, async (_req: Request, res: Response) => {
   try {
     const users = await db
       .select({
@@ -175,12 +258,20 @@ router.get("/users", async (_req: Request, res: Response) => {
 
 // ── PATCH /api/auth/profile ───────────────────────────────────────────────────
 
-router.patch("/profile", async (req: Request, res: Response) => {
+router.patch("/profile", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { loginNumber, email } = z.object({
-      loginNumber: z.string().length(6),
-      email: z.string().email().nullable().optional(),
-    }).parse(req.body);
+    const { loginNumber, email } = z
+      .object({
+        loginNumber: z.string().length(6),
+        email: z.string().email().nullable().optional(),
+      })
+      .parse(req.body);
+
+    // Users may only update their own profile; admins can update any.
+    if (req.session.role !== "admin" && req.session.loginNumber !== loginNumber) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
 
     const [updated] = await db
       .update(usersTable)

@@ -4,17 +4,23 @@ import jobsRouter from "./jobs";
 import workersRouter from "./workers";
 import authRouter from "./auth";
 import geoRouter from "./geo";
+import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
+// Public routes — no auth required.
 router.use(healthRouter);
-router.use("/jobs", jobsRouter);
-router.use("/workers", workersRouter);
 router.use("/auth", authRouter);
-router.use("/geo", geoRouter);
 
-router.get("/test-email", async (req: Request, res: Response) => {
+// Protected routes — valid session required.
+router.use("/jobs", requireAuth, jobsRouter);
+// Workers data is admin-only — the UI hides it from workers, and the API enforces it.
+router.use("/workers", requireAdmin, workersRouter);
+router.use("/geo", requireAuth, geoRouter);
+
+// Admin-only test endpoint — should be removed before going fully public.
+router.get("/test-email", requireAdmin, async (req: Request, res: Response) => {
   try {
     await sendInvoiceEmail({
       clientName: "Test Client",

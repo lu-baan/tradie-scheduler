@@ -81,8 +81,14 @@ function App() {
   };
 
   const handleLogout = () => {
+    // Invalidate the server session before clearing local state
+    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
     sessionStorage.removeItem("ts2_auth");
     sessionStorage.removeItem("ts2_role");
+    sessionStorage.removeItem("ts2_worker_id");
+    sessionStorage.removeItem("ts2_full_name");
+    sessionStorage.removeItem("ts2_login_number");
+    sessionStorage.removeItem("ts2_email");
     setIsAuthenticated(false);
   };
 
