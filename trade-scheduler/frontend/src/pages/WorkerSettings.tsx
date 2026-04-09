@@ -22,7 +22,7 @@ export function WorkerSettings() {
   })();
 
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => sessionStorage.getItem("ts2_email") ?? "");
   const [name, setName] = useState("");
   const [tradeType, setTradeType] = useState("");
   const [loading, setLoading] = useState(true);
@@ -50,12 +50,23 @@ export function WorkerSettings() {
     if (!workerId) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/workers/${workerId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, tradeType, isAvailable: true }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
+      const [workerRes] = await Promise.all([
+        fetch(`/api/workers/${workerId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, phone, email, tradeType, isAvailable: true }),
+        }),
+        fetch("/api/auth/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            loginNumber: sessionStorage.getItem("ts2_login_number") ?? "",
+            email,
+          }),
+        }),
+      ]);
+      if (!workerRes.ok) throw new Error("Failed to save");
+      sessionStorage.setItem("ts2_email", email);
       toast.success("Profile updated successfully");
       setHasChanges(false);
     } catch {

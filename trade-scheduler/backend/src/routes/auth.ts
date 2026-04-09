@@ -173,5 +173,36 @@ router.get("/users", async (_req: Request, res: Response) => {
   }
 });
 
+// ── PATCH /api/auth/profile ───────────────────────────────────────────────────
+
+router.patch("/profile", async (req: Request, res: Response) => {
+  try {
+    const { loginNumber, email } = z.object({
+      loginNumber: z.string().length(6),
+      email: z.string().email().nullable().optional(),
+    }).parse(req.body);
+
+    const [updated] = await db
+      .update(usersTable)
+      .set({ email: email ?? null })
+      .where(eq(usersTable.loginNumber, loginNumber))
+      .returning({ id: usersTable.id, email: usersTable.email });
+
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json({ email: updated.email });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation error", details: err.message });
+    } else {
+      console.error("[auth] profile error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
 export { verifyPassword };
 export default router;

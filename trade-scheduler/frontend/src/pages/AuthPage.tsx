@@ -69,6 +69,8 @@ export function AuthPage({ onLogin, theme, onToggleTheme }: { onLogin: (role: Us
       const user = await res.json();
       sessionStorage.setItem("ts2_worker_id", String(user.workerId ?? ""));
       sessionStorage.setItem("ts2_full_name", user.fullName ?? "");
+      sessionStorage.setItem("ts2_login_number", user.loginNumber ?? "");
+      sessionStorage.setItem("ts2_email", user.email ?? "");
       onLogin(user.role as UserRole);
     } catch (err: any) {
       setServerError(err.message || "Login failed. Please check your credentials.");

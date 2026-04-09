@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Building2, Clock, Bell, MapPin, DollarSign, Shield, Wrench, Plus, X } from "lucide-react";
+import { Save, Building2, Clock, Bell, MapPin, DollarSign, Shield, Wrench, Plus, X, User } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
 
@@ -110,6 +110,34 @@ function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (chec
 }
 
 export function Settings() {
+  // ── My Account (admin profile) ──────────────────────────────────────────────
+  const [accountEmail, setAccountEmail] = useState(() => sessionStorage.getItem("ts2_email") ?? "");
+  const [accountName] = useState(() => sessionStorage.getItem("ts2_full_name") ?? "");
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountChanged, setAccountChanged] = useState(false);
+
+  const handleAccountSave = async () => {
+    const loginNumber = sessionStorage.getItem("ts2_login_number") ?? "";
+    if (!loginNumber) return;
+    setAccountSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginNumber, email: accountEmail }),
+      });
+      if (!res.ok) throw new Error();
+      sessionStorage.setItem("ts2_email", accountEmail);
+      toast.success("Account details updated");
+      setAccountChanged(false);
+    } catch {
+      toast.error("Failed to update account details");
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  // ── App settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<AppSettings>({
     businessName: "",
     abn: "",
@@ -159,6 +187,33 @@ export function Settings() {
           </Button>
         )}
       </div>
+
+      {/* My Account */}
+      <SectionCard icon={User} title="My Account">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label>Full Name</Label>
+            <Input value={accountName} disabled className="opacity-50 cursor-not-allowed" />
+          </div>
+          <div>
+            <Label>Email Address</Label>
+            <Input
+              type="email"
+              value={accountEmail}
+              placeholder="admin@business.com.au"
+              onChange={e => { setAccountEmail(e.target.value); setAccountChanged(true); setHasChanges(true); }}
+            />
+          </div>
+        </div>
+        {accountChanged && (
+          <div className="flex justify-end">
+            <Button onClick={handleAccountSave} disabled={accountSaving} size="sm">
+              <Save size={14} className="mr-1.5" />
+              {accountSaving ? "Saving…" : "Save Account"}
+            </Button>
+          </div>
+        )}
+      </SectionCard>
 
       {/* Business Details */}
       <SectionCard icon={Building2} title="Business Details">

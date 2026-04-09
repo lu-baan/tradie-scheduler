@@ -168,7 +168,7 @@ function MiniCalendar({
           const inMonth = isSameMonth(day, month);
           const selected = isSameDay(day, selectedDate);
           const today = isToday(day);
-          const dots = userRole === "worker" && inMonth ? getDots(jobs, day) : 0;
+          const dots = inMonth ? getDots(jobs, day) : 0;
           return (
             <button
               type="button"
@@ -183,7 +183,7 @@ function MiniCalendar({
               )}
             >
               <span className="leading-4 w-5 text-center">{format(day, "d")}</span>
-              {userRole === "worker" && inMonth && <JobDots count={dots} active={selected} />}
+              {inMonth && <JobDots count={dots} active={selected} />}
             </button>
           );
         })}
@@ -829,7 +829,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   const dayJobs = filteredJobs.filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day));
                   const inMonth = isSameMonth(day, currentDate);
                   const today = isToday(day);
-                  const dots = userRole === "worker" ? getDots(filteredJobs, day) : 0;
+                  const dots = getDots(filteredJobs, day);
                   const dayHours = getDayHours(filteredJobs, day);
 
                   return (
@@ -853,7 +853,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                           >
                             {format(day, "d")}
                           </span>
-                          {userRole === "worker" && inMonth && (
+                          {inMonth && (
                             <div className="flex gap-0.5 mt-0.5 pl-0.5">
                               {[0, 1, 2, 3].map(i => (
                                 <div
@@ -922,7 +922,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             <div className="shrink-0 flex border-b border-border bg-background/40">
               <div className="w-10 sm:w-12 shrink-0" />
               {weekDays.map(day => {
-                const dots = userRole === "worker" ? getDots(filteredJobs, day) : 0;
+                const dots = getDots(filteredJobs, day);
                 const dayHours = getDayHours(filteredJobs, day);
                 return (
                   <div
@@ -956,7 +956,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                         {dayHours}h
                       </span>
                     )}
-                    {userRole === "worker" && <JobDots count={dots} />}
+                    {<JobDots count={dots} />}
                   </div>
                 );
               })}
