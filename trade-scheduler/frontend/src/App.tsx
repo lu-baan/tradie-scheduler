@@ -9,6 +9,7 @@ import { JobsList } from "@/pages/JobsList";
 import { WorkersList } from "@/pages/WorkersList";
 import { CalendarView } from "@/pages/CalendarView";
 import { Settings } from "@/pages/Settings";
+import { WorkerSettings } from "@/pages/WorkerSettings";
 import { AuthPage } from "@/pages/AuthPage";
 import { AuthManage } from "@/pages/AuthManage";
 import NotFound from "@/pages/not-found";
@@ -41,7 +42,7 @@ function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRo
           {userRole === "admin" ? <WorkersList /> : <Redirect to="/jobs" />}
         </Route>
         <Route path="/settings">
-          {userRole === "admin" ? <Settings /> : <Redirect to="/jobs" />}
+          {userRole === "admin" ? <Settings /> : <WorkerSettings />}
         </Route>
         <Route path="/auth/manage">
           {userRole === "admin" ? <AuthManage /> : <Redirect to="/jobs" />}

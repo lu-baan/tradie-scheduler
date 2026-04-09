@@ -12,7 +12,7 @@ const MAIN_NAV_ITEMS = [
   { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness, adminOnly: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, adminOnly: false },
   { href: "/workers", label: "Workers", icon: Users, adminOnly: true },
-  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { href: "/settings", label: "Settings", icon: Settings, adminOnly: false },
 ];
 
 const AUTH_NAV_ITEMS = [
