@@ -23,9 +23,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Users, Phone, Mail, Trash2 } from "lucide-react";
+import { Users, Phone, Mail, Trash2, CalendarClock } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
+import { format, addDays, addWeeks, endOfDay, isAfter } from "date-fns";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,133 @@ function Label({ children, required = false }: { children: React.ReactNode; requ
       {children}
       {required && <span className="text-destructive ml-0.5">*</span>}
     </label>
+  );
+}
+
+// ── Unavailability duration dialog ────────────────────────────────────────────
+
+const PRESETS = [
+  { label: "Rest of today", getValue: () => endOfDay(new Date()) },
+  { label: "1 day", getValue: () => endOfDay(addDays(new Date(), 1)) },
+  { label: "3 days", getValue: () => endOfDay(addDays(new Date(), 3)) },
+  { label: "1 week", getValue: () => endOfDay(addWeeks(new Date(), 1)) },
+  { label: "2 weeks", getValue: () => endOfDay(addWeeks(new Date(), 2)) },
+];
+
+function UnavailabilityDialog({
+  worker,
+  open,
+  onOpenChange,
+  onConfirm,
+  isPending,
+}: {
+  worker: Worker;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (unavailableUntil: string | null) => void;
+  isPending: boolean;
+}) {
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [useCustom, setUseCustom] = useState(false);
+
+  const handlePreset = (getValue: () => Date) => {
+    onConfirm(getValue().toISOString());
+    onOpenChange(false);
+    setSelectedDate("");
+    setUseCustom(false);
+  };
+
+  const handleIndefinite = () => {
+    onConfirm(null);
+    onOpenChange(false);
+    setSelectedDate("");
+    setUseCustom(false);
+  };
+
+  const handleCustomConfirm = () => {
+    if (!selectedDate) return;
+    onConfirm(endOfDay(new Date(selectedDate)).toISOString());
+    onOpenChange(false);
+    setSelectedDate("");
+    setUseCustom(false);
+  };
+
+  const handleOpenChange = (o: boolean) => {
+    if (!o) { setSelectedDate(""); setUseCustom(false); }
+    onOpenChange(o);
+  };
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>How long is {worker.name} unavailable?</DialogTitle>
+          <DialogDescription>
+            Choose a duration or pick a specific return date.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2 py-2">
+          {PRESETS.map(preset => (
+            <Button
+              key={preset.label}
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => handlePreset(preset.getValue)}
+              disabled={isPending}
+            >
+              {preset.label}
+            </Button>
+          ))}
+
+          {!useCustom ? (
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => setUseCustom(true)}
+              disabled={isPending}
+            >
+              Custom date...
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                min={todayStr}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleCustomConfirm}
+                disabled={!selectedDate || isPending}
+              >
+                Set
+              </Button>
+            </div>
+          )}
+
+          <div className="border-t border-border pt-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-muted-foreground"
+              onClick={handleIndefinite}
+              disabled={isPending}
+            >
+              Indefinitely (until manually restored)
+            </Button>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -106,6 +234,20 @@ function DeleteWorkerDialog({
   );
 }
 
+// ── Unavailability label ──────────────────────────────────────────────────────
+
+function UnavailableUntilLabel({ until }: { until: string | null | undefined }) {
+  if (!until) return null;
+  const date = new Date(until);
+  if (!isAfter(date, new Date())) return null;
+  return (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+      <CalendarClock size={12} />
+      <span>Returns {format(date, "d MMM yyyy")}</span>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function WorkersList() {
@@ -113,6 +255,7 @@ export function WorkersList() {
   const { data: workers, isLoading } = useListWorkers();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Worker | null>(null);
+  const [unavailTarget, setUnavailTarget] = useState<Worker | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const createWorker = useCreateWorker({
@@ -166,6 +309,28 @@ export function WorkersList() {
   const onSubmitWorker = (data: WorkerFormValues) => {
     setServerError(null);
     createWorker.mutate({ data });
+  };
+
+  const handleAvailabilityToggle = (worker: Worker, checked: boolean) => {
+    if (checked) {
+      // Restore to available — clear unavailableUntil immediately
+      updateWorker.mutate({
+        id: worker.id,
+        data: { ...worker, isAvailable: true, unavailableUntil: null },
+      });
+    } else {
+      // Show duration picker before marking unavailable
+      setUnavailTarget(worker);
+    }
+  };
+
+  const handleUnavailConfirm = (unavailableUntil: string | null) => {
+    if (!unavailTarget) return;
+    updateWorker.mutate({
+      id: unavailTarget.id,
+      data: { ...unavailTarget, isAvailable: false, unavailableUntil },
+    });
+    setUnavailTarget(null);
   };
 
   return (
@@ -279,14 +444,15 @@ export function WorkersList() {
                   <Switch.Root
                     className={`w-10 h-5 rounded-full relative transition-colors ${worker.isAvailable ? "bg-green-500" : "bg-muted"}`}
                     checked={worker.isAvailable}
-                    onCheckedChange={c =>
-                      updateWorker.mutate({ id: worker.id, data: { ...worker, isAvailable: c } })
-                    }
+                    onCheckedChange={c => handleAvailabilityToggle(worker, c)}
                   >
                     <Switch.Thumb
                       className={`block w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-0.5 ${worker.isAvailable ? "translate-x-[22px]" : ""}`}
                     />
                   </Switch.Root>
+                  {!worker.isAvailable && (
+                    <UnavailableUntilLabel until={worker.unavailableUntil} />
+                  )}
                 </div>
               </div>
 
@@ -322,6 +488,16 @@ export function WorkersList() {
             </Card>
           ))}
         </div>
+      )}
+
+      {unavailTarget && (
+        <UnavailabilityDialog
+          worker={unavailTarget}
+          open={!!unavailTarget}
+          onOpenChange={o => !o && setUnavailTarget(null)}
+          onConfirm={handleUnavailConfirm}
+          isPending={updateWorker.isPending}
+        />
       )}
 
       {deleteTarget && (

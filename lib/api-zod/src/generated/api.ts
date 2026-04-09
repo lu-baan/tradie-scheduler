@@ -542,6 +542,7 @@ export const ListWorkersResponseItem = zod.object({
   email: zod.string().nullish(),
   tradeType: zod.string(),
   isAvailable: zod.boolean(),
+  unavailableUntil: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const ListWorkersResponse = zod.array(ListWorkersResponseItem);
@@ -555,6 +556,7 @@ export const CreateWorkerBody = zod.object({
   email: zod.string().nullish(),
   tradeType: zod.string(),
   isAvailable: zod.boolean().optional(),
+  unavailableUntil: zod.string().nullish(),
 });
 
 /**
@@ -570,6 +572,7 @@ export const UpdateWorkerBody = zod.object({
   email: zod.string().nullish(),
   tradeType: zod.string(),
   isAvailable: zod.boolean().optional(),
+  unavailableUntil: zod.string().nullish(),
 });
 
 export const UpdateWorkerResponse = zod.object({
@@ -579,6 +582,7 @@ export const UpdateWorkerResponse = zod.object({
   email: zod.string().nullish(),
   tradeType: zod.string(),
   isAvailable: zod.boolean(),
+  unavailableUntil: zod.string().nullish(),
   createdAt: zod.string(),
 });
 

@@ -12,4 +12,5 @@ export interface CreateWorkerRequest {
   email?: string | null;
   tradeType: string;
   isAvailable?: boolean;
+  unavailableUntil?: string | null;
 }

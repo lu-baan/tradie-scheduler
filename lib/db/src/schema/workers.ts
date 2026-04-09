@@ -9,6 +9,7 @@ export const workersTable = pgTable("workers", {
   email: text("email"),
   tradeType: text("trade_type").notNull(),
   isAvailable: boolean("is_available").notNull().default(true),
+  unavailableUntil: timestamp("unavailable_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

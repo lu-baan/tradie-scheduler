@@ -1,15 +1,29 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, workersTable, jobsTable } from "../db";
-import { usersTable } from "../db/schema/users";
+import { db, workersTable, jobsTable, usersTable } from "../db";
 import { eq, not, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
-import { CreateWorkerBody } from "../api-zod";
+import { CreateWorkerBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 router.get("/", async (_req: Request, res: Response) => {
   try {
     const workers = await db.select().from(workersTable);
+
+    // Auto-restore workers whose unavailableUntil has passed
+    const now = new Date();
+    const toRestore = workers.filter(
+      w => !w.isAvailable && w.unavailableUntil && w.unavailableUntil <= now
+    );
+    if (toRestore.length > 0) {
+      for (const w of toRestore) {
+        await db.update(workersTable)
+          .set({ isAvailable: true, unavailableUntil: null })
+          .where(eq(workersTable.id, w.id));
+        w.isAvailable = true;
+        w.unavailableUntil = null;
+      }
+    }
 
     // Attach loginNumber from users table for workers that have an account
     const users = await db
@@ -22,6 +36,7 @@ router.get("/", async (_req: Request, res: Response) => {
     res.json(workers.map(w => ({
       ...w,
       createdAt: w.createdAt.toISOString(),
+      unavailableUntil: w.unavailableUntil ? w.unavailableUntil.toISOString() : null,
       loginNumber: loginMap.get(w.id) ?? null,
     })));
   } catch (err) {
@@ -36,8 +51,13 @@ router.post("/", async (req: Request, res: Response) => {
     const [worker] = await db.insert(workersTable).values({
       ...body,
       isAvailable: body.isAvailable ?? true,
+      unavailableUntil: body.unavailableUntil ? new Date(body.unavailableUntil) : null,
     }).returning();
-    res.status(201).json({ ...worker, createdAt: worker.createdAt.toISOString() });
+    res.status(201).json({
+      ...worker,
+      createdAt: worker.createdAt.toISOString(),
+      unavailableUntil: worker.unavailableUntil ? worker.unavailableUntil.toISOString() : null,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Validation error", details: err.message });
     else { console.error(err); res.status(500).json({ error: "Internal server error" }); }
@@ -46,12 +66,20 @@ router.post("/", async (req: Request, res: Response) => {
 
 router.put("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     const body = CreateWorkerBody.parse(req.body);
-    const [worker] = await db.update(workersTable).set(body).where(eq(workersTable.id, id)).returning();
+    const updateData = {
+      ...body,
+      unavailableUntil: body.unavailableUntil ? new Date(body.unavailableUntil) : null,
+    };
+    const [worker] = await db.update(workersTable).set(updateData).where(eq(workersTable.id, id)).returning();
     if (!worker) { res.status(404).json({ error: "Worker not found" }); return; }
-    res.json({ ...worker, createdAt: worker.createdAt.toISOString() });
+    res.json({
+      ...worker,
+      createdAt: worker.createdAt.toISOString(),
+      unavailableUntil: worker.unavailableUntil ? worker.unavailableUntil.toISOString() : null,
+    });
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Validation error", details: err.message });
     else { console.error(err); res.status(500).json({ error: "Internal server error" }); }
@@ -60,7 +88,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     // Remove this worker from all jobs that have them assigned
