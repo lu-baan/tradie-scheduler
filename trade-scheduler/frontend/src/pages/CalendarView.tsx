@@ -1055,19 +1055,17 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                     </span>
                   ) : null;
                 })()}
-                {userRole === "worker" && (
-                  <div className="flex gap-1.5 justify-center mt-1">
-                    {[0, 1, 2, 3].map(i => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "w-2 h-2 rounded-full",
-                          i < getDots(filteredJobs, currentDate) ? "bg-primary" : "bg-white/10"
-                        )}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="flex gap-1.5 justify-center mt-1">
+                  {[0, 1, 2, 3].map(i => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "w-2 h-2 rounded-full",
+                        i < getDots(filteredJobs, currentDate) ? "bg-primary" : "bg-white/10"
+                      )}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 

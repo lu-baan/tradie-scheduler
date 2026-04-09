@@ -38,7 +38,7 @@ export function WorkerSettings() {
         if (me) {
           setName(me.name ?? "");
           setPhone(me.phone ?? "");
-          setEmail(me.email ?? "");
+          setEmail(me.email ?? sessionStorage.getItem("ts2_email") ?? "");
           setTradeType(me.tradeType ?? "");
         }
       })
