@@ -3,8 +3,9 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import pg from "pg";
 import router from "./routes";
-
 
 const app: Express = express();
 
@@ -42,17 +43,17 @@ if (!process.env.SESSION_SECRET) {
   );
 }
 
-// NOTE: MemoryStore is not suitable for multi-instance deploys.
-// Replace with connect-pg-simple or a Redis-backed store before scaling beyond one dyno.
+const PgStore = connectPgSimple(session);
+const pgPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+
 app.use(
   session({
+    store: new PgStore({ pool: pgPool, createTableIfMissing: true }),
     secret: process.env.SESSION_SECRET ?? "change-me-in-dev-only",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      // In production the API is proxied by Vercel on the same hostname, so
-      // SameSite: lax is fine.  Secure requires HTTPS (Render provides it).
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
