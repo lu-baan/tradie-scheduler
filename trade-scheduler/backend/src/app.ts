@@ -9,6 +9,9 @@ import router from "./routes";
 
 const app: Express = express();
 
+// Render (and most cloud providers) sit behind a reverse proxy — trust the first hop.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 
 // Comma-separated list of allowed frontend origins, e.g.
@@ -51,7 +54,7 @@ const pgPool = new pg.Pool({
 
 app.use(
   session({
-    store: new PgStore({ pool: pgPool, createTableIfMissing: true }),
+    store: new PgStore({ pool: pgPool }),
     secret: process.env.SESSION_SECRET ?? "change-me-in-dev-only",
     resave: false,
     saveUninitialized: false,
