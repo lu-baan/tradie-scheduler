@@ -9,6 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Eye, EyeOff, UserPlus, ShieldCheck, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+const DEFAULT_TRADE_TYPES = [
+  "Carpenter", "Electrician", "General Builder", "HVAC",
+  "Landscaper", "Painter", "Plumber", "Roofer",
+];
+function loadTradeTypes(): string[] {
+  try {
+    const stored = localStorage.getItem("tradeTypes");
+    return stored ? JSON.parse(stored) : DEFAULT_TRADE_TYPES;
+  } catch { return DEFAULT_TRADE_TYPES; }
+}
+
 function generateLoginNumber(role: "admin" | "worker"): string {
   const prefix = role === "admin" ? "1" : "2";
   const rest = Math.floor(10000 + Math.random() * 89999).toString();
@@ -74,6 +85,7 @@ export function AuthManage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           fullName: data.fullName,
           loginNumber: data.loginNumber,
@@ -208,9 +220,7 @@ export function AuthManage() {
                   className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Select trade type</option>
-                  {((() => {
-                    try { return JSON.parse(localStorage.getItem("tradeTypes") || "[]"); } catch { return []; }
-                  })() as string[]).map((t: string) => (
+                  {loadTradeTypes().map((t: string) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>

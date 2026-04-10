@@ -16,6 +16,20 @@ import { format } from "date-fns";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
+const DEFAULT_TRADE_TYPES = [
+  "Carpenter", "Electrician", "General Builder", "HVAC",
+  "Landscaper", "Painter", "Plumber", "Roofer",
+];
+
+function loadTradeTypes(): string[] {
+  try {
+    const stored = localStorage.getItem("tradeTypes");
+    return stored ? JSON.parse(stored) : DEFAULT_TRADE_TYPES;
+  } catch {
+    return DEFAULT_TRADE_TYPES;
+  }
+}
+
 const JOB_TITLE_MAX = 80;
 const CLIENT_NAME_MAX = 80;
 const NOTES_MAX = 500;
@@ -421,9 +435,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
               className="flex h-12 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-base focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Trade</option>
-              {((() => {
-                try { return JSON.parse(localStorage.getItem("tradeTypes") || "[]"); } catch { return []; }
-              })() as string[]).map((t: string) => (
+              {loadTradeTypes().map((t: string) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>

@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 declare global {
-  interface Window {
-    google: typeof google;
-  }
+  interface Window { google: any; }
 }
 
 interface AddressAutocompleteProps {
@@ -16,6 +14,8 @@ interface AddressAutocompleteProps {
   name?: string;
 }
 
+type Mode = "waiting" | "new-api" | "legacy" | "plain";
+
 export function AddressAutocomplete({
   value,
   onChange,
@@ -24,73 +24,132 @@ export function AddressAutocomplete({
   placeholder = "Start typing an address…",
   name,
 }: AddressAutocompleteProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [mode, setMode] = useState<Mode>("waiting");
+  const newContainerRef = useRef<HTMLDivElement>(null);
+  const legacyInputRef = useRef<HTMLInputElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Wait for Google Maps script to load
+  // Step 1: wait for Maps JS to load, then pick the right API
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+
     const check = () => {
       if (window.google?.maps?.places) {
-        setIsLoaded(true);
+        const hasNew = !!(window.google.maps.places as any).PlaceAutocompleteElement;
+        setMode(hasNew ? "new-api" : "legacy");
         return;
       }
-      // Retry until the async script finishes loading
-      timer = setTimeout(check, 200);
+      attempts++;
+      if (attempts > 30) {
+        // Maps never loaded — use plain text input
+        setMode("plain");
+        return;
+      }
+      timer = setTimeout(check, 300);
     };
     check();
     return () => clearTimeout(timer);
   }, []);
 
-  // Initialise autocomplete once the API and input are ready
+  // Step 2a: mount the new PlaceAutocompleteElement into its container div
   useEffect(() => {
-    if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
+    if (mode !== "new-api" || !newContainerRef.current) return;
+    if (cleanupRef.current) return; // already mounted
 
-    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-      componentRestrictions: { country: "au" },
-      types: ["address"],
-      // Request geometry to get latitude and longitude
-      fields: ["formatted_address", "geometry"],
-    });
+    try {
+      const PlaceAuto = (window.google.maps.places as any).PlaceAutocompleteElement;
+      const el: HTMLElement = new PlaceAuto({
+        componentRestrictions: { country: "au" },
+        types: ["address"],
+      });
+      el.style.width = "100%";
+      newContainerRef.current.appendChild(el);
 
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      
-      if (place?.formatted_address) {
-        onChange(place.formatted_address);
-        
-        // Extract exact coordinates if the callback is provided
-        if (onCoordinatesSelect && place.geometry?.location) {
-          const lat = place.geometry.location.lat();
-          const lng = place.geometry.location.lng();
-          onCoordinatesSelect(lat, lng);
+      const handler = (e: any) => {
+        const prediction = e.placePrediction;
+        if (!prediction) return;
+        const place = prediction.toPlace();
+        place.fetchFields({ fields: ["formattedAddress", "location"] }).then(() => {
+          const addr: string = place.formattedAddress ?? "";
+          onChange(addr);
+          if (onCoordinatesSelect && place.location) {
+            onCoordinatesSelect(place.location.lat(), place.location.lng());
+          }
+        });
+      };
+
+      el.addEventListener("gmp-placeselect", handler);
+
+      cleanupRef.current = () => {
+        el.removeEventListener("gmp-placeselect", handler);
+        el.remove();
+        cleanupRef.current = null;
+      };
+    } catch {
+      // New API init failed — fall back to legacy
+      setMode("legacy");
+    }
+
+    return () => { cleanupRef.current?.(); };
+  }, [mode, onChange, onCoordinatesSelect]);
+
+  // Step 2b: attach legacy Autocomplete to the plain input
+  useEffect(() => {
+    if (mode !== "legacy" || !legacyInputRef.current) return;
+    if (cleanupRef.current) return;
+
+    try {
+      const ac = new window.google.maps.places.Autocomplete(legacyInputRef.current, {
+        componentRestrictions: { country: "au" },
+        types: ["address"],
+        fields: ["formatted_address", "geometry"],
+      });
+
+      const handler = () => {
+        const place = ac.getPlace();
+        if (place?.formatted_address) {
+          onChange(place.formatted_address);
+          if (onCoordinatesSelect && place.geometry?.location) {
+            onCoordinatesSelect(
+              place.geometry.location.lat(),
+              place.geometry.location.lng(),
+            );
+          }
         }
-      }
-    });
+      };
 
-    autocompleteRef.current = autocomplete;
+      ac.addListener("place_changed", handler);
 
-    // Cleanup
-    return () => {
-      if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-        autocompleteRef.current = null;
-      }
-    };
-  }, [isLoaded, onChange, onCoordinatesSelect]);
+      cleanupRef.current = () => {
+        window.google.maps.event.clearInstanceListeners(ac);
+        cleanupRef.current = null;
+      };
+    } catch {
+      setMode("plain");
+    }
 
-  // Keep the input's DOM value in sync when controlled value changes externally
+    return () => { cleanupRef.current?.(); };
+  }, [mode, onChange, onCoordinatesSelect]);
+
+  // Sync controlled value into the legacy/plain input
   useEffect(() => {
-    if (inputRef.current && inputRef.current.value !== value) {
-      inputRef.current.value = value;
+    if (legacyInputRef.current && legacyInputRef.current.value !== value) {
+      legacyInputRef.current.value = value;
     }
   }, [value]);
 
+  if (mode === "new-api") {
+    // PlaceAutocompleteElement renders its own input inside this div
+    return <div ref={newContainerRef} className="w-full" />;
+  }
+
+  // Legacy Autocomplete and plain text share the same Input element
   return (
     <Input
-      ref={inputRef}
+      ref={legacyInputRef}
       name={name}
+      defaultValue={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onBlur}
       placeholder={placeholder}
