@@ -5,8 +5,6 @@ import rateLimit from "express-rate-limit";
 import session from "express-session";
 import router from "./routes";
 
-// Silence unused-import warning — the augmentation must be imported somewhere.
-import "./types/express-session.js";
 
 const app: Express = express();
 
