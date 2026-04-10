@@ -60,11 +60,14 @@ export function AuthPage({ onLogin, theme, onToggleTheme }: { onLogin: (role: Us
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ loginNumber: data.loginNumber, password: data.password }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Login failed");
+        const text = await res.text();
+        let msg = "Login failed — please try again.";
+        try { msg = JSON.parse(text).error || msg; } catch {}
+        throw new Error(msg);
       }
       const user = await res.json();
       sessionStorage.setItem("ts2_worker_id", String(user.workerId ?? ""));
