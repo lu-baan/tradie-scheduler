@@ -44,7 +44,10 @@ if (!process.env.SESSION_SECRET) {
 }
 
 const PgStore = connectPgSimple(session);
-const pgPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const pgPool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes("supabase.com") ? { rejectUnauthorized: false } : undefined,
+});
 
 app.use(
   session({
