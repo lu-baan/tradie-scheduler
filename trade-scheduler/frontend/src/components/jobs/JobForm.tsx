@@ -5,13 +5,12 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, CalendarIcon, AlertTriangle, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
-import { TimePicker } from "@/components/ui/TimePicker";
+import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -162,7 +161,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
   const [materials, setMaterials] = useState<MaterialLine[]>([]);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
 
   const createJob = useCreateJob({
     mutation: {
@@ -736,60 +735,31 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           )}
 
           {/* Schedule Date + Time */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label hint="Must be today or a future date">Scheduled Date</Label>
+              <Label hint="Pick the date and start time for the job">Scheduled Date & Time</Label>
               <Controller
                 name="scheduledDate"
                 control={form.control}
-                render={({ field }) => {
-                  const parsed = field.value ? new Date(`${field.value}T00:00:00`) : undefined;
-                  return (
-                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal h-12"
-                        >
-                          <CalendarIcon size={15} className="mr-2 text-muted-foreground shrink-0" />
-                          {parsed ? format(parsed, "EEE d MMM yyyy") : (
-                            <span className="text-muted-foreground">Pick a date…</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={parsed}
-                          onSelect={date => {
-                            field.onChange(date ? format(date, "yyyy-MM-dd") : "");
-                            setDatePickerOpen(false);
-                          }}
-                          disabled={date => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            return date < today;
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  );
-                }}
+                render={({ field: dateField }) => (
+                  <Controller
+                    name="scheduledTime"
+                    control={form.control}
+                    render={({ field: timeField }) => (
+                      <DateTimePicker
+                        date={dateField.value ?? ""}
+                        time={timeField.value ?? ""}
+                        onDateChange={dateField.onChange}
+                        onTimeChange={timeField.onChange}
+                        disablePast
+                      />
+                    )}
+                  />
+                )}
               />
               {form.formState.errors.scheduledDate && (
                 <p className="text-destructive text-sm mt-1">{form.formState.errors.scheduledDate.message}</p>
               )}
-            </div>
-            <div>
-              <Label hint="Estimated start time for the job. Defaults to 8:00 AM if not set.">Start Time</Label>
-              <Controller
-                name="scheduledTime"
-                control={form.control}
-                render={({ field }) => (
-                  <TimePicker value={field.value ?? ""} onChange={field.onChange} />
-                )}
-              />
             </div>
             <div>
               <Label hint="Computed from start time + estimated hours">Est. End Time</Label>
