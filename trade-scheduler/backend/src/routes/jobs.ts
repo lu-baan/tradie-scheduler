@@ -8,10 +8,25 @@ import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances } from "../lib/maps";
 import { requireAdmin } from "../middlewares/requireAuth";
+import multer from "multer";
+import { getSupabase, IMAGES_BUCKET } from "../lib/supabase";
 
 const router: IRouter = Router();
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  },
+});
+
 function parseWorkerIds(raw: string): number[] {
+  try { return JSON.parse(raw) ?? []; } catch { return []; }
+}
+
+function parseImageUrls(raw: string): string[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
@@ -53,6 +68,7 @@ async function hydrateJobs(
       assignedWorkers: ids.map(id => workersMap[id]).filter(Boolean).map(w => ({
         ...w, createdAt: w.createdAt.toISOString(),
       })),
+      imageUrls: parseImageUrls(job.imageUrls),
       distanceKm: drive.distanceKm,
       travelTimeMinutes: drive.durationMinutes,
       smartScore: null as number | null,
@@ -454,6 +470,96 @@ if (String(req.query.format) === "pdf") {
 
     res.json({ ...invoiceData, status: job.status, issuedAt: new Date().toISOString() });
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+// ── POST /api/jobs/:id/images — upload a photo ───────────────────────────────
+// Available to both admins and assigned workers.
+
+router.post("/:id/images", upload.single("image"), async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    // Workers may only upload to jobs they are assigned to
+    if (req.session.role === "worker") {
+      const assigned = parseWorkerIds(job.assignedWorkerIds);
+      if (!req.session.workerId || !assigned.includes(req.session.workerId)) {
+        res.status(403).json({ error: "Forbidden" }); return;
+      }
+    }
+
+    if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+
+    const ext = (req.file.originalname.split(".").pop() ?? "jpg").toLowerCase();
+    const storagePath = `jobs/${id}/${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await getSupabase().storage
+      .from(IMAGES_BUCKET)
+      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+
+    if (uploadError) {
+      console.error("[images] Supabase upload error:", uploadError);
+      res.status(500).json({ error: "Image upload failed" }); return;
+    }
+
+    const { data: urlData } = getSupabase().storage.from(IMAGES_BUCKET).getPublicUrl(storagePath);
+
+    const existing = parseImageUrls(job.imageUrls);
+    const [updated] = await db.update(jobsTable)
+      .set({ imageUrls: JSON.stringify([...existing, urlData.publicUrl]), updatedAt: new Date() })
+      .where(eq(jobsTable.id, id))
+      .returning();
+
+    const [hydrated] = await hydrateJobs([updated]);
+    res.status(201).json(hydrated);
+  } catch (err) {
+    console.error("[images] upload error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── DELETE /api/jobs/:id/images — remove a photo ─────────────────────────────
+
+router.delete("/:id/images", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const { url } = z.object({ url: z.string().url() }).parse(req.body);
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    if (req.session.role === "worker") {
+      const assigned = parseWorkerIds(job.assignedWorkerIds);
+      if (!req.session.workerId || !assigned.includes(req.session.workerId)) {
+        res.status(403).json({ error: "Forbidden" }); return;
+      }
+    }
+
+    // Extract path-within-bucket from the public URL
+    const marker = `/object/public/${IMAGES_BUCKET}/`;
+    const markerIdx = url.indexOf(marker);
+    if (markerIdx !== -1) {
+      const pathInBucket = url.slice(markerIdx + marker.length);
+      await getSupabase().storage.from(IMAGES_BUCKET).remove([pathInBucket]);
+    }
+
+    const updated_urls = parseImageUrls(job.imageUrls).filter(u => u !== url);
+    const [updated] = await db.update(jobsTable)
+      .set({ imageUrls: JSON.stringify(updated_urls), updatedAt: new Date() })
+      .where(eq(jobsTable.id, id))
+      .returning();
+
+    const [hydrated] = await hydrateJobs([updated]);
+    res.json(hydrated);
+  } catch (err) {
+    if (err instanceof z.ZodError) res.status(400).json({ error: "url is required" });
+    else { console.error("[images] delete error:", err); res.status(500).json({ error: "Internal server error" }); }
+  }
 });
 
 export default router;
