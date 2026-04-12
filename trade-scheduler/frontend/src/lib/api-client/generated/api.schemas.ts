@@ -54,6 +54,27 @@ export interface Worker {
   email?: string | null;
   tradeType: string;
   isAvailable: boolean;
+  unavailableUntil?: string | null;
+  skills?: string[];
+  hourlyRate?: number | null;
+  maxWeeklyHours?: number | null;
+  createdAt: string;
+}
+
+export type LeaveType = "sick" | "annual" | "training" | "personal" | "other";
+export type LeaveStatus = "pending" | "approved" | "denied";
+
+export interface LeaveRequest {
+  id: number;
+  workerId: number;
+  leaveType: LeaveType;
+  startDate: string;
+  endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  reason?: string | null;
+  status: LeaveStatus;
+  adminNote?: string | null;
   createdAt: string;
 }
 
@@ -94,8 +115,28 @@ export interface Job {
   invoiceNumber?: string | null;
   invoiceSentAt?: string | null;
   customerConfirmed: boolean;
+  /** URLs of photos uploaded for this job */
+  imageUrls: string[];
+  /** Required licences / skills for worker assignment */
+  requiredSkills?: string[];
+  /** Time & attendance log entries */
+  attendance?: AttendanceEvent[];
   createdAt: string;
   updatedAt: string;
+}
+
+export type AttendanceAction =
+  | "clock_in"
+  | "en_route"
+  | "on_site"
+  | "break_start"
+  | "break_end"
+  | "complete";
+
+export interface AttendanceEvent {
+  workerId: number;
+  action: AttendanceAction;
+  ts: string;
 }
 
 export interface CreateJobRequest {
@@ -120,6 +161,7 @@ export interface CreateJobRequest {
   notes?: string | null;
   tradeType: string;
   assignedWorkerIds?: number[];
+  requiredSkills?: string[];
 }
 
 export interface UpdateJobRequest {
@@ -148,6 +190,7 @@ export interface UpdateJobRequest {
   customerConfirmed?: boolean;
   invoiceNumber?: string | null;
   invoiceSentAt?: string | null;
+  requiredSkills?: string[];
 }
 
 export interface ConvertToBookingRequest {
@@ -206,6 +249,10 @@ export interface CreateWorkerRequest {
   email?: string | null;
   tradeType: string;
   isAvailable?: boolean;
+  unavailableUntil?: string | null;
+  skills?: string[];
+  hourlyRate?: number | null;
+  maxWeeklyHours?: number | null;
 }
 
 export interface ErrorResponse {

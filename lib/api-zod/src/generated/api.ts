@@ -131,6 +131,7 @@ export const CreateJobBody = zod.object({
   notes: zod.string().nullish(),
   tradeType: zod.string(),
   assignedWorkerIds: zod.array(zod.number()).optional(),
+  requiredSkills: zod.array(zod.string()).optional(),
 });
 
 /**
@@ -249,6 +250,7 @@ export const UpdateJobBody = zod.object({
   customerConfirmed: zod.boolean().optional(),
   invoiceNumber: zod.string().nullish(),
   invoiceSentAt: zod.string().nullish(),
+  requiredSkills: zod.array(zod.string()).optional(),
 });
 
 export const UpdateJobResponse = zod.object({

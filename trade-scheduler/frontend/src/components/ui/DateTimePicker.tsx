@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { format, addDays, parseISO, isToday, isTomorrow } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
+import { format, parseISO, isToday, isTomorrow } from "date-fns";
+import { CalendarClock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { DayPicker } from "react-day-picker";
@@ -11,7 +11,7 @@ const ITEM_H = 44;
 const VISIBLE = 5;
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 const MINUTES = ["00", "15", "30", "45"];
-const PERIODS = ["AM", "PM"] as const;
+const PERIODS: ("AM" | "PM")[] = ["AM", "PM"];
 
 function to24h(h: number, m: string, p: "AM" | "PM"): string {
   let hour = h;
@@ -86,7 +86,7 @@ function DrumColumn<T extends string | number>({
   };
 
   return (
-    <div className={`relative ${width} flex-shrink-0`}>
+    <div className={`relative ${width} flex-shrink-0 overflow-hidden`}>
       <div
         className="pointer-events-none absolute inset-x-0 z-10 rounded-lg bg-primary/15 border border-primary/30"
         style={{ top: ITEM_H * 2, height: ITEM_H }}
@@ -95,9 +95,9 @@ function DrumColumn<T extends string | number>({
       <div className="pointer-events-none absolute bottom-0 inset-x-0 z-20 h-14 bg-gradient-to-t from-popover to-transparent" />
       <div
         ref={containerRef}
-        className="overflow-y-scroll"
         style={{
           height: ITEM_H * VISIBLE,
+          overflowY: "scroll",
           scrollSnapType: "y mandatory",
           scrollbarWidth: "none",
           msOverflowStyle: "none",
@@ -127,23 +127,6 @@ function DrumColumn<T extends string | number>({
       </div>
     </div>
   );
-}
-
-// ── Day drum — shows dates around the selected date ───────────────────────────
-
-function buildDayItems(dateStr: string): { iso: string; display: string }[] {
-  const base = dateStr ? parseISO(dateStr) : new Date();
-  const items = [];
-  for (let i = -10; i <= 30; i++) {
-    const d = addDays(base, i);
-    const iso = format(d, "yyyy-MM-dd");
-    let display: string;
-    if (isToday(d)) display = `Today ${format(d, "d")}`;
-    else if (isTomorrow(d)) display = `Tomorrow ${format(d, "d")}`;
-    else display = `${format(d, "EEE d")}`;
-    items.push({ iso, display });
-  }
-  return items;
 }
 
 // ── DateTimePicker ─────────────────────────────────────────────────────────────
@@ -178,12 +161,6 @@ export function DateTimePicker({ date, time, onDateChange, onTimeChange, disable
   const [minute, setMinute] = useState(parsed.minute);
   const [period, setPeriod] = useState<"AM" | "PM">(parsed.period);
 
-  // Build day drum items relative to the current selected date
-  const dayItems = buildDayItems(date);
-  const dayValues = dayItems.map(d => d.iso);
-  const selectedDayIdx = dayValues.indexOf(date);
-  const currentDayIso = selectedDayIdx >= 0 ? date : (dayItems[10]?.iso ?? date);
-
   useEffect(() => {
     if (open) {
       const p = parseTime(time);
@@ -216,13 +193,13 @@ export function DateTimePicker({ date, time, onDateChange, onTimeChange, disable
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-auto p-0 overflow-hidden"
+        className="w-auto p-0"
         align="start"
         sideOffset={6}
       >
-        <div className="flex">
-          {/* ── Left: calendar ──────────────────────────────────────── */}
-          <div className="border-r border-border">
+        <div className="flex flex-col sm:flex-row">
+          {/* ── Calendar ────────────────────────────────────────────── */}
+          <div className="sm:border-r border-b sm:border-b-0 border-border">
             <DayPicker
               mode="single"
               selected={selectedDate}
@@ -259,58 +236,31 @@ export function DateTimePicker({ date, time, onDateChange, onTimeChange, disable
                 day_disabled: "text-muted-foreground opacity-20 cursor-not-allowed hover:bg-transparent",
                 day_hidden: "invisible",
               }}
-              components={{
-                IconLeft: () => <ChevronLeft size={14} />,
-                IconRight: () => <ChevronRight size={14} />,
-              }}
             />
           </div>
 
-          {/* ── Right: Day + Time drums ──────────────────────────────── */}
-          <div className="flex flex-col p-3">
-            <div className="flex gap-2 text-[10px] uppercase text-muted-foreground tracking-widest mb-1 font-display">
-              <span className="w-20 text-center">Day</span>
-              <span className="flex-1 text-center">Time</span>
-            </div>
+          {/* ── Time drums ──────────────────────────────────────────── */}
+          <div className="flex flex-col justify-center p-4">
+            <p className="text-[10px] uppercase text-muted-foreground tracking-widest mb-3 font-display text-center">
+              Time
+            </p>
 
-            <div className="flex items-start gap-1">
-              {/* Day drum */}
-              <DrumColumn
-                items={dayValues}
-                value={currentDayIso}
-                width="w-24"
-                label={(iso) => {
-                  const item = dayItems.find(d => d.iso === iso);
-                  return item?.display ?? iso;
-                }}
-                onChange={(iso) => {
-                  onDateChange(iso);
-                  setCalMonth(parseISO(iso));
-                }}
-              />
-
-              <div className="w-px self-stretch bg-border mx-1" />
-
+            <div className="flex items-center gap-1">
               {/* Hour drum */}
               <DrumColumn
                 items={HOURS}
                 value={hour}
-                width="w-10"
+                width="w-12"
                 onChange={(h) => { setHour(h); commitTime(h, minute, period); }}
               />
 
-              <span
-                className="text-xl font-bold text-foreground select-none self-center"
-                style={{ marginTop: 0 }}
-              >
-                :
-              </span>
+              <span className="text-xl font-bold text-foreground select-none pb-0.5">:</span>
 
               {/* Minute drum */}
               <DrumColumn
                 items={MINUTES}
                 value={minute}
-                width="w-12"
+                width="w-14"
                 onChange={(m) => { setMinute(m); commitTime(hour, m, period); }}
               />
 
@@ -324,8 +274,8 @@ export function DateTimePicker({ date, time, onDateChange, onTimeChange, disable
             </div>
 
             {/* Live preview */}
-            <div className="mt-3 pt-2 border-t border-border text-center text-xs font-bold text-primary font-display tracking-wide">
-              {date ? format(parseISO(date), "EEE d MMM") : "—"} · {hour}:{minute} {period}
+            <div className="mt-3 pt-3 border-t border-border text-center text-xs font-bold text-primary font-display tracking-wide">
+              {date ? format(parseISO(date), "EEE d MMM") : "No date"} · {hour}:{minute} {period}
             </div>
           </div>
         </div>

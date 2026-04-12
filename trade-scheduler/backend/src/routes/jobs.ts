@@ -30,6 +30,16 @@ function parseImageUrls(raw: string): string[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
+function parseJsonArr<T>(raw: string | null | undefined): T[] {
+  if (!raw) return [];
+  try { return JSON.parse(raw) ?? []; } catch { return []; }
+}
+
+type AttendanceEvent = { workerId: number; action: string; ts: string };
+const AttendanceBody = z.object({
+  action: z.enum(["clock_in", "en_route", "on_site", "break_start", "break_end", "complete"]),
+});
+
 async function hydrateJobs(
   jobs: (typeof jobsTable.$inferSelect)[],
   userLat?: number,
@@ -69,6 +79,8 @@ async function hydrateJobs(
         ...w, createdAt: w.createdAt.toISOString(),
       })),
       imageUrls: parseImageUrls(job.imageUrls),
+      requiredSkills: parseJsonArr<string>(job.requiredSkillsJson),
+      attendance: parseJsonArr<AttendanceEvent>(job.attendanceJson),
       distanceKm: drive.distanceKm,
       travelTimeMinutes: drive.durationMinutes,
       smartScore: null as number | null,
@@ -145,8 +157,9 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
       res.status(400).json({ error: "Must have at least phone or email" });
       return;
     }
+    const { requiredSkills: reqSkills, ...restBody } = body as typeof body & { requiredSkills?: string[] };
     const [job] = await db.insert(jobsTable).values({
-      ...body,
+      ...restBody,
       jobType: body.jobType ?? "quote",
       validityCode: body.validityCode ?? 2,
       numTradies: body.numTradies ?? 1,
@@ -154,6 +167,7 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
       priority: body.priority ?? "medium",
       isEmergency: body.isEmergency ?? false,
       assignedWorkerIds: JSON.stringify(body.assignedWorkerIds ?? []),
+      requiredSkillsJson: JSON.stringify(reqSkills ?? []),
     }).returning();
 
     const [hydrated] = await hydrateJobs([job]);
@@ -196,9 +210,13 @@ router.put("/:id", requireAdmin, async (req: Request, res: Response) => {
     if (!existing) { res.status(404).json({ error: "Job not found" }); return; }
 
     const body = UpdateJobBody.parse(req.body);
-    const updateData: Record<string, unknown> = { ...body, updatedAt: new Date() };
+    const { requiredSkills: reqSkillsUpd, ...restBodyUpd } = body as typeof body & { requiredSkills?: string[] };
+    const updateData: Record<string, unknown> = { ...restBodyUpd, updatedAt: new Date() };
     if (body.assignedWorkerIds !== undefined) {
       updateData.assignedWorkerIds = JSON.stringify(body.assignedWorkerIds);
+    }
+    if (reqSkillsUpd !== undefined) {
+      updateData.requiredSkillsJson = JSON.stringify(reqSkillsUpd);
     }
 
     // Detect completion
@@ -559,6 +577,51 @@ router.delete("/:id/images", async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "url is required" });
     else { console.error("[images] delete error:", err); res.status(500).json({ error: "Internal server error" }); }
+  }
+});
+
+// ── POST /api/jobs/:id/attendance — log a time & attendance event ─────────────
+// Workers can only log events for jobs they are assigned to, and only for themselves.
+// Admins can log on behalf of any assigned worker.
+
+router.post("/:id/attendance", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    const assigned = parseWorkerIds(job.assignedWorkerIds);
+
+    // Resolve the workerId for this event
+    let workerId: number;
+    if (req.session.role === "worker") {
+      if (!req.session.workerId || !assigned.includes(req.session.workerId)) {
+        res.status(403).json({ error: "Forbidden" }); return;
+      }
+      workerId = req.session.workerId;
+    } else {
+      // Admin may pass a workerId in body; default to first assigned worker
+      const adminBody = z.object({ workerId: z.number().optional(), action: z.string() }).parse(req.body);
+      workerId = adminBody.workerId ?? assigned[0];
+      if (!workerId) { res.status(400).json({ error: "No workers assigned to this job" }); return; }
+    }
+
+    const { action } = AttendanceBody.parse(req.body);
+    const event: AttendanceEvent = { workerId, action, ts: new Date().toISOString() };
+
+    const existing = parseJsonArr<AttendanceEvent>(job.attendanceJson);
+    const [updated] = await db.update(jobsTable)
+      .set({ attendanceJson: JSON.stringify([...existing, event]), updatedAt: new Date() })
+      .where(eq(jobsTable.id, id))
+      .returning();
+
+    const [hydrated] = await hydrateJobs([updated]);
+    res.json(hydrated);
+  } catch (err) {
+    if (err instanceof z.ZodError) res.status(400).json({ error: "Invalid action", details: err.message });
+    else { console.error("[attendance]", err); res.status(500).json({ error: "Internal server error" }); }
   }
 });
 

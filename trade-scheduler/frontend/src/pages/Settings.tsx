@@ -124,6 +124,7 @@ export function Settings() {
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ loginNumber, email: accountEmail }),
       });
       if (!res.ok) throw new Error();

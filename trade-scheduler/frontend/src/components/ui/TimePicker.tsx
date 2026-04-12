@@ -9,7 +9,7 @@ const ITEM_H = 44; // px per row
 const VISIBLE = 5; // rows shown (centre = selected)
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12-hour clock order
 const MINUTES = ["00", "15", "30", "45"];
-const PERIODS = ["AM", "PM"] as const;
+const PERIODS: ("AM" | "PM")[] = ["AM", "PM"];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

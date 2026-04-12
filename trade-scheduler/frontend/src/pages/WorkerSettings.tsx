@@ -31,7 +31,7 @@ export function WorkerSettings() {
 
   useEffect(() => {
     if (!workerId) { setLoading(false); return; }
-    fetch("/api/workers")
+    fetch("/api/workers", { credentials: "include" })
       .then(r => r.json())
       .then((workers: any[]) => {
         const me = workers.find((w: any) => w.id === workerId);
@@ -54,11 +54,13 @@ export function WorkerSettings() {
         fetch(`/api/workers/${workerId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ name, phone, email, tradeType, isAvailable: true }),
         }),
         fetch("/api/auth/profile", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             loginNumber: sessionStorage.getItem("ts2_login_number") ?? "",
             email,

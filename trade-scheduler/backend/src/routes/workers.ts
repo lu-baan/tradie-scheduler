@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, workersTable, jobsTable, usersTable } from "../db";
+import { db, workersTable, jobsTable, usersTable, leaveRequestsTable } from "../db";
 import { eq, not, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateWorkerBody } from "@workspace/api-zod";
@@ -37,6 +37,7 @@ router.get("/", async (_req: Request, res: Response) => {
       ...w,
       createdAt: w.createdAt.toISOString(),
       unavailableUntil: w.unavailableUntil ? w.unavailableUntil.toISOString() : null,
+      skills: (() => { try { return JSON.parse(w.skillsJson || "[]"); } catch { return []; } })(),
       loginNumber: loginMap.get(w.id) ?? null,
     })));
   } catch (err) {
@@ -64,22 +65,48 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+// Extended update schema — includes skills, hourly rate, max weekly hours
+const UpdateWorkerBody = z.object({
+  name: z.string().min(2),
+  tradeType: z.string().min(2),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  isAvailable: z.boolean().optional(),
+  unavailableUntil: z.string().nullable().optional(),
+  skills: z.array(z.string()).optional(),
+  hourlyRate: z.number().min(0).nullable().optional(),
+  maxWeeklyHours: z.number().min(1).max(168).nullable().optional(),
+});
+
+function serializeWorker(w: typeof workersTable.$inferSelect & { loginNumber?: string | null }) {
+  return {
+    ...w,
+    createdAt: w.createdAt.toISOString(),
+    unavailableUntil: w.unavailableUntil ? w.unavailableUntil.toISOString() : null,
+    skills: (() => { try { return JSON.parse(w.skillsJson || "[]"); } catch { return []; } })(),
+    loginNumber: (w as any).loginNumber ?? null,
+  };
+}
+
 router.put("/:id", async (req: Request, res: Response) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
-    const body = CreateWorkerBody.parse(req.body);
+    const body = UpdateWorkerBody.parse(req.body);
     const updateData = {
-      ...body,
+      name: body.name,
+      tradeType: body.tradeType,
+      phone: body.phone ?? null,
+      email: body.email ?? null,
+      isAvailable: body.isAvailable ?? true,
       unavailableUntil: body.unavailableUntil ? new Date(body.unavailableUntil) : null,
+      skillsJson: JSON.stringify(body.skills ?? []),
+      hourlyRate: body.hourlyRate ?? null,
+      maxWeeklyHours: body.maxWeeklyHours ?? 38,
     };
     const [worker] = await db.update(workersTable).set(updateData).where(eq(workersTable.id, id)).returning();
     if (!worker) { res.status(404).json({ error: "Worker not found" }); return; }
-    res.json({
-      ...worker,
-      createdAt: worker.createdAt.toISOString(),
-      unavailableUntil: worker.unavailableUntil ? worker.unavailableUntil.toISOString() : null,
-    });
+    res.json(serializeWorker(worker));
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Validation error", details: err.message });
     else { console.error(err); res.status(500).json({ error: "Internal server error" }); }

@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, X, ShieldCheck } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
@@ -170,6 +170,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const { data: workers } = useListWorkers();
   const { data: allJobs = [] } = useListJobs();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
+  const [requiredSkills, setRequiredSkills] = useState<string[]>(initialData?.requiredSkills ?? []);
+  const [skillInput, setSkillInput] = useState("");
   const [workerTradeFilter, setWorkerTradeFilter] = useState<string>("all");
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
@@ -315,6 +317,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
       estimatedHours: finalEstimatedHours,
       scheduledDate,
       assignedWorkerIds: selectedWorkerIds,
+      requiredSkills,
     };
     delete (payload as any).scheduledTime;
     delete (payload as any).labourPrice;
@@ -729,19 +732,64 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
 
           {/* Booking-specific fields */}
           {jobType === "booking" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label required hint="How many tradies are needed for this job?">Number of Tradies</Label>
-                <Input type="number" min="1" max="20" {...form.register("numTradies")} />
-                {form.formState.errors.numTradies && (
-                  <p className="text-destructive text-sm mt-1">{form.formState.errors.numTradies.message}</p>
-                )}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label required hint="How many tradies are needed for this job?">Number of Tradies</Label>
+                  <Input type="number" min="1" max="20" {...form.register("numTradies")} />
+                  {form.formState.errors.numTradies && (
+                    <p className="text-destructive text-sm mt-1">{form.formState.errors.numTradies.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label hint="Hours before the job to order materials. Helps with logistics planning.">
+                    Call-Up Time (Hrs for materials)
+                  </Label>
+                  <Input type="number" min="0" step="0.5" max="168" {...form.register("callUpTimeHours")} />
+                </div>
               </div>
+              {/* Required licences / skills */}
               <div>
-                <Label hint="Hours before the job to order materials. Helps with logistics planning.">
-                  Call-Up Time (Hrs for materials)
+                <Label hint="Workers assigned to this job will be warned if they lack any of these.">
+                  <ShieldCheck size={12} className="inline mr-1" />Required Licences / Skills
                 </Label>
-                <Input type="number" min="0" step="0.5" max="168" {...form.register("callUpTimeHours")} />
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={skillInput}
+                    onChange={e => setSkillInput(e.target.value)}
+                    placeholder="e.g. EWP Licence, White Card, Gas Cert…"
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const v = skillInput.trim();
+                        if (v && !requiredSkills.includes(v)) { setRequiredSkills(s => [...s, v]); setSkillInput(""); }
+                      }
+                    }}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={() => {
+                      const v = skillInput.trim();
+                      if (v && !requiredSkills.includes(v)) { setRequiredSkills(s => [...s, v]); setSkillInput(""); }
+                    }}
+                    disabled={!skillInput.trim()}
+                  >
+                    <Plus size={14} />
+                  </Button>
+                </div>
+                {requiredSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {requiredSkills.map(s => (
+                      <span key={s} className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2 py-0.5 rounded-full">
+                        <ShieldCheck size={9} />{s}
+                        <button type="button" onClick={() => setRequiredSkills(prev => prev.filter(x => x !== s))}>
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

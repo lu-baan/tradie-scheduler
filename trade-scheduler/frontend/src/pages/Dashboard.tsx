@@ -1,13 +1,15 @@
-import { useListJobs } from "@/lib/api-client";
+import { useListJobs, useListWorkers } from "@/lib/api-client";
 import { formatAUD } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CheckCircle2, Clock, TrendingUp, Users, Inbox, Activity } from "lucide-react";
+import { addDays, startOfWeek } from "date-fns";
 
 import { JobCard } from "@/components/jobs/JobCard";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 export function Dashboard() {
   const { data: jobs, isLoading } = useListJobs();
+  const { data: workers = [] } = useListWorkers();
 
   if (isLoading) {
     return <div className="h-[50vh] flex items-center justify-center font-display text-xl animate-pulse text-primary">Loading Systems...</div>;
@@ -17,10 +19,47 @@ export function Dashboard() {
   const completedJobs = allJobs.filter(j => j.status === "completed");
   const pendingJobs = (allJobs ?? []).filter(j => j.status === "pending" || j.status === "confirmed");
   const emergencyJobs = allJobs.filter(j => j.isEmergency && j.status !== "completed");
-  
+
   const activeJobs = allJobs.filter(j => j.status !== "completed" && j.status !== "cancelled");
   const totalRevenue = completedJobs.reduce((acc, job) => acc + job.price, 0);
   const predictedRevenue = activeJobs.reduce((acc, job) => acc + job.price, 0);
+
+  // ── WFM KPIs ──────────────────────────────────────────────────────────────
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = addDays(weekStart, 7);
+
+  const weekJobs = allJobs.filter(j => {
+    if (!j.scheduledDate) return false;
+    const d = new Date(j.scheduledDate);
+    return d >= weekStart && d < weekEnd && j.status !== "cancelled" && j.status !== "bumped";
+  });
+
+  // Utilization: total scheduled hours / total available capacity this week
+  const totalCapacityHrs = workers.reduce((s, w) => s + (w.maxWeeklyHours ?? 38), 0);
+  const totalScheduledHrs = weekJobs.reduce((s, j) => s + (j.estimatedHours ?? 0) * (j.assignedWorkerIds?.length ?? 1), 0);
+  const utilPct = totalCapacityHrs > 0 ? Math.round((totalScheduledHrs / totalCapacityHrs) * 100) : 0;
+
+  // Fill rate: bookings with ≥1 worker assigned / total bookings this week
+  const weekBookings = weekJobs.filter(j => j.jobType === "booking");
+  const assignedBookings = weekBookings.filter(j => (j.assignedWorkerIds ?? []).length > 0);
+  const fillRate = weekBookings.length > 0 ? Math.round((assignedBookings.length / weekBookings.length) * 100) : 100;
+
+  // Unassigned today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const unassignedToday = allJobs.filter(j =>
+    j.scheduledDate?.startsWith(todayStr) &&
+    j.jobType === "booking" &&
+    (j.assignedWorkerIds ?? []).length === 0 &&
+    j.status !== "cancelled"
+  ).length;
+
+  // Overtime risk: workers over 80% of their weekly cap
+  const overtimeRisk = workers.filter(w => {
+    const hrs = weekJobs
+      .filter(j => (j.assignedWorkerIds ?? []).includes(w.id))
+      .reduce((s, j) => s + (j.estimatedHours ?? 0), 0);
+    return hrs >= (w.maxWeeklyHours ?? 38) * 0.8;
+  }).length;
 
   // Mock chart data for visual appeal based on job types
   const chartData = [
@@ -37,6 +76,71 @@ export function Dashboard() {
           <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground text-glow">Overview</h1>
           <p className="text-muted-foreground mt-2 text-lg">System status and operational metrics.</p>
         </div>
+      </div>
+
+      {/* ── WFM KPI strip ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Utilization */}
+        <Card className="p-4 border-white/5">
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
+            <Activity size={10} /> Utilization
+          </p>
+          <div className="flex items-end gap-2 mb-2">
+            <span className="text-2xl font-display font-bold">{utilPct}%</span>
+            <span className="text-xs text-muted-foreground mb-0.5">this week</span>
+          </div>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${utilPct >= 90 ? "bg-destructive" : utilPct >= 70 ? "bg-orange-400" : "bg-green-500"}`}
+              style={{ width: `${utilPct}%` }}
+            />
+          </div>
+        </Card>
+
+        {/* Fill rate */}
+        <Card className="p-4 border-white/5">
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
+            <Users size={10} /> Fill Rate
+          </p>
+          <div className="flex items-end gap-2 mb-2">
+            <span className={`text-2xl font-display font-bold ${fillRate < 80 ? "text-destructive" : fillRate < 100 ? "text-orange-400" : "text-green-400"}`}>
+              {fillRate}%
+            </span>
+            <span className="text-xs text-muted-foreground mb-0.5">bookings assigned</span>
+          </div>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${fillRate < 80 ? "bg-destructive" : fillRate < 100 ? "bg-orange-400" : "bg-green-500"}`}
+              style={{ width: `${fillRate}%` }}
+            />
+          </div>
+        </Card>
+
+        {/* Unassigned today */}
+        <Card className={`p-4 border-white/5 ${unassignedToday > 0 ? "border-yellow-500/30" : ""}`}>
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
+            <Inbox size={10} /> Unassigned Today
+          </p>
+          <span className={`text-2xl font-display font-bold ${unassignedToday > 0 ? "text-yellow-400" : "text-green-400"}`}>
+            {unassignedToday}
+          </span>
+          <p className="text-xs text-muted-foreground mt-1">
+            {unassignedToday === 0 ? "All jobs staffed" : `${unassignedToday} job${unassignedToday > 1 ? "s" : ""} need workers`}
+          </p>
+        </Card>
+
+        {/* Overtime risk */}
+        <Card className={`p-4 border-white/5 ${overtimeRisk > 0 ? "border-orange-500/30" : ""}`}>
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
+            <AlertTriangle size={10} /> Overtime Risk
+          </p>
+          <span className={`text-2xl font-display font-bold ${overtimeRisk > 0 ? "text-orange-400" : "text-green-400"}`}>
+            {overtimeRisk}
+          </span>
+          <p className="text-xs text-muted-foreground mt-1">
+            {overtimeRisk === 0 ? "No workers near cap" : `worker${overtimeRisk > 1 ? "s" : ""} ≥80% weekly cap`}
+          </p>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

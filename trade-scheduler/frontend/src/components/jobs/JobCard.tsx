@@ -1,4 +1,5 @@
 import { Job, Worker, useDeleteJob, useTriggerEmergency, useConvertToBooking, useUpdateJob } from "@/lib/api-client";
+import type { AttendanceEvent } from "@/lib/api-client";
 import type { UserRole } from "@/App";
 import { formatAUD, formatAusDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -6,11 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText,
-  Check, Trash2, Edit2, CheckCircle2, Car, XCircle,
+  Check, Trash2, Edit2, CheckCircle2, Car, XCircle, ImagePlus, X, Loader2, Images, Save,
+  ShieldCheck, Navigation, MapPinned, Coffee, LogIn, Timer,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { JobForm } from "./JobForm";
 import { toast } from "sonner";
 
@@ -67,11 +69,319 @@ function ConfirmDialog({
   );
 }
 
+// ── JobPhotos ─────────────────────────────────────────────────────────────────
+
+function JobPhotos({ job, canEdit }: { job: Job; canEdit: boolean }) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const res = await fetch(`/api/jobs/${job.id}/images`, {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Upload failed");
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success("Photo uploaded");
+    } catch (err: any) {
+      toast.error("Upload failed", { description: err.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (url: string) => {
+    setDeletingUrl(url);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/images`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success("Photo removed");
+    } catch {
+      toast.error("Failed to remove photo");
+    } finally {
+      setDeletingUrl(null);
+    }
+  };
+
+  const images: string[] = job.imageUrls ?? [];
+
+  if (!canEdit && images.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
+          <Images size={13} /> Photos {images.length > 0 && `(${images.length})`}
+        </span>
+        {canEdit && (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader2 size={12} className="animate-spin mr-1" /> : <ImagePlus size={12} className="mr-1" />}
+              {uploading ? "Uploading..." : "Add Photo"}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </>
+        )}
+      </div>
+
+      {images.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {images.map(url => (
+            <div key={url} className="relative group">
+              <img
+                src={url}
+                alt="Job photo"
+                className="w-20 h-20 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setLightbox(url)}
+              />
+              {canEdit && (
+                <button
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                  onClick={() => handleDelete(url)}
+                  disabled={deletingUrl === url}
+                >
+                  {deletingUrl === url
+                    ? <Loader2 size={10} className="animate-spin" />
+                    : <X size={10} />}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Dialog open={!!lightbox} onOpenChange={() => setLightbox(null)}>
+          <DialogContent className="max-w-3xl p-2 bg-black/90 border-white/10">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Photo</DialogTitle>
+            </DialogHeader>
+            <img src={lightbox} alt="Job photo" className="w-full max-h-[80vh] object-contain rounded" />
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+// ── TimeAttendance panel ──────────────────────────────────────────────────────
+
+const ACTION_META: Record<string, { label: string; icon: React.ReactNode; next: string | null; color: string }> = {
+  clock_in:    { label: "Clocked In",   icon: <LogIn size={11} />,     next: "en_route",    color: "text-blue-400" },
+  en_route:    { label: "En Route",     icon: <Navigation size={11} />, next: "on_site",     color: "text-cyan-400" },
+  on_site:     { label: "On Site",      icon: <MapPinned size={11} />,  next: "break_start", color: "text-green-400" },
+  break_start: { label: "Break",        icon: <Coffee size={11} />,     next: "break_end",   color: "text-yellow-400" },
+  break_end:   { label: "Break Ended",  icon: <Coffee size={11} />,     next: "break_start", color: "text-yellow-400" },
+  complete:    { label: "Completed",    icon: <CheckCircle2 size={11} />, next: null,         color: "text-green-400" },
+};
+
+const NEXT_BUTTON: Record<string, { label: string; action: string }> = {
+  clock_in:    { label: "En Route",     action: "en_route" },
+  en_route:    { label: "On Site",      action: "on_site" },
+  on_site:     { label: "Start Break",  action: "break_start" },
+  break_start: { label: "End Break",    action: "break_end" },
+  break_end:   { label: "Start Break",  action: "break_start" },
+};
+
+function fmtTs(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+function TimeAttendancePanel({
+  job,
+  userRole,
+  currentWorkerId,
+}: {
+  job: Job;
+  userRole: UserRole;
+  currentWorkerId?: number | null;
+}) {
+  const queryClient = useQueryClient();
+  const [logging, setLogging] = useState<string | null>(null);
+
+  const attendance = job.attendance ?? [];
+
+  const logAction = async (action: string, workerId?: number) => {
+    setLogging(action);
+    try {
+      const body: Record<string, unknown> = { action };
+      if (workerId !== undefined) body.workerId = workerId;
+      const res = await fetch(`/api/jobs/${job.id}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success(`Logged: ${ACTION_META[action]?.label ?? action}`);
+    } catch {
+      toast.error("Failed to log attendance event");
+    } finally {
+      setLogging(null);
+    }
+  };
+
+  // ── Worker view: show their own status + next action button ──────────────
+  if (userRole === "worker" && currentWorkerId) {
+    const myEvents = attendance
+      .filter(e => e.workerId === currentWorkerId)
+      .sort((a, b) => a.ts.localeCompare(b.ts));
+    const latest = myEvents[myEvents.length - 1];
+    const latestAction = latest?.action ?? null;
+
+    if (latestAction === "complete") {
+      return (
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-xs flex items-center gap-1.5 text-green-400 font-semibold">
+            <CheckCircle2 size={13} /> Completed at {fmtTs(latest.ts)}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-3 pt-3 border-t border-border space-y-2">
+        <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1">
+          <Timer size={10} /> Time & Attendance
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {/* Primary next-step button */}
+          {latestAction === null ? (
+            <Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+              disabled={!!logging} onClick={() => logAction("clock_in")}>
+              {logging === "clock_in" ? <Loader2 size={12} className="animate-spin mr-1" /> : <LogIn size={12} className="mr-1" />}
+              Clock In
+            </Button>
+          ) : NEXT_BUTTON[latestAction] ? (
+            <Button size="sm" variant="outline" className="border-primary/50 text-primary hover:bg-primary/10"
+              disabled={!!logging} onClick={() => logAction(NEXT_BUTTON[latestAction].action)}>
+              {logging === NEXT_BUTTON[latestAction].action
+                ? <Loader2 size={12} className="animate-spin mr-1" />
+                : ACTION_META[NEXT_BUTTON[latestAction].action]?.icon && (
+                  <span className="mr-1">{ACTION_META[NEXT_BUTTON[latestAction].action].icon}</span>
+                )}
+              {NEXT_BUTTON[latestAction].label}
+            </Button>
+          ) : null}
+
+          {/* Complete button when on-site or after break */}
+          {(latestAction === "on_site" || latestAction === "break_end") && (
+            <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+              disabled={!!logging} onClick={() => logAction("complete")}>
+              {logging === "complete" ? <Loader2 size={12} className="animate-spin mr-1" /> : <CheckCircle2 size={12} className="mr-1" />}
+              Complete
+            </Button>
+          )}
+        </div>
+
+        {/* Mini event trail */}
+        {myEvents.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {myEvents.map((e, i) => (
+              <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
+                {ACTION_META[e.action]?.icon}
+                {fmtTs(e.ts)}
+                {i < myEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Admin view: full timeline per worker ─────────────────────────────────
+  if (userRole === "admin" && attendance.length > 0) {
+    const workerMap: Record<number, string> = {};
+    (job.assignedWorkers ?? []).forEach(w => { workerMap[w.id] = w.name; });
+
+    // Group by worker
+    const byWorker: Record<number, typeof attendance> = {};
+    attendance.forEach(e => {
+      if (!byWorker[e.workerId]) byWorker[e.workerId] = [];
+      byWorker[e.workerId].push(e);
+    });
+
+    return (
+      <div className="mt-3 pt-3 border-t border-border">
+        <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-2 flex items-center gap-1">
+          <Timer size={10} /> Attendance Log
+        </p>
+        <div className="space-y-2">
+          {Object.entries(byWorker).map(([wid, events]) => {
+            const sorted = [...events].sort((a, b) => a.ts.localeCompare(b.ts));
+            return (
+              <div key={wid}>
+                <p className="text-xs font-semibold text-foreground mb-1">
+                  {workerMap[Number(wid)] ?? `Worker #${wid}`}
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {sorted.map((e, i) => (
+                    <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
+                      {ACTION_META[e.action]?.icon}
+                      <span className="font-medium">{ACTION_META[e.action]?.label ?? e.action}</span>
+                      <span className="text-muted-foreground ml-0.5">{fmtTs(e.ts)}</span>
+                      {i < sorted.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 // ── JobCard ───────────────────────────────────────────────────────────────────
 
 export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: UserRole }) {
   const queryClient = useQueryClient();
+  const currentWorkerId = userRole === "worker"
+    ? parseInt(sessionStorage.getItem("ts2_worker_id") ?? "", 10) || null
+    : null;
   const [editOpen, setEditOpen] = useState(false);
+  const [completedNotesOpen, setCompletedNotesOpen] = useState(false);
+  const [extraNotes, setExtraNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
@@ -295,6 +605,20 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
             </div>
           </div>
 
+          {/* Required skills / licences */}
+          {(job.requiredSkills ?? []).length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1 mr-1">
+                <ShieldCheck size={10} /> Required
+              </span>
+              {(job.requiredSkills ?? []).map(s => (
+                <span key={s} className="flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Notes preview */}
           {job.notes && (
             <div className="mt-4 p-3 bg-secondary/30 rounded-lg border border-white/5">
@@ -302,12 +626,33 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
             </div>
           )}
 
+          {/* Time & Attendance */}
+          {!isQuote && !isCancelled && (
+            <TimeAttendancePanel job={job} userRole={userRole} currentWorkerId={currentWorkerId} />
+          )}
+
+          {/* Photos */}
+          <JobPhotos job={job} canEdit={!isCancelled} />
+
           {/* Actions Footer */}
           <div className="mt-4 sm:mt-6 pt-4 border-t border-border flex flex-wrap gap-2 justify-between items-center">
             <div className="flex gap-2">
-              {userRole === "admin" && (
+              {userRole === "admin" && !isCompleted && (
                 <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
                   <Edit2 size={13} className="mr-1" /> Edit
+                </Button>
+              )}
+              {userRole === "admin" && isCompleted && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                  onClick={() => {
+                    setExtraNotes(job.notes ?? "");
+                    setCompletedNotesOpen(true);
+                  }}
+                >
+                  <Edit2 size={13} className="mr-1" /> Notes & Photos
                 </Button>
               )}
               {userRole === "admin" && (
@@ -417,6 +762,72 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
               <DialogDescription>Update the details for this job.</DialogDescription>
             </DialogHeader>
             <JobForm initialData={job} onSuccess={() => setEditOpen(false)} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Completed Job — Notes & Photos Dialog */}
+        <Dialog open={completedNotesOpen} onOpenChange={setCompletedNotesOpen}>
+          <DialogContent className="max-w-lg w-[calc(100vw-2rem)]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-green-400">
+                <CheckCircle2 size={18} /> Job #{job.id} — Completed
+              </DialogTitle>
+              <DialogDescription>
+                This job is completed. You can add extra notes and photos for the invoice record.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Notes */}
+              <div>
+                <label className="text-xs uppercase text-muted-foreground font-display mb-1 block">
+                  Additional Notes
+                </label>
+                <textarea
+                  className="w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-primary outline-none"
+                  rows={4}
+                  maxLength={500}
+                  placeholder="Add any extra notes for the invoice (optional)…"
+                  value={extraNotes}
+                  onChange={e => setExtraNotes(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground text-right">{extraNotes.length}/500</p>
+              </div>
+
+              {/* Photos */}
+              <JobPhotos job={job} canEdit={true} />
+            </div>
+
+            <DialogFooter className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setCompletedNotesOpen(false)} disabled={savingNotes}>
+                Cancel
+              </Button>
+              <Button
+                disabled={savingNotes}
+                onClick={async () => {
+                  setSavingNotes(true);
+                  try {
+                    const res = await fetch(`/api/jobs/${job.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ notes: extraNotes }),
+                    });
+                    if (!res.ok) throw new Error("Failed to save");
+                    queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+                    toast.success("Notes saved");
+                    setCompletedNotesOpen(false);
+                  } catch {
+                    toast.error("Failed to save notes");
+                  } finally {
+                    setSavingNotes(false);
+                  }
+                }}
+              >
+                {savingNotes ? <Loader2 size={14} className="animate-spin mr-1" /> : <Save size={14} className="mr-1" />}
+                Save Notes
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </Card>

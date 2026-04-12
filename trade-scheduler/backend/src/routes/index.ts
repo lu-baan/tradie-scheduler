@@ -4,6 +4,7 @@ import jobsRouter from "./jobs";
 import workersRouter from "./workers";
 import authRouter from "./auth";
 import geoRouter from "./geo";
+import leaveRouter from "./leave";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
 
@@ -18,6 +19,7 @@ router.use("/jobs", requireAuth, jobsRouter);
 // Workers data is admin-only — the UI hides it from workers, and the API enforces it.
 router.use("/workers", requireAdmin, workersRouter);
 router.use("/geo", requireAuth, geoRouter);
+router.use("/leave", leaveRouter);
 
 // Admin-only test endpoint — should be removed before going fully public.
 router.get("/test-email", requireAdmin, async (req: Request, res: Response) => {

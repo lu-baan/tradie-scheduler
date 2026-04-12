@@ -48,6 +48,8 @@ export interface Job {
   invoiceNumber?: string | null;
   invoiceSentAt?: string | null;
   customerConfirmed: boolean;
+  /** URLs of photos uploaded for this job */
+  imageUrls: string[];
   createdAt: string;
   updatedAt: string;
 }
