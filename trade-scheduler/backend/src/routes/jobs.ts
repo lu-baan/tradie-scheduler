@@ -32,9 +32,12 @@ function parseImageUrls(raw: string): string[] {
 
 /** Extract the storage-bucket path from either a Supabase public URL or a proxy URL. */
 function extractStoragePath(url: string): string | null {
-  // Proxy URL: /api/jobs/:id/img/:storagePath
-  const proxyMatch = url.match(/^\/api\/jobs\/\d+\/img\/(.+)$/);
-  if (proxyMatch) return proxyMatch[1];
+  // Proxy URL: /api/jobs/:id/img?p=<encoded-path>
+  try {
+    const u = new URL(url, "http://localhost");
+    if (u.pathname.match(/^\/api\/jobs\/\d+\/img$/) && u.searchParams.has("p"))
+      return u.searchParams.get("p");
+  } catch { /* not a parseable URL, fall through */ }
   // Supabase public URL
   const marker = `/object/public/${IMAGES_BUCKET}/`;
   const idx = url.indexOf(marker);
@@ -47,7 +50,8 @@ function toProxyUrl(jobId: number, supabaseUrl: string): string {
   const marker = `/object/public/${IMAGES_BUCKET}/`;
   const idx = supabaseUrl.indexOf(marker);
   if (idx === -1) return supabaseUrl;
-  return `/api/jobs/${jobId}/img/${supabaseUrl.slice(idx + marker.length)}`;
+  const path = supabaseUrl.slice(idx + marker.length);
+  return `/api/jobs/${jobId}/img?p=${encodeURIComponent(path)}`;
 }
 
 function parseJsonArr<T>(raw: string | null | undefined): T[] {
@@ -510,11 +514,13 @@ if (String(req.query.format) === "pdf") {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// ── GET /api/jobs/:id/img/:imagePath — proxy image from Supabase storage ─────
-// Serves images through the backend so they work regardless of bucket visibility.
+// ── GET /api/jobs/:id/img?p=<path> — proxy image from Supabase storage ───────
+// Serves images through the backend using the service-role key, so photos load
+// regardless of whether the Supabase bucket is public or private.
 
-router.get("/:id/img/:imagePath(*)", async (req: Request, res: Response) => {
-  const imagePath = req.params.imagePath;
+router.get("/:id/img", async (req: Request, res: Response) => {
+  const imagePath = decodeURIComponent(String(req.query.p ?? ""));
+  if (!imagePath) { res.status(400).end(); return; }
   try {
     const { data, error } = await getSupabase().storage.from(IMAGES_BUCKET).download(imagePath);
     if (error || !data) { res.status(404).end(); return; }
