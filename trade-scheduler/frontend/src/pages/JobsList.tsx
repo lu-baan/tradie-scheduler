@@ -91,22 +91,30 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
     else if (tab === "cancelled") result = all.filter(job => job.status === "cancelled");
     else result = all.filter(job => job.jobType === tab && job.status !== "completed" && job.status !== "cancelled");
 
-    // Client-side sort that strictly respects the chosen criteria — emergency/unassigned
-    // status never influences position; they appear wherever the sort field places them.
+    // Emergencies always pin to the top; everything else sorts by the chosen criteria.
+    // Unassigned status does not influence position.
     const dir = sortDir === "asc" ? 1 : -1;
-    if (sortBy === "date") {
-      return [...result].sort((a, b) =>
-        dir * ((a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? ""))
-      );
-    }
-    if (sortBy === "price") {
-      return [...result].sort((a, b) => dir * ((a.price ?? 0) - (b.price ?? 0)));
-    }
-    if (sortBy === "validityCode") {
-      return [...result].sort((a, b) => dir * ((a.validityCode ?? 0) - (b.validityCode ?? 0)));
-    }
-    // For "smart" and "distance" the API has already scored/sorted — just respect direction.
-    return sortDir === "asc" ? result : [...result].reverse();
+    const sorted = (() => {
+      if (sortBy === "date") {
+        return [...result].sort((a, b) =>
+          dir * ((a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? ""))
+        );
+      }
+      if (sortBy === "price") {
+        return [...result].sort((a, b) => dir * ((a.price ?? 0) - (b.price ?? 0)));
+      }
+      if (sortBy === "validityCode") {
+        return [...result].sort((a, b) => dir * ((a.validityCode ?? 0) - (b.validityCode ?? 0)));
+      }
+      // For "smart" and "distance" the API has already scored/sorted — just respect direction.
+      return sortDir === "asc" ? result : [...result].reverse();
+    })();
+
+    // Stable partition: emergencies first, then the rest in their sorted order.
+    return [
+      ...sorted.filter(j => j.isEmergency),
+      ...sorted.filter(j => !j.isEmergency),
+    ];
   };
 
   return (
