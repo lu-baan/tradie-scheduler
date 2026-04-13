@@ -86,8 +86,15 @@ export function AuthPage({ onLogin, theme, onToggleTheme }: { onLogin: (role: Us
     setIsPending(true);
     setServerError(null);
     try {
-      // TODO: Replace with actual reset API call
-      await new Promise(r => setTimeout(r, 600));
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Could not send reset email." }));
+        throw new Error(err.error || "Could not send reset email.");
+      }
       setForgotSuccess(true);
     } catch (err: any) {
       setServerError(err.message || "Could not send reset email.");

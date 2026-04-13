@@ -12,6 +12,7 @@ import { Settings } from "@/pages/Settings";
 import { WorkerSettings } from "@/pages/WorkerSettings";
 import { AuthPage } from "@/pages/AuthPage";
 import { AuthManage } from "@/pages/AuthManage";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import NotFound from "@/pages/not-found";
 
 export type UserRole = "admin" | "worker";
@@ -111,7 +112,14 @@ function App() {
           {isAuthenticated ? (
             <Router userRole={userRole} onLogout={handleLogout} theme={theme} onToggleTheme={handleToggleTheme} />
           ) : (
-            <AuthPage onLogin={handleLogin} theme={theme} onToggleTheme={handleToggleTheme} />
+            <Switch>
+              <Route path="/reset-password">
+                <ResetPasswordPage theme={theme} onToggleTheme={handleToggleTheme} />
+              </Route>
+              <Route>
+                <AuthPage onLogin={handleLogin} theme={theme} onToggleTheme={handleToggleTheme} />
+              </Route>
+            </Switch>
           )}
         </WouterRouter>
       </TooltipProvider>

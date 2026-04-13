@@ -21,3 +21,4 @@ export * from "./jobs";
 export * from "./workers";
 export * from "./users";
 export * from "./leave";
+export * from "./passwordResetTokens";

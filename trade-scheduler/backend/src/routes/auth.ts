@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, usersTable, workersTable } from "../db";
-import { eq, count } from "drizzle-orm";
+import { db, usersTable, workersTable, passwordResetTokensTable } from "../db";
+import { eq, count, and, gt } from "drizzle-orm";
 import { z } from "zod/v4";
 import crypto from "crypto";
 import { promisify } from "util";
 import rateLimit from "express-rate-limit";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
+import { sendPasswordResetEmail } from "../lib/email";
 
 const router: IRouter = Router();
 const scrypt = promisify(crypto.scrypt);
@@ -290,6 +291,94 @@ router.patch("/profile", requireAuth, async (req: Request, res: Response) => {
       res.status(400).json({ error: "Validation error", details: err.message });
     } else {
       console.error("[auth] profile error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
+// ── POST /api/auth/forgot-password ───────────────────────────────────────────
+
+router.post("/forgot-password", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+    const [user] = await db
+      .select({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1);
+
+    // Always return 200 — don't reveal whether the email exists.
+    if (!user || !user.email) {
+      res.json({ ok: true });
+      return;
+    }
+
+    // Delete any existing tokens for this user before issuing a new one.
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id));
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.insert(passwordResetTokensTable).values({ token, userId: user.id, expiresAt });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? "https://tradie-scheduler-frontend.vercel.app";
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    await sendPasswordResetEmail({ toEmail: user.email, toName: user.fullName, resetLink });
+
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Enter a valid email address" });
+    } else {
+      console.error("[auth] forgot-password error:", err);
+      // Still return 200 to avoid leaking info
+      res.json({ ok: true });
+    }
+  }
+});
+
+// ── POST /api/auth/reset-password ────────────────────────────────────────────
+
+router.post("/reset-password", authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = z.object({
+      token:       z.string().min(1),
+      newPassword: z.string().min(8),
+    }).parse(req.body);
+
+    const [row] = await db
+      .select()
+      .from(passwordResetTokensTable)
+      .where(
+        and(
+          eq(passwordResetTokensTable.token, token),
+          gt(passwordResetTokensTable.expiresAt, new Date()),
+        )
+      )
+      .limit(1);
+
+    if (!row) {
+      res.status(400).json({ error: "Reset link is invalid or has expired." });
+      return;
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+
+    await db.update(usersTable)
+      .set({ passwordHash })
+      .where(eq(usersTable.id, row.userId));
+
+    // Consume the token immediately so it can't be reused.
+    await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.id, row.id));
+
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation error", details: err.message });
+    } else {
+      console.error("[auth] reset-password error:", err);
       res.status(500).json({ error: "Internal server error" });
     }
   }
