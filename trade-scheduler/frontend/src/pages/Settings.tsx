@@ -269,24 +269,10 @@ export function Settings() {
           <span className="font-mono text-lg">{settings.gstRate}%</span>
         </SettingRow>
         <SettingRow label="Default Currency">
-          <select
-            value={settings.currency}
-            onChange={e => update("currency", e.target.value)}
-            className="bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-          >
-            <option value="AUD">AUD ($)</option>
-            <option value="NZD">NZD ($)</option>
-          </select>
+          <span className="font-mono text-lg">AUD ($)</span>
         </SettingRow>
         <SettingRow label="Distance Units">
-          <select
-            value={settings.distanceUnits}
-            onChange={e => update("distanceUnits", e.target.value)}
-            className="bg-background border border-input rounded-md px-3 py-1.5 text-sm"
-          >
-            <option value="km">Kilometers (km)</option>
-            <option value="mi">Miles (mi)</option>
-          </select>
+          <span className="font-mono text-lg">Kilometers (km)</span>
         </SettingRow>
       </SectionCard>
 

@@ -34,15 +34,20 @@ export function Dashboard() {
     return d >= weekStart && d < weekEnd && j.status !== "cancelled" && j.status !== "bumped";
   });
 
-  // Utilization: total scheduled hours / total available capacity this week
+  // Utilisation: total scheduled hours / total available capacity this week
   const totalCapacityHrs = workers.reduce((s, w) => s + (w.maxWeeklyHours ?? 38), 0);
   const totalScheduledHrs = weekJobs.reduce((s, j) => s + (j.estimatedHours ?? 0) * (j.assignedWorkerIds?.length ?? 1), 0);
   const utilPct = totalCapacityHrs > 0 ? Math.round((totalScheduledHrs / totalCapacityHrs) * 100) : 0;
 
-  // Fill rate: bookings with ≥1 worker assigned / total bookings this week
-  const weekBookings = weekJobs.filter(j => j.jobType === "booking");
-  const assignedBookings = weekBookings.filter(j => (j.assignedWorkerIds ?? []).length > 0);
-  const fillRate = weekBookings.length > 0 ? Math.round((assignedBookings.length / weekBookings.length) * 100) : 100;
+  // Fill rate: bookings with ≥1 worker assigned / all active (pending/confirmed) bookings
+  const activeBookings = allJobs.filter(j =>
+    j.jobType === "booking" &&
+    j.status !== "cancelled" &&
+    j.status !== "completed" &&
+    j.status !== "bumped"
+  );
+  const assignedBookings = activeBookings.filter(j => (j.assignedWorkers ?? []).length > 0);
+  const fillRate = activeBookings.length > 0 ? Math.round((assignedBookings.length / activeBookings.length) * 100) : 100;
 
   // Unassigned today
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -83,7 +88,7 @@ export function Dashboard() {
         {/* Utilization */}
         <Card className="p-4 border-white/5">
           <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
-            <Activity size={10} /> Utilization
+            <Activity size={10} /> Utilisation
           </p>
           <div className="flex items-end gap-2 mb-2">
             <span className="text-2xl font-display font-bold">{utilPct}%</span>
@@ -106,7 +111,7 @@ export function Dashboard() {
             <span className={`text-2xl font-display font-bold ${fillRate < 80 ? "text-destructive" : fillRate < 100 ? "text-orange-400" : "text-green-400"}`}>
               {fillRate}%
             </span>
-            <span className="text-xs text-muted-foreground mb-0.5">bookings assigned</span>
+            <span className="text-xs text-muted-foreground mb-0.5">active bookings staffed</span>
           </div>
           <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
             <div

@@ -6,6 +6,7 @@
     "noEmit": true,
     "jsx": "preserve",
     "strict": true,
+    "strictFunctionTypes": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
