@@ -12,7 +12,6 @@ import { Settings } from "@/pages/Settings";
 import { WorkerSettings } from "@/pages/WorkerSettings";
 import { AuthPage } from "@/pages/AuthPage";
 import { AuthManage } from "@/pages/AuthManage";
-import { DispatchBoard } from "@/pages/DispatchBoard";
 import NotFound from "@/pages/not-found";
 
 export type UserRole = "admin" | "worker";
@@ -41,9 +40,6 @@ function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRo
         </Route>
         <Route path="/workers">
           {userRole === "admin" ? <WorkersList /> : <Redirect to="/jobs" />}
-        </Route>
-        <Route path="/dispatch">
-          {userRole === "admin" ? <DispatchBoard /> : <Redirect to="/jobs" />}
         </Route>
         <Route path="/settings">
           {userRole === "admin" ? <Settings /> : <WorkerSettings />}
