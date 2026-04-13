@@ -132,7 +132,12 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                 <Plus className="mr-2" /> New Enquiry
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+            <DialogContent
+              className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+              onInteractOutside={(e) => {
+                if ((e.target as Element).closest?.(".pac-container")) e.preventDefault();
+              }}
+            >
               <DialogHeader>
                 <DialogTitle>Create New Enquiry</DialogTitle>
               </DialogHeader>
