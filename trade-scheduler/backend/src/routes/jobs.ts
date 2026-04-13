@@ -30,6 +30,26 @@ function parseImageUrls(raw: string): string[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
+/** Extract the storage-bucket path from either a Supabase public URL or a proxy URL. */
+function extractStoragePath(url: string): string | null {
+  // Proxy URL: /api/jobs/:id/img/:storagePath
+  const proxyMatch = url.match(/^\/api\/jobs\/\d+\/img\/(.+)$/);
+  if (proxyMatch) return proxyMatch[1];
+  // Supabase public URL
+  const marker = `/object/public/${IMAGES_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx !== -1) return url.slice(idx + marker.length);
+  return null;
+}
+
+/** Convert a stored Supabase public URL to a backend-proxied URL. */
+function toProxyUrl(jobId: number, supabaseUrl: string): string {
+  const marker = `/object/public/${IMAGES_BUCKET}/`;
+  const idx = supabaseUrl.indexOf(marker);
+  if (idx === -1) return supabaseUrl;
+  return `/api/jobs/${jobId}/img/${supabaseUrl.slice(idx + marker.length)}`;
+}
+
 function parseJsonArr<T>(raw: string | null | undefined): T[] {
   if (!raw) return [];
   try { return JSON.parse(raw) ?? []; } catch { return []; }
@@ -78,7 +98,7 @@ async function hydrateJobs(
       assignedWorkers: ids.map(id => workersMap[id]).filter(Boolean).map(w => ({
         ...w, createdAt: w.createdAt.toISOString(),
       })),
-      imageUrls: parseImageUrls(job.imageUrls),
+      imageUrls: parseImageUrls(job.imageUrls).map(u => toProxyUrl(job.id, u)),
       requiredSkills: parseJsonArr<string>(job.requiredSkillsJson),
       attendance: parseJsonArr<AttendanceEvent>(job.attendanceJson),
       distanceKm: drive.distanceKm,
@@ -490,6 +510,24 @@ if (String(req.query.format) === "pdf") {
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
+// ── GET /api/jobs/:id/img/:imagePath — proxy image from Supabase storage ─────
+// Serves images through the backend so they work regardless of bucket visibility.
+
+router.get("/:id/img/:imagePath(*)", async (req: Request, res: Response) => {
+  const imagePath = req.params.imagePath;
+  try {
+    const { data, error } = await getSupabase().storage.from(IMAGES_BUCKET).download(imagePath);
+    if (error || !data) { res.status(404).end(); return; }
+    const contentType = (data.type && data.type !== "application/octet-stream") ? data.type : "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.end(Buffer.from(await data.arrayBuffer()));
+  } catch (err) {
+    console.error("[img-proxy]", err);
+    res.status(500).end();
+  }
+});
+
 // ── POST /api/jobs/:id/images — upload a photo ───────────────────────────────
 // Available to both admins and assigned workers.
 
@@ -546,7 +584,7 @@ router.delete("/:id/images", async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
-    const { url } = z.object({ url: z.string().url() }).parse(req.body);
+    const { url } = z.object({ url: z.string().min(1) }).parse(req.body);
 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
@@ -558,15 +596,12 @@ router.delete("/:id/images", async (req: Request, res: Response) => {
       }
     }
 
-    // Extract path-within-bucket from the public URL
-    const marker = `/object/public/${IMAGES_BUCKET}/`;
-    const markerIdx = url.indexOf(marker);
-    if (markerIdx !== -1) {
-      const pathInBucket = url.slice(markerIdx + marker.length);
-      await getSupabase().storage.from(IMAGES_BUCKET).remove([pathInBucket]);
-    }
+    // Accept both proxy URLs (/api/jobs/:id/img/...) and original Supabase public URLs
+    const storagePath = extractStoragePath(url);
+    if (!storagePath) { res.status(400).json({ error: "Invalid image URL" }); return; }
+    await getSupabase().storage.from(IMAGES_BUCKET).remove([storagePath]);
 
-    const updated_urls = parseImageUrls(job.imageUrls).filter(u => u !== url);
+    const updated_urls = parseImageUrls(job.imageUrls).filter(u => extractStoragePath(u) !== storagePath);
     const [updated] = await db.update(jobsTable)
       .set({ imageUrls: JSON.stringify(updated_urls), updatedAt: new Date() })
       .where(eq(jobsTable.id, id))

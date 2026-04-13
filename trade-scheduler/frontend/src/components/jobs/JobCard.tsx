@@ -1,5 +1,4 @@
 import { Job, Worker, useDeleteJob, useTriggerEmergency, useConvertToBooking, useUpdateJob } from "@/lib/api-client";
-import type { AttendanceEvent } from "@/lib/api-client";
 import type { UserRole } from "@/App";
 import { formatAUD, formatAusDate } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -635,27 +634,28 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
           <JobPhotos job={job} canEdit={!isCancelled} />
 
           {/* Actions Footer */}
-          <div className="mt-4 sm:mt-6 pt-4 border-t border-border flex flex-wrap gap-2 justify-between items-center">
-            <div className="flex gap-2">
-              {userRole === "admin" && !isCompleted && (
-                <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-                  <Edit2 size={13} className="mr-1" /> Edit
-                </Button>
-              )}
-              {userRole === "admin" && isCompleted && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-                  onClick={() => {
-                    setExtraNotes(job.notes ?? "");
-                    setCompletedNotesOpen(true);
-                  }}
-                >
-                  <Edit2 size={13} className="mr-1" /> Notes & Photos
-                </Button>
-              )}
-              {userRole === "admin" && (
+          <div className="mt-4 sm:mt-6 pt-4 border-t border-border space-y-2">
+            {/* Row 1: Edit / Delete */}
+            {userRole === "admin" && (
+              <div className="flex gap-2">
+                {!isCompleted && (
+                  <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
+                    <Edit2 size={13} className="mr-1" /> Edit
+                  </Button>
+                )}
+                {isCompleted && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                    onClick={() => {
+                      setExtraNotes(job.notes ?? "");
+                      setCompletedNotesOpen(true);
+                    }}
+                  >
+                    <Edit2 size={13} className="mr-1" /> Notes & Photos
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -664,44 +664,58 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                 >
                   <Trash2 size={13} />
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="flex flex-wrap gap-2">
-              {isQuote && userRole === "admin" ? (
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => convertMutation.mutate({ id: job.id, data: { estimatedHours: job.estimatedHours || 1 } })}
-                  disabled={convertMutation.isPending}
-                >
-                  <Check size={13} className="mr-1" /> Convert
-                </Button>
-              ) : !isQuote ? (
-                <>
-                  {!isCompleted && !isCancelled && (
+            {/* Row 2: Complete / Cancel  |  Convert (quotes) */}
+            {(isQuote && userRole === "admin") || (!isQuote && !isCompleted && !isCancelled) ? (
+              <>
+                <div className="border-t border-border" />
+                <div className="flex flex-wrap gap-2">
+                  {isQuote && userRole === "admin" && (
                     <Button
                       size="sm"
                       variant="default"
-                      className="bg-green-600 hover:bg-green-700 text-white font-bold"
-                      onClick={() => setCompleteConfirmOpen(true)}
-                      disabled={completeMutation.isPending}
+                      onClick={() => convertMutation.mutate({ id: job.id, data: { estimatedHours: job.estimatedHours || 1 } })}
+                      disabled={convertMutation.isPending}
                     >
-                      <CheckCircle2 size={13} className="mr-1" /> Complete
+                      <Check size={13} className="mr-1" /> Convert
                     </Button>
                   )}
-                  {userRole === "admin" && !isCompleted && !isCancelled && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-gray-500 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
-                      onClick={() => setCancelConfirmOpen(true)}
-                      disabled={cancelMutation.isPending}
-                    >
-                      <XCircle size={13} className="mr-1" /> Cancel
-                    </Button>
+                  {!isQuote && !isCompleted && !isCancelled && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                        onClick={() => setCompleteConfirmOpen(true)}
+                        disabled={completeMutation.isPending}
+                      >
+                        <CheckCircle2 size={13} className="mr-1" /> Complete
+                      </Button>
+                      {userRole === "admin" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-gray-500 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                          onClick={() => setCancelConfirmOpen(true)}
+                          disabled={cancelMutation.isPending}
+                        >
+                          <XCircle size={13} className="mr-1" /> Cancel
+                        </Button>
+                      )}
+                    </>
                   )}
-                  {userRole === "admin" && !job.isEmergency && !isCompleted && !isCancelled && (
+                </div>
+              </>
+            ) : null}
+
+            {/* Row 3: Code 9 / Resolve */}
+            {userRole === "admin" && !isQuote && !isCompleted && !isCancelled && (
+              <>
+                <div className="border-t border-border" />
+                <div className="flex gap-2">
+                  {!job.isEmergency && (
                     <Button
                       size="sm"
                       variant="destructive"
@@ -712,7 +726,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                       <AlertTriangle size={13} className="mr-1" /> CODE 9
                     </Button>
                   )}
-                  {userRole === "admin" && job.isEmergency && !isCompleted && !isCancelled && (
+                  {job.isEmergency && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -723,29 +737,31 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                       <AlertTriangle size={13} className="mr-1" /> Resolve
                     </Button>
                   )}
-                </>
-              ) : null}
+                </div>
+              </>
+            )}
 
-              {isCompleted ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    const res = await fetch(`/api/jobs/${job.id}/invoice?format=pdf`);
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    window.open(url, "_blank");
-                    setTimeout(() => URL.revokeObjectURL(url), 10000);
-                  }}
-                >
-                  <FileText size={13} className="mr-1" /> Invoice
-                </Button>
-              ) : (
-                <Button size="sm" variant="secondary" disabled>
-                  <FileText size={13} className="mr-1" /> Invoice
-                </Button>
-              )}
-            </div>
+            {/* Invoice — completed jobs only */}
+            {isCompleted && (
+              <>
+                <div className="border-t border-border" />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      const res = await fetch(`/api/jobs/${job.id}/invoice?format=pdf`);
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      window.open(url, "_blank");
+                      setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    }}
+                  >
+                    <FileText size={13} className="mr-1" /> Invoice
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
