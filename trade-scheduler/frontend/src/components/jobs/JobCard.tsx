@@ -225,7 +225,7 @@ function WorkerNotes({ job }: { job: Job }) {
   };
 
   return (
-    <div className="flex-1 min-w-0">
+    <div>
       <p className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5 mb-2">
         <FileText size={13} /> Notes
       </p>
@@ -795,13 +795,11 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
             <TimeAttendancePanel job={job} userRole={userRole} currentWorkerId={currentWorkerId} />
           )}
 
-          {/* Notes + Photos — side-by-side for workers, photos-only for admins */}
+          {/* Notes + Photos — stacked rows for workers, photos-only for admins */}
           {userRole === "worker" && !isCancelled ? (
-            <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row gap-4">
+            <div className="mt-4 pt-4 border-t border-border space-y-4">
               <WorkerNotes job={job} />
-              <div className="sm:w-48 shrink-0">
-                <JobPhotos job={job} canEdit={true} noBorder />
-              </div>
+              <JobPhotos job={job} canEdit={true} noBorder />
             </div>
           ) : (
             <JobPhotos job={job} canEdit={!isCancelled} />
