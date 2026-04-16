@@ -533,6 +533,33 @@ router.get("/:id/suggest-times", requireAdmin, async (req: Request, res: Respons
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
+// ── PATCH /api/jobs/:id/notes — update job notes (accessible to assigned workers) ──
+
+router.patch("/:id/notes", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    // Workers may only update notes for jobs they are assigned to
+    if (req.session.role === "worker") {
+      const assigned = parseWorkerIds(job.assignedWorkerIds);
+      if (!req.session.workerId || !assigned.includes(req.session.workerId)) {
+        res.status(403).json({ error: "Forbidden" }); return;
+      }
+    }
+
+    const { notes } = z.object({ notes: z.string() }).parse(req.body);
+    await db.update(jobsTable).set({ notes, updatedAt: new Date() }).where(eq(jobsTable.id, id));
+    res.json({ notes });
+  } catch (err) {
+    if (err instanceof z.ZodError) res.status(400).json({ error: "notes field is required" });
+    else { console.error(err); res.status(500).json({ error: "Internal server error" }); }
+  }
+});
+
 router.get("/:id/invoice", requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(String(req.params.id), 10);
@@ -728,6 +755,53 @@ router.post("/:id/attendance", async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Invalid action", details: err.message });
     else { console.error("[attendance]", err); res.status(500).json({ error: "Internal server error" }); }
+  }
+});
+
+// ── POST /api/jobs/:id/respond — worker accepts or declines an assigned job ───
+
+router.post("/:id/respond", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    // Only workers can respond; admins assign directly
+    if (req.session.role !== "worker" || !req.session.workerId) {
+      res.status(403).json({ error: "Only workers can accept or decline jobs" }); return;
+    }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    const assigned = parseWorkerIds(job.assignedWorkerIds);
+    if (!assigned.includes(req.session.workerId)) {
+      res.status(403).json({ error: "You are not assigned to this job" }); return;
+    }
+
+    const { response } = z.object({ response: z.enum(["accepted", "rejected"]) }).parse(req.body);
+    const workerId = req.session.workerId;
+
+    // Record the response as an attendance-style event
+    const existing = parseJsonArr<AttendanceEvent>(job.attendanceJson);
+    const event: AttendanceEvent = { workerId, action: response, ts: new Date().toISOString() };
+    const updatedAttendance = JSON.stringify([...existing, event]);
+
+    if (response === "rejected") {
+      // Remove the worker from this job's assigned list
+      const remaining = assigned.filter(wid => wid !== workerId);
+      await db.update(jobsTable)
+        .set({ assignedWorkerIds: JSON.stringify(remaining), attendanceJson: updatedAttendance, updatedAt: new Date() })
+        .where(eq(jobsTable.id, id));
+      res.json({ response, removed: true });
+    } else {
+      await db.update(jobsTable)
+        .set({ attendanceJson: updatedAttendance, updatedAt: new Date() })
+        .where(eq(jobsTable.id, id));
+      res.json({ response, removed: false });
+    }
+  } catch (err) {
+    if (err instanceof z.ZodError) res.status(400).json({ error: "response must be 'accepted' or 'rejected'" });
+    else { console.error("[respond]", err); res.status(500).json({ error: "Internal server error" }); }
   }
 });
 

@@ -70,7 +70,7 @@ function ConfirmDialog({
 
 // ── JobPhotos ─────────────────────────────────────────────────────────────────
 
-function JobPhotos({ job, canEdit }: { job: Job; canEdit: boolean }) {
+function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noBorder?: boolean }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -128,7 +128,7 @@ function JobPhotos({ job, canEdit }: { job: Job; canEdit: boolean }) {
   if (!canEdit && images.length === 0) return null;
 
   return (
-    <div className="mt-4 pt-4 border-t border-border">
+    <div className={noBorder ? "" : "mt-4 pt-4 border-t border-border"}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
           <Images size={13} /> Photos {images.length > 0 && `(${images.length})`}
@@ -197,9 +197,61 @@ function JobPhotos({ job, canEdit }: { job: Job; canEdit: boolean }) {
   );
 }
 
+// ── WorkerNotes ───────────────────────────────────────────────────────────────
+
+function WorkerNotes({ job }: { job: Job }) {
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState(job.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const isDirty = notes !== (job.notes ?? "");
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success("Notes saved");
+    } catch {
+      toast.error("Failed to save notes");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 min-w-0">
+      <p className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5 mb-2">
+        <FileText size={13} /> Notes
+      </p>
+      <textarea
+        className="w-full text-sm bg-secondary/30 border border-white/10 rounded-lg p-2.5 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 min-h-[80px]"
+        placeholder="Add notes about this job..."
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+      />
+      {isDirty && (
+        <div className="flex justify-end mt-1.5">
+          <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={save} disabled={saving}>
+            {saving ? <Loader2 size={11} className="animate-spin mr-1" /> : <Save size={11} className="mr-1" />}
+            Save Notes
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── TimeAttendance panel ──────────────────────────────────────────────────────
 
 const ACTION_META: Record<string, { label: string; icon: React.ReactNode; next: string | null; color: string }> = {
+  accepted:    { label: "Accepted",     icon: <Check size={11} />,        next: null,          color: "text-green-400" },
+  rejected:    { label: "Declined",     icon: <XCircle size={11} />,      next: null,          color: "text-red-400" },
   clock_in:    { label: "Clocked In",   icon: <LogIn size={11} />,        next: "en_route",    color: "text-blue-400" },
   en_route:    { label: "En Route",     icon: <Navigation size={11} />,   next: "on_site",     color: "text-cyan-400" },
   on_site:     { label: "On Site",      icon: <MapPinned size={11} />,    next: "break_start", color: "text-green-400" },
@@ -234,6 +286,7 @@ function TimeAttendancePanel({
 }) {
   const queryClient = useQueryClient();
   const [logging, setLogging] = useState<string | null>(null);
+  const [responding, setResponding] = useState(false);
   const [pendingStartAction, setPendingStartAction] = useState<string | null>(null);
 
   const attendance = job.attendance ?? [];
@@ -259,6 +312,25 @@ function TimeAttendancePanel({
     }
   };
 
+  const respondToJob = async (response: "accepted" | "rejected") => {
+    setResponding(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ response }),
+      });
+      if (!res.ok) throw new Error();
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success(response === "accepted" ? "Job accepted" : "Job declined");
+    } catch {
+      toast.error("Failed to respond to job");
+    } finally {
+      setResponding(false);
+    }
+  };
+
   // Route an action through the confirmation dialog if it's a "start" action
   const handleAction = (action: string) => {
     if (START_ACTIONS.has(action)) {
@@ -273,9 +345,51 @@ function TimeAttendancePanel({
     const myEvents = attendance
       .filter(e => e.workerId === currentWorkerId)
       .sort((a, b) => a.ts.localeCompare(b.ts));
-    const latest = myEvents[myEvents.length - 1];
+
+    // Separate response events (accepted/rejected) from attendance events
+    const responseEvent = myEvents.find(e => e.action === "accepted" || e.action === "rejected");
+    const hasRejected = responseEvent?.action === "rejected";
+
+    const attendanceEvents = myEvents.filter(e => e.action !== "accepted" && e.action !== "rejected");
+    const latest = attendanceEvents[attendanceEvents.length - 1];
     const latestAction = latest?.action ?? null;
 
+    // ── Not yet responded: show Accept / Decline ─────────────────────────
+    if (!responseEvent) {
+      return (
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1">
+            <Timer size={10} /> Job Assignment
+          </p>
+          <p className="text-xs text-muted-foreground">You have been assigned to this job. Do you accept?</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+              disabled={responding} onClick={() => respondToJob("accepted")}>
+              {responding ? <Loader2 size={12} className="animate-spin mr-1" /> : <Check size={12} className="mr-1" />}
+              Accept Job
+            </Button>
+            <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
+              disabled={responding} onClick={() => respondToJob("rejected")}>
+              {responding ? <Loader2 size={12} className="animate-spin mr-1" /> : <XCircle size={12} className="mr-1" />}
+              Decline Job
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Declined ─────────────────────────────────────────────────────────
+    if (hasRejected) {
+      return (
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-xs flex items-center gap-1.5 text-red-400 font-semibold">
+            <XCircle size={13} /> Job declined at {fmtTs(responseEvent.ts)}
+          </p>
+        </div>
+      );
+    }
+
+    // ── Accepted: show attendance flow ────────────────────────────────────
     if (latestAction === "complete") {
       return (
         <div className="mt-3 pt-3 border-t border-border">
@@ -357,14 +471,14 @@ function TimeAttendancePanel({
             )}
           </div>
 
-          {/* Mini event trail */}
-          {myEvents.length > 0 && (
+          {/* Mini event trail — attendance only (skip the response event) */}
+          {attendanceEvents.length > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {myEvents.map((e, i) => (
+              {attendanceEvents.map((e, i) => (
                 <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
                   {ACTION_META[e.action]?.icon}
                   {fmtTs(e.ts)}
-                  {i < myEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
+                  {i < attendanceEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
                 </span>
               ))}
             </div>
@@ -373,6 +487,7 @@ function TimeAttendancePanel({
       </>
     );
   }
+
 
   // ── Admin view: full timeline per worker ─────────────────────────────────
   if (userRole === "admin" && attendance.length > 0) {
@@ -668,8 +783,8 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
             </div>
           )}
 
-          {/* Notes preview */}
-          {job.notes && (
+          {/* Notes preview — admin only; workers get an editable notes field below */}
+          {userRole === "admin" && job.notes && (
             <div className="mt-4 p-3 bg-secondary/30 rounded-lg border border-white/5">
               <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.notes}</p>
             </div>
@@ -680,8 +795,17 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
             <TimeAttendancePanel job={job} userRole={userRole} currentWorkerId={currentWorkerId} />
           )}
 
-          {/* Photos */}
-          <JobPhotos job={job} canEdit={!isCancelled} />
+          {/* Notes + Photos — side-by-side for workers, photos-only for admins */}
+          {userRole === "worker" && !isCancelled ? (
+            <div className="mt-4 pt-4 border-t border-border flex flex-col sm:flex-row gap-4">
+              <WorkerNotes job={job} />
+              <div className="sm:w-48 shrink-0">
+                <JobPhotos job={job} canEdit={true} noBorder />
+              </div>
+            </div>
+          ) : (
+            <JobPhotos job={job} canEdit={!isCancelled} />
+          )}
 
           {/* Actions Footer */}
           <div className="mt-4 sm:mt-6 pt-4 border-t border-border space-y-2">
