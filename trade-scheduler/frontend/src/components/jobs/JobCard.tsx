@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText,
   Check, Trash2, Edit2, CheckCircle2, Car, XCircle, ImagePlus, X, Loader2, Images, Save,
-  ShieldCheck, Navigation, MapPinned, Coffee, LogIn, Timer,
+  ShieldCheck, Navigation, MapPinned, Pause, Play, LogIn, Timer,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -200,25 +200,28 @@ function JobPhotos({ job, canEdit }: { job: Job; canEdit: boolean }) {
 // ── TimeAttendance panel ──────────────────────────────────────────────────────
 
 const ACTION_META: Record<string, { label: string; icon: React.ReactNode; next: string | null; color: string }> = {
-  clock_in:    { label: "Clocked In",   icon: <LogIn size={11} />,     next: "en_route",    color: "text-blue-400" },
-  en_route:    { label: "En Route",     icon: <Navigation size={11} />, next: "on_site",     color: "text-cyan-400" },
-  on_site:     { label: "On Site",      icon: <MapPinned size={11} />,  next: "break_start", color: "text-green-400" },
-  break_start: { label: "Break",        icon: <Coffee size={11} />,     next: "break_end",   color: "text-yellow-400" },
-  break_end:   { label: "Break Ended",  icon: <Coffee size={11} />,     next: "break_start", color: "text-yellow-400" },
-  complete:    { label: "Completed",    icon: <CheckCircle2 size={11} />, next: null,         color: "text-green-400" },
+  clock_in:    { label: "Clocked In",   icon: <LogIn size={11} />,        next: "en_route",    color: "text-blue-400" },
+  en_route:    { label: "En Route",     icon: <Navigation size={11} />,   next: "on_site",     color: "text-cyan-400" },
+  on_site:     { label: "On Site",      icon: <MapPinned size={11} />,    next: "break_start", color: "text-green-400" },
+  break_start: { label: "Job Stopped",  icon: <Pause size={11} />,        next: "break_end",   color: "text-amber-400" },
+  break_end:   { label: "Job Resumed",  icon: <Play size={11} />,         next: "break_start", color: "text-green-400" },
+  complete:    { label: "Completed",    icon: <CheckCircle2 size={11} />, next: null,           color: "text-green-400" },
 };
 
 const NEXT_BUTTON: Record<string, { label: string; action: string }> = {
-  clock_in:    { label: "En Route",     action: "en_route" },
-  en_route:    { label: "On Site",      action: "on_site" },
-  on_site:     { label: "Start Break",  action: "break_start" },
-  break_start: { label: "End Break",    action: "break_end" },
-  break_end:   { label: "Start Break",  action: "break_start" },
+  clock_in:    { label: "En Route",    action: "en_route" },
+  en_route:    { label: "On Site",     action: "on_site" },
+  on_site:     { label: "Stop Job",    action: "break_start" },
+  break_start: { label: "Resume Job",  action: "break_end" },
+  break_end:   { label: "Stop Job",    action: "break_start" },
 };
 
 function fmtTs(iso: string) {
   return new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
+
+// Actions that require a confirmation dialog before being logged
+const START_ACTIONS = new Set(["clock_in", "break_end"]);
 
 function TimeAttendancePanel({
   job,
@@ -231,6 +234,7 @@ function TimeAttendancePanel({
 }) {
   const queryClient = useQueryClient();
   const [logging, setLogging] = useState<string | null>(null);
+  const [pendingStartAction, setPendingStartAction] = useState<string | null>(null);
 
   const attendance = job.attendance ?? [];
 
@@ -255,6 +259,15 @@ function TimeAttendancePanel({
     }
   };
 
+  // Route an action through the confirmation dialog if it's a "start" action
+  const handleAction = (action: string) => {
+    if (START_ACTIONS.has(action)) {
+      setPendingStartAction(action);
+    } else {
+      logAction(action);
+    }
+  };
+
   // ── Worker view: show their own status + next action button ──────────────
   if (userRole === "worker" && currentWorkerId) {
     const myEvents = attendance
@@ -273,54 +286,91 @@ function TimeAttendancePanel({
       );
     }
 
-    return (
-      <div className="mt-3 pt-3 border-t border-border space-y-2">
-        <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1">
-          <Timer size={10} /> Time & Attendance
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {/* Primary next-step button */}
-          {latestAction === null ? (
-            <Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
-              disabled={!!logging} onClick={() => logAction("clock_in")}>
-              {logging === "clock_in" ? <Loader2 size={12} className="animate-spin mr-1" /> : <LogIn size={12} className="mr-1" />}
-              Clock In
-            </Button>
-          ) : NEXT_BUTTON[latestAction] ? (
-            <Button size="sm" variant="outline" className="border-primary/50 text-primary hover:bg-primary/10"
-              disabled={!!logging} onClick={() => logAction(NEXT_BUTTON[latestAction].action)}>
-              {logging === NEXT_BUTTON[latestAction].action
-                ? <Loader2 size={12} className="animate-spin mr-1" />
-                : ACTION_META[NEXT_BUTTON[latestAction].action]?.icon && (
-                  <span className="mr-1">{ACTION_META[NEXT_BUTTON[latestAction].action].icon}</span>
-                )}
-              {NEXT_BUTTON[latestAction].label}
-            </Button>
-          ) : null}
+    const nextBtn = latestAction ? NEXT_BUTTON[latestAction] : null;
+    const isStopAction = nextBtn?.action === "break_start";
+    const isResumeAction = nextBtn?.action === "break_end";
 
-          {/* Complete button when on-site or after break */}
-          {(latestAction === "on_site" || latestAction === "break_end") && (
-            <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-              disabled={!!logging} onClick={() => logAction("complete")}>
-              {logging === "complete" ? <Loader2 size={12} className="animate-spin mr-1" /> : <CheckCircle2 size={12} className="mr-1" />}
-              Complete
-            </Button>
+    return (
+      <>
+        {/* Confirmation dialog for start/resume actions */}
+        <ConfirmDialog
+          open={pendingStartAction !== null}
+          onOpenChange={(open) => { if (!open) setPendingStartAction(null); }}
+          title={pendingStartAction === "clock_in" ? "Start job?" : "Resume job?"}
+          description={
+            pendingStartAction === "clock_in"
+              ? `You are about to start working on "${job.title}". Ready to begin?`
+              : `You are about to resume working on "${job.title}". Continue?`
+          }
+          confirmLabel={pendingStartAction === "clock_in" ? "Start Job" : "Resume Job"}
+          onConfirm={() => {
+            if (pendingStartAction) logAction(pendingStartAction);
+            setPendingStartAction(null);
+          }}
+        />
+
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
+          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1">
+            <Timer size={10} /> Time & Attendance
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* Primary next-step button */}
+            {latestAction === null ? (
+              <Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                disabled={!!logging} onClick={() => handleAction("clock_in")}>
+                {logging === "clock_in" ? <Loader2 size={12} className="animate-spin mr-1" /> : <LogIn size={12} className="mr-1" />}
+                Clock In
+              </Button>
+            ) : nextBtn ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className={
+                  isStopAction
+                    ? "border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                    : "border-primary/50 text-primary hover:bg-primary/10"
+                }
+                disabled={!!logging}
+                onClick={() => handleAction(nextBtn.action)}
+              >
+                {logging === nextBtn.action
+                  ? <Loader2 size={12} className="animate-spin mr-1" />
+                  : isStopAction
+                    ? <Pause size={12} className="mr-1" />
+                    : isResumeAction
+                      ? <Play size={12} className="mr-1" />
+                      : ACTION_META[nextBtn.action]?.icon && (
+                          <span className="mr-1">{ACTION_META[nextBtn.action].icon}</span>
+                        )
+                }
+                {nextBtn.label}
+              </Button>
+            ) : null}
+
+            {/* Complete button when on-site or after resuming */}
+            {(latestAction === "on_site" || latestAction === "break_end") && (
+              <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
+                disabled={!!logging} onClick={() => logAction("complete")}>
+                {logging === "complete" ? <Loader2 size={12} className="animate-spin mr-1" /> : <CheckCircle2 size={12} className="mr-1" />}
+                Complete
+              </Button>
+            )}
+          </div>
+
+          {/* Mini event trail */}
+          {myEvents.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {myEvents.map((e, i) => (
+                <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
+                  {ACTION_META[e.action]?.icon}
+                  {fmtTs(e.ts)}
+                  {i < myEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
+                </span>
+              ))}
+            </div>
           )}
         </div>
-
-        {/* Mini event trail */}
-        {myEvents.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {myEvents.map((e, i) => (
-              <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
-                {ACTION_META[e.action]?.icon}
-                {fmtTs(e.ts)}
-                {i < myEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      </>
     );
   }
 

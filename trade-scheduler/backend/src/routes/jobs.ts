@@ -323,31 +323,94 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
     const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
 
-    // Mark this job as emergency
+    // ── Code 9: find the best worker to take this job next ───────────────────
+    // Strategy: among workers of the matching tradeType, prefer whoever is
+    // currently in_progress and closest to finishing. If nobody is in_progress,
+    // fall back to whoever has the soonest upcoming confirmed/pending booking.
+    // The Code 9 job is inserted as that worker's very next slot; any job
+    // already occupying that slot is bumped.
+
+    const tradeType = job.tradeType;
+    let targetWorkerId: number | null = null;
+    let scheduledStart: string | null = job.scheduledDate ?? null;
+    const bumped: (typeof jobsTable.$inferSelect)[] = [];
+
+    if (tradeType) {
+      // Fetch all workers of the matching trade type
+      const tradeWorkers = await db.select().from(workersTable)
+        .where(eq(workersTable.tradeType, tradeType));
+      const tradeWorkerIds = new Set(tradeWorkers.map(w => w.id));
+
+      if (tradeWorkerIds.size > 0) {
+        // Fetch all active jobs for those workers
+        const activeJobs = await db.select().from(jobsTable)
+          .where(and(
+            not(eq(jobsTable.id, id)),
+            inArray(jobsTable.status, ["in_progress", "confirmed", "pending"]),
+          ));
+
+        // Map each active job to the assigned trade-type workers it belongs to
+        type WorkerJob = { workerId: number; job: typeof jobsTable.$inferSelect; finishMs: number };
+        const workerJobs: WorkerJob[] = [];
+        for (const j of activeJobs) {
+          const assigned = parseWorkerIds(j.assignedWorkerIds).filter(wid => tradeWorkerIds.has(wid));
+          for (const wid of assigned) {
+            if (j.scheduledDate) {
+              const startMs = new Date(j.scheduledDate).getTime();
+              const estimatedMs = (j.estimatedHours ?? 1) * 60 * 60 * 1000;
+              workerJobs.push({ workerId: wid, job: j, finishMs: startMs + estimatedMs });
+            }
+          }
+        }
+
+        // Prefer in_progress jobs (closest finisher first), else fall back to soonest upcoming
+        const inProgress = workerJobs.filter(wj => wj.job.status === "in_progress");
+        const upcoming   = workerJobs.filter(wj => wj.job.status !== "in_progress");
+
+        const candidates = inProgress.length > 0 ? inProgress : upcoming;
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a.finishMs - b.finishMs);
+          const best = candidates[0];
+          targetWorkerId = best.workerId;
+          // Schedule Code 9 to start exactly when the current job is estimated to finish
+          scheduledStart = new Date(best.finishMs).toISOString();
+
+          // Bump the next job already assigned to that worker that starts at or after scheduledStart
+          const nextJobForWorker = upcoming
+            .filter(wj => wj.workerId === targetWorkerId && wj.finishMs > best.finishMs)
+            .sort((a, b) => new Date(a.job.scheduledDate!).getTime() - new Date(b.job.scheduledDate!).getTime());
+
+          if (nextJobForWorker.length > 0) {
+            const nextJob = nextJobForWorker[0].job;
+            const [bumpedJob] = await db.update(jobsTable)
+              .set({ status: "bumped", updatedAt: new Date() })
+              .where(eq(jobsTable.id, nextJob.id))
+              .returning();
+            if (bumpedJob) bumped.push(bumpedJob);
+          }
+        }
+      }
+    }
+
+    // Build the update payload — assign the target worker if found
+    const updatePayload: Record<string, unknown> = {
+      isEmergency: true,
+      status: "confirmed",
+      priority: "urgent",
+      updatedAt: new Date(),
+    };
+    if (scheduledStart) updatePayload.scheduledDate = scheduledStart;
+    if (targetWorkerId !== null) {
+      const existing = parseWorkerIds(job.assignedWorkerIds);
+      if (!existing.includes(targetWorkerId)) {
+        updatePayload.assignedWorkerIds = JSON.stringify([...existing, targetWorkerId]);
+      }
+    }
+
     const [emergencyJob] = await db.update(jobsTable)
-      .set({ isEmergency: true, status: "confirmed", priority: "urgent", updatedAt: new Date() })
+      .set(updatePayload)
       .where(eq(jobsTable.id, id))
       .returning();
-
-    // FIXED: Only bump bookings scheduled for the SAME DAY as this emergency job
-    const emergencyDate = emergencyJob.scheduledDate?.split("T")[0];
-    const bumped = emergencyDate
-      ? await db.update(jobsTable)
-          .set({ status: "bumped", updatedAt: new Date() })
-          .where(
-            and(
-              not(eq(jobsTable.id, id)),
-              eq(jobsTable.jobType, "booking"),
-              inArray(jobsTable.status, ["pending", "confirmed"]),
-              // Only bump jobs scheduled on the same date as this emergency
-              inArray(
-                jobsTable.scheduledDate,
-                [emergencyDate]
-              )
-            )
-          )
-          .returning()
-      : [];
 
     // Notify the emergency job's client
     if (emergencyJob.clientPhone) {
@@ -366,6 +429,8 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
     const [hydrated] = await hydrateJobs([emergencyJob]);
     res.json({
       emergencyJob: hydrated,
+      assignedWorkerId: targetWorkerId,
+      scheduledStart,
       bumpedCount: bumped.length,
       bumpedJobIds: bumped.map(b => b.id),
     });
