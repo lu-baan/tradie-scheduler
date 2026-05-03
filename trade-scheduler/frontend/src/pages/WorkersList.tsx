@@ -10,7 +10,6 @@ import {
 import type { LeaveRequest } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogTrigger, DialogFooter, DialogDescription,
@@ -26,7 +25,7 @@ import {
 } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
-import { format, addDays, addWeeks, endOfDay, isAfter, parseISO } from "date-fns";
+import { format, addDays, addWeeks, endOfDay, isAfter } from "date-fns";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +75,6 @@ function UnavailableUntilLabel({ until }: { until: string | null | undefined }) 
   );
 }
 
-/** Deterministic color from string */
 function avatarColor(name: string) {
   const colors = [
     "bg-blue-500", "bg-violet-500", "bg-emerald-500",
@@ -87,10 +85,11 @@ function avatarColor(name: string) {
   return colors[h];
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   const initials = name.split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
+  const sz = size === "sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
   return (
-    <div className={`w-9 h-9 rounded-full ${avatarColor(name)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+    <div className={`${sz} rounded-full ${avatarColor(name)} flex items-center justify-center text-white font-bold shrink-0`}>
       {initials}
     </div>
   );
@@ -106,10 +105,10 @@ const HOUR_PRESETS = [
 ];
 const DAY_PRESETS = [
   { label: "Rest of today", getValue: () => endOfDay(new Date()) },
-  { label: "1 day",  getValue: () => endOfDay(addDays(new Date(), 1)) },
-  { label: "3 days", getValue: () => endOfDay(addDays(new Date(), 3)) },
-  { label: "1 week", getValue: () => endOfDay(addWeeks(new Date(), 1)) },
-  { label: "2 weeks",getValue: () => endOfDay(addWeeks(new Date(), 2)) },
+  { label: "1 day",   getValue: () => endOfDay(addDays(new Date(), 1)) },
+  { label: "3 days",  getValue: () => endOfDay(addDays(new Date(), 3)) },
+  { label: "1 week",  getValue: () => endOfDay(addWeeks(new Date(), 1)) },
+  { label: "2 weeks", getValue: () => endOfDay(addWeeks(new Date(), 2)) },
 ];
 
 function UnavailabilityDialog({
@@ -129,7 +128,7 @@ function UnavailabilityDialog({
 
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) { setCustomDate(""); setUseCustom(false); } onOpenChange(o); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle>How long is {worker.name} unavailable?</DialogTitle>
           <DialogDescription>Choose a duration or pick a return date.</DialogDescription>
@@ -212,7 +211,7 @@ function WorkerForm({
 
   return (
     <form onSubmit={form.handleSubmit(onSave)} className="space-y-4 mt-2">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label required>Full Name</Label>
           <Input {...form.register("name")} placeholder="e.g. John Smith" />
@@ -225,7 +224,7 @@ function WorkerForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label>Phone</Label>
           <Input {...form.register("phone")} placeholder="0412 345 678" inputMode="tel" />
@@ -238,8 +237,7 @@ function WorkerForm({
         </div>
       </div>
 
-      {/* Pay & capacity */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label>Hourly Rate (AUD)</Label>
           <div className="relative">
@@ -255,7 +253,6 @@ function WorkerForm({
         </div>
       </div>
 
-      {/* Skills / certifications */}
       <div>
         <Label>Skills & Certifications</Label>
         <div className="flex gap-2 mb-2">
@@ -423,7 +420,7 @@ function AddLeaveButton({ workerId, workerName, onSuccess }: { workerId: number;
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>Request Leave — {workerName}</DialogTitle>
           </DialogHeader>
@@ -485,7 +482,7 @@ function DeleteWorkerDialog({ worker, open, onOpenChange, onConfirm, isPending }
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
         <DialogHeader>
           <DialogTitle>Delete Tradie</DialogTitle>
           <DialogDescription>
@@ -501,9 +498,9 @@ function DeleteWorkerDialog({ worker, open, onOpenChange, onConfirm, isPending }
   );
 }
 
-// ── Worker row ────────────────────────────────────────────────────────────────
+// ── Worker card ───────────────────────────────────────────────────────────────
 
-function WorkerRow({
+function WorkerCard({
   worker,
   idx,
   leaveRequests,
@@ -533,7 +530,6 @@ function WorkerRow({
   const visibleSkills = skills.slice(0, SKILL_LIMIT);
   const extraSkills = skills.length - SKILL_LIMIT;
 
-  // Weekly utilization
   const cap = worker.maxWeeklyHours ?? 38;
   const scheduledHrs = weekJobs
     .filter(j => j.assignedWorkerIds.includes(worker.id))
@@ -543,36 +539,125 @@ function WorkerRow({
   const nearCap = pct >= 80 && !overCap;
 
   return (
-    <>
-      {/* Main row */}
-      <div className={`grid items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-white/[0.02] transition-colors group
-        ${expanded ? "bg-white/[0.03]" : ""}`}
-        style={{ gridTemplateColumns: "2rem 2.5rem 1fr 1fr 10rem 7rem 2.5rem" }}
-      >
-        {/* # */}
-        <span className="text-xs text-muted-foreground font-mono text-right">{idx + 1}</span>
+    <div className={`border-b border-border/50 last:border-b-0 transition-colors ${expanded ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"}`}>
+      {/* Main card area */}
+      <div className="px-4 py-3">
+        {/* Top row: avatar + name/trade + menu */}
+        <div className="flex items-start gap-3">
+          {/* Index + Avatar */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] text-muted-foreground font-mono w-4 text-right">{idx + 1}</span>
+            <Avatar name={worker.name} />
+          </div>
 
-        {/* Avatar */}
-        <Avatar name={worker.name} />
+          {/* Name / trade / phone */}
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-foreground leading-tight truncate">{worker.name}</p>
+            <p className="text-xs text-primary truncate">{worker.tradeType}</p>
+            {worker.phone && (
+              <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                <Phone size={9} />
+                <a href={`tel:${worker.phone}`} className="hover:text-primary">{worker.phone}</a>
+              </p>
+            )}
+          </div>
 
-        {/* Agent info */}
-        <div className="min-w-0">
-          <p className="font-semibold text-sm text-foreground leading-tight truncate">{worker.name}</p>
-          <p className="text-xs text-primary truncate">{worker.tradeType}</p>
-          {worker.phone && (
-            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
-              <Phone size={9} />
-              <a href={`tel:${worker.phone}`} className="hover:text-primary">{worker.phone}</a>
-            </p>
-          )}
+          {/* Right side actions */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Pending leave badge */}
+            {pendingLeave.length > 0 && (
+              <button
+                onClick={() => setExpanded(o => !o)}
+                className="flex items-center gap-1 text-[9px] bg-yellow-500 text-black font-bold px-1.5 py-0.5 rounded-full"
+                title="Pending leave requests"
+              >
+                <ClipboardList size={9} />{pendingLeave.length}
+              </button>
+            )}
+
+            {/* Expand toggle */}
+            <button
+              onClick={() => setExpanded(o => !o)}
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              title="Expand details"
+            >
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {/* 3-dot menu */}
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+              {menuOpen && (
+                <div
+                  className="absolute right-0 top-8 z-20 bg-card border border-border rounded-lg shadow-xl py-1 w-36"
+                  onMouseLeave={() => setMenuOpen(false)}
+                >
+                  <button
+                    onClick={() => { setMenuOpen(false); onEdit(); }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm w-full hover:bg-white/5 transition-colors"
+                  >
+                    <Edit2 size={13} /> Edit
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); onDelete(); }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm w-full hover:bg-destructive/10 text-destructive transition-colors"
+                  >
+                    <Trash2 size={13} /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Skills */}
-        <div className="flex flex-wrap gap-1 items-center min-w-0">
-          {visibleSkills.length === 0 ? (
-            <span className="text-xs text-muted-foreground italic">—</span>
-          ) : (
-            <>
+        {/* Bottom row: availability + capacity + skills */}
+        <div className="mt-2.5 ml-[calc(1rem+2.5rem+0.75rem)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          {/* Availability toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Switch.Root
+              className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${worker.isAvailable ? "bg-green-500" : "bg-muted"}`}
+              checked={worker.isAvailable}
+              onCheckedChange={onToggleAvail}
+            >
+              <Switch.Thumb className={`block w-3.5 h-3.5 bg-white rounded-full shadow transition-transform translate-x-0.5 ${worker.isAvailable ? "translate-x-[19px]" : ""}`} />
+            </Switch.Root>
+            <div className="flex flex-col leading-none">
+              <span className={`text-xs font-medium ${worker.isAvailable ? "text-green-400" : "text-muted-foreground"}`}>
+                {worker.isAvailable ? "Available" : "Off Duty"}
+              </span>
+              {!worker.isAvailable && <UnavailableUntilLabel until={worker.unavailableUntil} />}
+            </div>
+          </div>
+
+          {/* Capacity bar */}
+          <div className="flex-1 min-w-0 max-w-[160px]">
+            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <span className="flex items-center gap-0.5"><Clock size={9} /> This week</span>
+              <span className={overCap ? "text-destructive font-bold" : nearCap ? "text-orange-400 font-bold" : ""}>
+                {scheduledHrs.toFixed(0)}/{cap}h
+              </span>
+            </div>
+            <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${overCap ? "bg-destructive" : nearCap ? "bg-orange-400" : "bg-green-500"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {worker.hourlyRate && (
+              <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5">
+                <DollarSign size={9} />{worker.hourlyRate}/hr
+              </p>
+            )}
+          </div>
+
+          {/* Skills */}
+          {skills.length > 0 && (
+            <div className="flex flex-wrap gap-1 items-center">
               {visibleSkills.map(s => (
                 <span key={s}
                   className="bg-primary/10 border border-primary/20 text-primary text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap">
@@ -584,116 +669,28 @@ function WorkerRow({
                   +{extraSkills}
                 </span>
               )}
-            </>
+            </div>
           )}
-        </div>
-
-        {/* Availability */}
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <Switch.Root
-              className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${worker.isAvailable ? "bg-green-500" : "bg-muted"}`}
-              checked={worker.isAvailable}
-              onCheckedChange={onToggleAvail}
-            >
-              <Switch.Thumb className={`block w-3.5 h-3.5 bg-white rounded-full shadow transition-transform translate-x-0.5 ${worker.isAvailable ? "translate-x-[19px]" : ""}`} />
-            </Switch.Root>
-            <span className={`text-xs font-medium ${worker.isAvailable ? "text-green-400" : "text-muted-foreground"}`}>
-              {worker.isAvailable ? "Available" : "Off Duty"}
-            </span>
-          </div>
-          {!worker.isAvailable && <UnavailableUntilLabel until={worker.unavailableUntil} />}
-        </div>
-
-        {/* Utilisation */}
-        <div className="min-w-0">
-          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-            <span className="flex items-center gap-0.5"><Clock size={9} /> Week</span>
-            <span className={overCap ? "text-destructive font-bold" : nearCap ? "text-orange-400 font-bold" : ""}>
-              {scheduledHrs.toFixed(0)}/{cap}h
-            </span>
-          </div>
-          <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${overCap ? "bg-destructive" : nearCap ? "bg-orange-400" : "bg-green-500"}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          {worker.hourlyRate && (
-            <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5">
-              <DollarSign size={9} />{worker.hourlyRate}/hr
-            </p>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-0.5 justify-end relative">
-          {pendingLeave.length > 0 && (
-            <button
-              onClick={() => setExpanded(o => !o)}
-              className="flex items-center gap-1 text-[9px] bg-yellow-500 text-black font-bold px-1.5 py-0.5 rounded-full"
-              title="Pending leave requests"
-            >
-              <ClipboardList size={9} />{pendingLeave.length}
-            </button>
-          )}
-
-          <button
-            onClick={() => setExpanded(o => !o)}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-            title="Expand details"
-          >
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-
-          {/* 3-dot menu */}
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-            >
-              <MoreHorizontal size={14} />
-            </button>
-            {menuOpen && (
-              <div
-                className="absolute right-0 top-8 z-20 bg-card border border-border rounded-lg shadow-xl py-1 w-36"
-                onMouseLeave={() => setMenuOpen(false)}
-              >
-                <button
-                  onClick={() => { setMenuOpen(false); onEdit(); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm w-full hover:bg-white/5 transition-colors"
-                >
-                  <Edit2 size={13} /> Edit
-                </button>
-                <button
-                  onClick={() => { setMenuOpen(false); onDelete(); }}
-                  className="flex items-center gap-2 px-3 py-2 text-sm w-full hover:bg-destructive/10 text-destructive transition-colors"
-                >
-                  <Trash2 size={13} /> Delete
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Expanded row — leave + contact details */}
+      {/* Expanded section — contact + leave */}
       {expanded && (
-        <div className="bg-card/30 border-b border-border/50 px-4 py-4"
-          style={{ paddingLeft: "calc(2rem + 2.5rem + 0.75rem + 1rem)" }}
-        >
+        <div className="bg-card/30 border-t border-border/30 px-4 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl">
             {/* Contact */}
             <div>
               <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-2">Contact</p>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 {worker.phone ? (
-                  <div className="flex items-center gap-2"><Phone size={12} className="text-primary" />
+                  <div className="flex items-center gap-2">
+                    <Phone size={12} className="text-primary shrink-0" />
                     <a href={`tel:${worker.phone}`} className="hover:text-primary">{worker.phone}</a>
                   </div>
                 ) : <p className="text-xs italic">No phone</p>}
                 {worker.email ? (
-                  <div className="flex items-center gap-2"><Mail size={12} className="text-primary" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Mail size={12} className="text-primary shrink-0" />
                     <a href={`mailto:${worker.email}`} className="hover:text-primary truncate">{worker.email}</a>
                   </div>
                 ) : <p className="text-xs italic">No email</p>}
@@ -727,7 +724,7 @@ function WorkerRow({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -798,7 +795,6 @@ export function WorkersList() {
     }
   };
 
-  // Week bounds for utilization
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
   weekStart.setHours(0, 0, 0, 0);
@@ -812,17 +808,21 @@ export function WorkersList() {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start gap-3">
         <div>
-          <h1 className="text-4xl font-display font-bold text-foreground">Workforce</h1>
-          <p className="text-muted-foreground mt-1">Skills, availability, leave, and capacity.</p>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold text-foreground">Workforce</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Skills, availability, leave, and capacity.</p>
         </div>
 
         <Dialog open={isAddOpen} onOpenChange={o => { setIsAddOpen(o); if (!o) setServerError(null); }}>
           <DialogTrigger asChild>
-            <Button className="shadow-lg"><Users className="mr-2" size={16} /> Add Tradie</Button>
+            <Button className="shadow-lg shrink-0">
+              <Users className="mr-2" size={16} />
+              <span className="hidden sm:inline">Add Tradie</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>New Tradie</DialogTitle></DialogHeader>
             {serverError && (
               <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg p-3">{serverError}</div>
@@ -840,10 +840,10 @@ export function WorkersList() {
         </Dialog>
       </div>
 
-      {/* Table */}
+      {/* List */}
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 bg-card rounded-lg animate-pulse" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-card rounded-lg animate-pulse" />)}
         </div>
       ) : !workers?.length ? (
         <div className="py-20 text-center text-muted-foreground bg-card/30 rounded-xl border border-dashed border-white/10">
@@ -853,23 +853,8 @@ export function WorkersList() {
         </div>
       ) : (
         <div className="rounded-xl border border-border/50 overflow-hidden bg-card/20">
-          {/* Column headers */}
-          <div
-            className="grid px-4 py-2.5 bg-card/50 border-b border-border text-[10px] uppercase font-display tracking-widest text-muted-foreground"
-            style={{ gridTemplateColumns: "2rem 2.5rem 1fr 1fr 10rem 7rem 2.5rem" }}
-          >
-            <span>#</span>
-            <span />
-            <span>Agent</span>
-            <span>Skills</span>
-            <span>Availability</span>
-            <span>Capacity</span>
-            <span />
-          </div>
-
-          {/* Rows */}
           {workers.map((worker, idx) => (
-            <WorkerRow
+            <WorkerCard
               key={worker.id}
               worker={worker}
               idx={idx}
@@ -911,7 +896,7 @@ export function WorkersList() {
 
       {editTarget && (
         <Dialog open={!!editTarget} onOpenChange={o => !o && setEditTarget(null)}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Worker — {editTarget.name}</DialogTitle>
             </DialogHeader>

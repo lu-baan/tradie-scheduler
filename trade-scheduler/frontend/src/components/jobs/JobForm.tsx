@@ -172,7 +172,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
   const [requiredSkills, setRequiredSkills] = useState<string[]>(initialData?.requiredSkills ?? []);
   const [skillInput, setSkillInput] = useState("");
-  const [workerTradeFilter, setWorkerTradeFilter] = useState<string>("all");
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
@@ -856,38 +855,21 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                 );
               })()}
 
-              {/* Filter + sort controls */}
-              {(() => {
-                const tradeTypes = ["all", ...Array.from(new Set(workers.map(w => w.tradeType))).sort()];
-                return (
-                  <div className="flex items-center gap-2 mb-2">
-                    <select
-                      value={workerTradeFilter}
-                      onChange={e => setWorkerTradeFilter(e.target.value)}
-                      className="flex-1 bg-background border border-input rounded-md px-2 py-1.5 text-xs"
-                    >
-                      {tradeTypes.map(t => (
-                        <option key={t} value={t}>{t === "all" ? "All Trade Types" : t}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setWorkerSortDir(d => d === "asc" ? "desc" : "asc")}
-                      className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-input text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                      title={workerSortDir === "asc" ? "A → Z (click to reverse)" : "Z → A (click to reverse)"}
-                    >
-                      {workerSortDir === "asc" ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
-                      {workerSortDir === "asc" ? "A–Z" : "Z–A"}
-                    </button>
-                  </div>
-                );
-              })()}
+              {/* Sort controls */}
+              <div className="flex items-center justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={() => setWorkerSortDir(d => d === "asc" ? "desc" : "asc")}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-input text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                  title={workerSortDir === "asc" ? "A → Z (click to reverse)" : "Z → A (click to reverse)"}
+                >
+                  {workerSortDir === "asc" ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
+                  {workerSortDir === "asc" ? "A–Z" : "Z–A"}
+                </button>
+              </div>
 
               <div className="space-y-2">
-                {(workerTradeFilter === "all"
-                  ? [...(workers ?? [])]
-                  : (workers ?? []).filter(w => w.tradeType === workerTradeFilter)
-                )
+                {[...(workers ?? [])]
                   .sort((a, b) =>
                     workerSortDir === "asc"
                       ? a.name.localeCompare(b.name)

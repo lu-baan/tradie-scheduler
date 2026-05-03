@@ -61,7 +61,7 @@ function parseJsonArr<T>(raw: string | null | undefined): T[] {
 
 type AttendanceEvent = { workerId: number; action: string; ts: string };
 const AttendanceBody = z.object({
-  action: z.enum(["clock_in", "en_route", "on_site", "break_start", "break_end", "complete"]),
+  action: z.enum(["clock_in", "en_route", "on_site", "complete"]),
 });
 
 async function hydrateJobs(
@@ -330,30 +330,26 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
     // The Code 9 job is inserted as that worker's very next slot; any job
     // already occupying that slot is bumped.
 
-    const tradeType = job.tradeType;
     let targetWorkerId: number | null = null;
     let scheduledStart: string | null = job.scheduledDate ?? null;
     const bumped: (typeof jobsTable.$inferSelect)[] = [];
 
-    if (tradeType) {
-      // Fetch all workers of the matching trade type
-      const tradeWorkers = await db.select().from(workersTable)
-        .where(eq(workersTable.tradeType, tradeType));
-      const tradeWorkerIds = new Set(tradeWorkers.map(w => w.id));
+    {
+      // Fetch all workers (no trade-type restriction)
+      const allWorkers = await db.select().from(workersTable);
+      const allWorkerIds = new Set(allWorkers.map(w => w.id));
 
-      if (tradeWorkerIds.size > 0) {
-        // Fetch all active jobs for those workers
+      if (allWorkerIds.size > 0) {
         const activeJobs = await db.select().from(jobsTable)
           .where(and(
             not(eq(jobsTable.id, id)),
             inArray(jobsTable.status, ["in_progress", "confirmed", "pending"]),
           ));
 
-        // Map each active job to the assigned trade-type workers it belongs to
         type WorkerJob = { workerId: number; job: typeof jobsTable.$inferSelect; finishMs: number };
         const workerJobs: WorkerJob[] = [];
         for (const j of activeJobs) {
-          const assigned = parseWorkerIds(j.assignedWorkerIds).filter(wid => tradeWorkerIds.has(wid));
+          const assigned = parseWorkerIds(j.assignedWorkerIds).filter(wid => allWorkerIds.has(wid));
           for (const wid of assigned) {
             if (j.scheduledDate) {
               const startMs = new Date(j.scheduledDate).getTime();
@@ -363,7 +359,6 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
           }
         }
 
-        // Prefer in_progress jobs (closest finisher first), else fall back to soonest upcoming
         const inProgress = workerJobs.filter(wj => wj.job.status === "in_progress");
         const upcoming   = workerJobs.filter(wj => wj.job.status !== "in_progress");
 
@@ -372,10 +367,8 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
           candidates.sort((a, b) => a.finishMs - b.finishMs);
           const best = candidates[0];
           targetWorkerId = best.workerId;
-          // Schedule Code 9 to start exactly when the current job is estimated to finish
           scheduledStart = new Date(best.finishMs).toISOString();
 
-          // Bump the next job already assigned to that worker that starts at or after scheduledStart
           const nextJobForWorker = upcoming
             .filter(wj => wj.workerId === targetWorkerId && wj.finishMs > best.finishMs)
             .sort((a, b) => new Date(a.job.scheduledDate!).getTime() - new Date(b.job.scheduledDate!).getTime());
@@ -755,53 +748,6 @@ router.post("/:id/attendance", async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Invalid action", details: err.message });
     else { console.error("[attendance]", err); res.status(500).json({ error: "Internal server error" }); }
-  }
-});
-
-// ── POST /api/jobs/:id/respond — worker accepts or declines an assigned job ───
-
-router.post("/:id/respond", async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(String(req.params.id), 10);
-    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
-
-    // Only workers can respond; admins assign directly
-    if (req.session.role !== "worker" || !req.session.workerId) {
-      res.status(403).json({ error: "Only workers can accept or decline jobs" }); return;
-    }
-
-    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
-    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
-
-    const assigned = parseWorkerIds(job.assignedWorkerIds);
-    if (!assigned.includes(req.session.workerId)) {
-      res.status(403).json({ error: "You are not assigned to this job" }); return;
-    }
-
-    const { response } = z.object({ response: z.enum(["accepted", "rejected"]) }).parse(req.body);
-    const workerId = req.session.workerId;
-
-    // Record the response as an attendance-style event
-    const existing = parseJsonArr<AttendanceEvent>(job.attendanceJson);
-    const event: AttendanceEvent = { workerId, action: response, ts: new Date().toISOString() };
-    const updatedAttendance = JSON.stringify([...existing, event]);
-
-    if (response === "rejected") {
-      // Remove the worker from this job's assigned list
-      const remaining = assigned.filter(wid => wid !== workerId);
-      await db.update(jobsTable)
-        .set({ assignedWorkerIds: JSON.stringify(remaining), attendanceJson: updatedAttendance, updatedAt: new Date() })
-        .where(eq(jobsTable.id, id));
-      res.json({ response, removed: true });
-    } else {
-      await db.update(jobsTable)
-        .set({ attendanceJson: updatedAttendance, updatedAt: new Date() })
-        .where(eq(jobsTable.id, id));
-      res.json({ response, removed: false });
-    }
-  } catch (err) {
-    if (err instanceof z.ZodError) res.status(400).json({ error: "response must be 'accepted' or 'rejected'" });
-    else { console.error("[respond]", err); res.status(500).json({ error: "Internal server error" }); }
   }
 });
 

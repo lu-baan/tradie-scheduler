@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText,
   Check, Trash2, Edit2, CheckCircle2, Car, XCircle, ImagePlus, X, Loader2, Images, Save,
-  ShieldCheck, Navigation, MapPinned, Pause, Play, LogIn, Timer,
+  ShieldCheck, Navigation, MapPinned, LogIn, Timer,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -250,22 +250,15 @@ function WorkerNotes({ job }: { job: Job }) {
 // ── TimeAttendance panel ──────────────────────────────────────────────────────
 
 const ACTION_META: Record<string, { label: string; icon: React.ReactNode; next: string | null; color: string }> = {
-  accepted:    { label: "Accepted",     icon: <Check size={11} />,        next: null,          color: "text-green-400" },
-  rejected:    { label: "Declined",     icon: <XCircle size={11} />,      next: null,          color: "text-red-400" },
   clock_in:    { label: "Clocked In",   icon: <LogIn size={11} />,        next: "en_route",    color: "text-blue-400" },
   en_route:    { label: "En Route",     icon: <Navigation size={11} />,   next: "on_site",     color: "text-cyan-400" },
-  on_site:     { label: "On Site",      icon: <MapPinned size={11} />,    next: "break_start", color: "text-green-400" },
-  break_start: { label: "Job Stopped",  icon: <Pause size={11} />,        next: "break_end",   color: "text-amber-400" },
-  break_end:   { label: "Job Resumed",  icon: <Play size={11} />,         next: "break_start", color: "text-green-400" },
+  on_site:     { label: "On Site",      icon: <MapPinned size={11} />,    next: null,           color: "text-green-400" },
   complete:    { label: "Completed",    icon: <CheckCircle2 size={11} />, next: null,           color: "text-green-400" },
 };
 
 const NEXT_BUTTON: Record<string, { label: string; action: string }> = {
   clock_in:    { label: "En Route",    action: "en_route" },
   en_route:    { label: "On Site",     action: "on_site" },
-  on_site:     { label: "Stop Job",    action: "break_start" },
-  break_start: { label: "Resume Job",  action: "break_end" },
-  break_end:   { label: "Stop Job",    action: "break_start" },
 };
 
 function fmtTs(iso: string) {
@@ -273,7 +266,7 @@ function fmtTs(iso: string) {
 }
 
 // Actions that require a confirmation dialog before being logged
-const START_ACTIONS = new Set(["clock_in", "break_end"]);
+const START_ACTIONS = new Set(["clock_in"]);
 
 function TimeAttendancePanel({
   job,
@@ -286,7 +279,6 @@ function TimeAttendancePanel({
 }) {
   const queryClient = useQueryClient();
   const [logging, setLogging] = useState<string | null>(null);
-  const [responding, setResponding] = useState(false);
   const [pendingStartAction, setPendingStartAction] = useState<string | null>(null);
 
   const attendance = job.attendance ?? [];
@@ -312,25 +304,6 @@ function TimeAttendancePanel({
     }
   };
 
-  const respondToJob = async (response: "accepted" | "rejected") => {
-    setResponding(true);
-    try {
-      const res = await fetch(`/api/jobs/${job.id}/respond`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ response }),
-      });
-      if (!res.ok) throw new Error();
-      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
-      toast.success(response === "accepted" ? "Job accepted" : "Job declined");
-    } catch {
-      toast.error("Failed to respond to job");
-    } finally {
-      setResponding(false);
-    }
-  };
-
   // Route an action through the confirmation dialog if it's a "start" action
   const handleAction = (action: string) => {
     if (START_ACTIONS.has(action)) {
@@ -346,50 +319,9 @@ function TimeAttendancePanel({
       .filter(e => e.workerId === currentWorkerId)
       .sort((a, b) => a.ts.localeCompare(b.ts));
 
-    // Separate response events (accepted/rejected) from attendance events
-    const responseEvent = myEvents.find(e => e.action === "accepted" || e.action === "rejected");
-    const hasRejected = responseEvent?.action === "rejected";
-
-    const attendanceEvents = myEvents.filter(e => e.action !== "accepted" && e.action !== "rejected");
-    const latest = attendanceEvents[attendanceEvents.length - 1];
+    const latest = myEvents[myEvents.length - 1];
     const latestAction = latest?.action ?? null;
 
-    // ── Not yet responded: show Accept / Decline ─────────────────────────
-    if (!responseEvent) {
-      return (
-        <div className="mt-3 pt-3 border-t border-border space-y-2">
-          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground flex items-center gap-1">
-            <Timer size={10} /> Job Assignment
-          </p>
-          <p className="text-xs text-muted-foreground">You have been assigned to this job. Do you accept?</p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-              disabled={responding} onClick={() => respondToJob("accepted")}>
-              {responding ? <Loader2 size={12} className="animate-spin mr-1" /> : <Check size={12} className="mr-1" />}
-              Accept Job
-            </Button>
-            <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
-              disabled={responding} onClick={() => respondToJob("rejected")}>
-              {responding ? <Loader2 size={12} className="animate-spin mr-1" /> : <XCircle size={12} className="mr-1" />}
-              Decline Job
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Declined ─────────────────────────────────────────────────────────
-    if (hasRejected) {
-      return (
-        <div className="mt-3 pt-3 border-t border-border">
-          <p className="text-xs flex items-center gap-1.5 text-red-400 font-semibold">
-            <XCircle size={13} /> Job declined at {fmtTs(responseEvent.ts)}
-          </p>
-        </div>
-      );
-    }
-
-    // ── Accepted: show attendance flow ────────────────────────────────────
     if (latestAction === "complete") {
       return (
         <div className="mt-3 pt-3 border-t border-border">
@@ -401,22 +333,15 @@ function TimeAttendancePanel({
     }
 
     const nextBtn = latestAction ? NEXT_BUTTON[latestAction] : null;
-    const isStopAction = nextBtn?.action === "break_start";
-    const isResumeAction = nextBtn?.action === "break_end";
 
     return (
       <>
-        {/* Confirmation dialog for start/resume actions */}
         <ConfirmDialog
           open={pendingStartAction !== null}
           onOpenChange={(open) => { if (!open) setPendingStartAction(null); }}
-          title={pendingStartAction === "clock_in" ? "Start job?" : "Resume job?"}
-          description={
-            pendingStartAction === "clock_in"
-              ? `You are about to start working on "${job.title}". Ready to begin?`
-              : `You are about to resume working on "${job.title}". Continue?`
-          }
-          confirmLabel={pendingStartAction === "clock_in" ? "Start Job" : "Resume Job"}
+          title="Start job?"
+          description={`You are about to start working on "${job.title}". Ready to begin?`}
+          confirmLabel="Start Job"
           onConfirm={() => {
             if (pendingStartAction) logAction(pendingStartAction);
             setPendingStartAction(null);
@@ -428,7 +353,6 @@ function TimeAttendancePanel({
             <Timer size={10} /> Time & Attendance
           </p>
           <div className="flex flex-wrap gap-2">
-            {/* Primary next-step button */}
             {latestAction === null ? (
               <Button size="sm" variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
                 disabled={!!logging} onClick={() => handleAction("clock_in")}>
@@ -439,30 +363,21 @@ function TimeAttendancePanel({
               <Button
                 size="sm"
                 variant="outline"
-                className={
-                  isStopAction
-                    ? "border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
-                    : "border-primary/50 text-primary hover:bg-primary/10"
-                }
+                className="border-primary/50 text-primary hover:bg-primary/10"
                 disabled={!!logging}
                 onClick={() => handleAction(nextBtn.action)}
               >
                 {logging === nextBtn.action
                   ? <Loader2 size={12} className="animate-spin mr-1" />
-                  : isStopAction
-                    ? <Pause size={12} className="mr-1" />
-                    : isResumeAction
-                      ? <Play size={12} className="mr-1" />
-                      : ACTION_META[nextBtn.action]?.icon && (
-                          <span className="mr-1">{ACTION_META[nextBtn.action].icon}</span>
-                        )
+                  : ACTION_META[nextBtn.action]?.icon && (
+                      <span className="mr-1">{ACTION_META[nextBtn.action].icon}</span>
+                    )
                 }
                 {nextBtn.label}
               </Button>
             ) : null}
 
-            {/* Complete button when on-site or after resuming */}
-            {(latestAction === "on_site" || latestAction === "break_end") && (
+            {latestAction === "on_site" && (
               <Button size="sm" variant="outline" className="border-green-500/50 text-green-400 hover:bg-green-500/10"
                 disabled={!!logging} onClick={() => logAction("complete")}>
                 {logging === "complete" ? <Loader2 size={12} className="animate-spin mr-1" /> : <CheckCircle2 size={12} className="mr-1" />}
@@ -471,14 +386,13 @@ function TimeAttendancePanel({
             )}
           </div>
 
-          {/* Mini event trail — attendance only (skip the response event) */}
-          {attendanceEvents.length > 0 && (
+          {myEvents.length > 0 && (
             <div className="flex gap-2 flex-wrap">
-              {attendanceEvents.map((e, i) => (
+              {myEvents.map((e, i) => (
                 <span key={i} className={`flex items-center gap-0.5 text-[10px] ${ACTION_META[e.action]?.color ?? "text-muted-foreground"}`}>
                   {ACTION_META[e.action]?.icon}
                   {fmtTs(e.ts)}
-                  {i < attendanceEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
+                  {i < myEvents.length - 1 && <span className="ml-1 text-muted-foreground">→</span>}
                 </span>
               ))}
             </div>
