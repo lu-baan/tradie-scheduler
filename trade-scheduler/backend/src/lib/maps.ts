@@ -226,3 +226,85 @@ export async function getDrivingDistances(
 
   return results;
 }
+
+// ── Distance Matrix: multiple worker locations → single job address ────────────
+
+export interface WorkerDistance {
+  workerId: number;
+  distanceKm: number | null;
+  durationMinutes: number | null;
+}
+
+/**
+ * Fetches driving distances from multiple worker locations to a single job address.
+ * Uses the Distance Matrix API with multiple origins and one destination.
+ */
+export async function getWorkerDistancesToJob(
+  workers: Array<{ workerId: number; lat: number; lng: number }>,
+  jobAddress: string,
+): Promise<WorkerDistance[]> {
+  if (workers.length === 0 || !jobAddress) return [];
+
+  const results: WorkerDistance[] = [];
+  const toFetch: typeof workers = [];
+
+  for (const w of workers) {
+    const cacheKey = `wdist||${w.lat.toFixed(4)},${w.lng.toFixed(4)}||${jobAddress}`;
+    const cached = distanceCache.get(cacheKey);
+    if (cached) {
+      results.push({ workerId: w.workerId, ...cached });
+    } else {
+      toFetch.push(w);
+    }
+  }
+
+  if (toFetch.length === 0) return results;
+
+  if (!API_KEY) {
+    for (const w of toFetch) results.push({ workerId: w.workerId, distanceKm: null, durationMinutes: null });
+    return results;
+  }
+
+  const BATCH = 25;
+  for (let i = 0; i < toFetch.length; i += BATCH) {
+    const batch = toFetch.slice(i, i + BATCH);
+    const originsParam = batch.map(w => encodeURIComponent(`${w.lat},${w.lng}`)).join("|");
+    const url =
+      `https://maps.googleapis.com/maps/api/distancematrix/json` +
+      `?origins=${originsParam}` +
+      `&destinations=${encodeURIComponent(jobAddress)}` +
+      `&mode=driving` +
+      `&avoid=tolls` +
+      `&region=au` +
+      `&key=${API_KEY}`;
+
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      const data = await resp.json() as any;
+
+      if (data.status !== "OK" || !data.rows) {
+        console.error("[maps] getWorkerDistancesToJob non-OK:", data.status, data.error_message);
+        for (const w of batch) results.push({ workerId: w.workerId, distanceKm: null, durationMinutes: null });
+        continue;
+      }
+
+      for (let j = 0; j < batch.length; j++) {
+        const w = batch[j];
+        const el = data.rows[j]?.elements?.[0];
+        const result: DriveResult = (!el || el.status !== "OK")
+          ? { distanceKm: null, durationMinutes: null }
+          : {
+              distanceKm: Math.round((el.distance.value / 1000) * 10) / 10,
+              durationMinutes: Math.round(el.duration.value / 60),
+            };
+        distanceCache.set(`wdist||${w.lat.toFixed(4)},${w.lng.toFixed(4)}||${jobAddress}`, result);
+        results.push({ workerId: w.workerId, ...result });
+      }
+    } catch (err) {
+      console.error("[maps] getWorkerDistancesToJob fetch error:", err);
+      for (const w of batch) results.push({ workerId: w.workerId, distanceKm: null, durationMinutes: null });
+    }
+  }
+
+  return results;
+}

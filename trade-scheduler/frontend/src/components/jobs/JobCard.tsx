@@ -9,7 +9,7 @@ import {
   Check, Trash2, Edit2, CheckCircle2, Car, XCircle, ImagePlus, X, Loader2, Images, Save,
   ShieldCheck, Navigation, MapPinned, LogIn, Timer,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useRef, useState } from "react";
 import { JobForm } from "./JobForm";
@@ -65,6 +65,82 @@ function ConfirmDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ── WorkerDistanceList ────────────────────────────────────────────────────────
+
+interface WorkerDistanceEntry {
+  workerId: number;
+  name: string;
+  suburb: string | null;
+  lastSeenAt: string | null;
+  lastAction: string | null;
+  distanceKm: number | null;
+  durationMinutes: number | null;
+}
+
+function WorkerDistanceList({ jobId, workers }: { jobId: number; workers: Worker[] }) {
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const { data: distances, isLoading } = useQuery<WorkerDistanceEntry[]>({
+    queryKey: ["worker-distances", jobId],
+    queryFn: async () => {
+      const res = await fetch(`/api/jobs/${jobId}/worker-distances`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+    enabled: workers.length > 0,
+  });
+
+  if (workers.length === 0) return null;
+
+  const merged = workers.map(w => {
+    const d = distances?.find(x => x.workerId === w.id);
+    return { ...w, distanceKm: d?.distanceKm ?? null, durationMinutes: d?.durationMinutes ?? null, suburb: d?.suburb ?? null };
+  });
+
+  const hasAnyDistance = merged.some(w => w.distanceKm !== null);
+
+  const sorted = [...merged].sort((a, b) => {
+    const da = a.distanceKm ?? (sortDir === "asc" ? Infinity : -Infinity);
+    const db = b.distanceKm ?? (sortDir === "asc" ? Infinity : -Infinity);
+    return sortDir === "asc" ? da - db : db - da;
+  });
+
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-display">Assigned Workers</span>
+        {hasAnyDistance && (
+          <button
+            onClick={() => setSortDir(s => s === "asc" ? "desc" : "asc")}
+            className="flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+          >
+            <Navigation size={9} />
+            {sortDir === "asc" ? "Closest first" : "Furthest first"}
+          </button>
+        )}
+      </div>
+      {sorted.map(w => (
+        <div key={w.id} className="flex items-center justify-between bg-secondary/50 rounded px-2 py-1.5 gap-2">
+          <span className="text-xs font-medium truncate">{w.name}</span>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
+            {isLoading ? (
+              <Loader2 size={10} className="animate-spin" />
+            ) : w.distanceKm !== null ? (
+              <>
+                <span className="text-orange-400 font-semibold">{w.distanceKm} km</span>
+                {w.durationMinutes !== null && <span>~{w.durationMinutes} min</span>}
+              </>
+            ) : (
+              <span className="opacity-40">No location</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -681,14 +757,18 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                     <Users size={15} className="text-primary shrink-0" />
                     <span>{job.numTradies} Tradies Req.</span>
                   </div>
-                  {job.assignedWorkers && job.assignedWorkers.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {job.assignedWorkers.map((w: Worker) => (
-                        <span key={w.id} className="text-[10px] bg-secondary px-2 py-0.5 rounded text-foreground">
-                          {w.name}
-                        </span>
-                      ))}
-                    </div>
+                  {userRole === "admin" ? (
+                    <WorkerDistanceList jobId={job.id} workers={job.assignedWorkers ?? []} />
+                  ) : (
+                    job.assignedWorkers && job.assignedWorkers.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {job.assignedWorkers.map((w: Worker) => (
+                          <span key={w.id} className="text-[10px] bg-secondary px-2 py-0.5 rounded text-foreground">
+                            {w.name}
+                          </span>
+                        ))}
+                      </div>
+                    )
                   )}
                 </>
               )}

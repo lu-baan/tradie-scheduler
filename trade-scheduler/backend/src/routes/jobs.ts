@@ -6,7 +6,7 @@ import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
 import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
-import { getDrivingDistances, reverseGeocodeSuburb } from "../lib/maps";
+import { getDrivingDistances, reverseGeocodeSuburb, getWorkerDistancesToJob } from "../lib/maps";
 import { requireAdmin } from "../middlewares/requireAuth";
 import multer from "multer";
 import { getSupabase, IMAGES_BUCKET } from "../lib/supabase";
@@ -706,6 +706,71 @@ router.delete("/:id/images", async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "url is required" });
     else { console.error("[images] delete error:", err); res.status(500).json({ error: "Internal server error" }); }
+  }
+});
+
+// ── GET /api/jobs/:id/worker-distances — driving distances from workers to job ─
+// Admin-only: scans attendance events to find each assigned worker's last known
+// location, then batches a Distance Matrix call to the job address.
+
+router.get("/:id/worker-distances", requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    const assignedIds = parseWorkerIds(job.assignedWorkerIds);
+    if (assignedIds.length === 0) { res.json([]); return; }
+
+    const workers = await db.select().from(workersTable).where(inArray(workersTable.id, assignedIds));
+
+    // Find most recent geotagged attendance event per worker across all jobs
+    const allJobs = await db.select({ attendanceJson: jobsTable.attendanceJson }).from(jobsTable);
+    const lastLocation = new Map<number, { lat: number; lng: number; suburb: string; ts: string; action: string }>();
+    for (const j of allJobs) {
+      for (const ev of parseJsonArr<AttendanceEvent>(j.attendanceJson)) {
+        if (ev.lat === undefined || ev.lng === undefined) continue;
+        if (!assignedIds.includes(ev.workerId)) continue;
+        const existing = lastLocation.get(ev.workerId);
+        if (!existing || ev.ts > existing.ts) {
+          lastLocation.set(ev.workerId, {
+            lat: ev.lat, lng: ev.lng,
+            suburb: ev.suburb ?? `${ev.lat},${ev.lng}`,
+            ts: ev.ts, action: ev.action,
+          });
+        }
+      }
+    }
+
+    const locatedWorkers = assignedIds.flatMap(wid => {
+      const loc = lastLocation.get(wid);
+      return loc ? [{ workerId: wid, lat: loc.lat, lng: loc.lng }] : [];
+    });
+
+    const distances = locatedWorkers.length > 0
+      ? await getWorkerDistancesToJob(locatedWorkers, job.address)
+      : [];
+    const distMap = new Map(distances.map(d => [d.workerId, d]));
+
+    res.json(assignedIds.map(wid => {
+      const worker = workers.find(w => w.id === wid);
+      const loc = lastLocation.get(wid);
+      const dist = distMap.get(wid);
+      return {
+        workerId: wid,
+        name: worker?.name ?? "Unknown",
+        suburb: loc?.suburb ?? null,
+        lastSeenAt: loc?.ts ?? null,
+        lastAction: loc?.action ?? null,
+        distanceKm: dist?.distanceKm ?? null,
+        durationMinutes: dist?.durationMinutes ?? null,
+      };
+    }));
+  } catch (err) {
+    console.error("[worker-distances]", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
