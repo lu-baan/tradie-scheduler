@@ -6,7 +6,7 @@ import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
 import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
-import { getDrivingDistances } from "../lib/maps";
+import { getDrivingDistances, reverseGeocodeSuburb } from "../lib/maps";
 import { requireAdmin } from "../middlewares/requireAuth";
 import multer from "multer";
 import { getSupabase, IMAGES_BUCKET } from "../lib/supabase";
@@ -59,9 +59,12 @@ function parseJsonArr<T>(raw: string | null | undefined): T[] {
   try { return JSON.parse(raw) ?? []; } catch { return []; }
 }
 
-type AttendanceEvent = { workerId: number; action: string; ts: string };
+type AttendanceEvent = { workerId: number; action: string; ts: string; suburb?: string; lat?: number; lng?: number };
 const AttendanceBody = z.object({
   action: z.enum(["clock_in", "en_route", "on_site", "complete"]),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  workerId: z.number().optional(),
 });
 
 async function hydrateJobs(
@@ -729,13 +732,20 @@ router.post("/:id/attendance", async (req: Request, res: Response) => {
       workerId = req.session.workerId;
     } else {
       // Admin may pass a workerId in body; default to first assigned worker
-      const adminBody = z.object({ workerId: z.number().optional(), action: z.string() }).parse(req.body);
+      const adminBody = AttendanceBody.parse(req.body);
       workerId = adminBody.workerId ?? assigned[0];
       if (!workerId) { res.status(400).json({ error: "No workers assigned to this job" }); return; }
     }
 
-    const { action } = AttendanceBody.parse(req.body);
+    const { action, lat, lng } = AttendanceBody.parse(req.body);
     const event: AttendanceEvent = { workerId, action, ts: new Date().toISOString() };
+
+    // Geotag on_site and complete events when coordinates are supplied
+    if ((action === "on_site" || action === "complete") && lat !== undefined && lng !== undefined) {
+      event.lat = lat;
+      event.lng = lng;
+      event.suburb = await reverseGeocodeSuburb(lat, lng).catch(() => `${lat},${lng}`);
+    }
 
     const existing = parseJsonArr<AttendanceEvent>(job.attendanceJson);
     const [updated] = await db.update(jobsTable)

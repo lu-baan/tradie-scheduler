@@ -12,6 +12,7 @@ import { Settings } from "@/pages/Settings";
 import { WorkerSettings } from "@/pages/WorkerSettings";
 import { AuthPage } from "@/pages/AuthPage";
 import { AuthManage } from "@/pages/AuthManage";
+import { LocationView } from "@/pages/LocationView";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import NotFound from "@/pages/not-found";
 
@@ -44,6 +45,9 @@ function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRo
         </Route>
         <Route path="/settings">
           {userRole === "admin" ? <Settings /> : <WorkerSettings />}
+        </Route>
+        <Route path="/location">
+          {userRole === "admin" ? <LocationView /> : <Redirect to="/jobs" />}
         </Route>
         <Route path="/auth/manage">
           {userRole === "admin" ? <AuthManage /> : <Redirect to="/jobs" />}

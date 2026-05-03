@@ -3,6 +3,7 @@ import { db, workersTable, jobsTable, usersTable, leaveRequestsTable } from "../
 import { eq, not, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateWorkerBody } from "@workspace/api-zod";
+import { requireAdmin } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
 
@@ -110,6 +111,49 @@ router.put("/:id", async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) res.status(400).json({ error: "Validation error", details: err.message });
     else { console.error(err); res.status(500).json({ error: "Internal server error" }); }
+  }
+});
+
+// ── GET /api/workers/locations — most recent geotagged event per worker ───────
+
+type AttendanceEvent = { workerId: number; action: string; ts: string; suburb?: string; lat?: number; lng?: number };
+
+function parseJsonArr<T>(raw: string | null | undefined): T[] {
+  if (!raw) return [];
+  try { return JSON.parse(raw) ?? []; } catch { return []; }
+}
+
+router.get("/locations", requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const [workers, jobs] = await Promise.all([
+      db.select().from(workersTable),
+      db.select({ attendanceJson: jobsTable.attendanceJson }).from(jobsTable),
+    ]);
+
+    type LocationEntry = { suburb: string; lat?: number; lng?: number; ts: string; action: string };
+    const latestByWorker = new Map<number, LocationEntry>();
+
+    for (const job of jobs) {
+      const events = parseJsonArr<AttendanceEvent>(job.attendanceJson);
+      for (const e of events) {
+        if (!e.suburb) continue;
+        const existing = latestByWorker.get(e.workerId);
+        if (!existing || e.ts > existing.ts) {
+          latestByWorker.set(e.workerId, { suburb: e.suburb, lat: e.lat, lng: e.lng, ts: e.ts, action: e.action });
+        }
+      }
+    }
+
+    res.json(workers.map(w => ({
+      workerId: w.id,
+      workerName: w.name,
+      tradeType: w.tradeType,
+      isAvailable: w.isAvailable,
+      location: latestByWorker.get(w.id) ?? null,
+    })));
+  } catch (err) {
+    console.error("[locations]", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

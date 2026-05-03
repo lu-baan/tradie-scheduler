@@ -283,11 +283,25 @@ function TimeAttendancePanel({
 
   const attendance = job.attendance ?? [];
 
+  const getCoords = (): Promise<{ lat: number; lng: number } | null> =>
+    new Promise(resolve => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
+        () => resolve(null),
+        { timeout: 6000, maximumAge: 60000 },
+      );
+    });
+
   const logAction = async (action: string, workerId?: number) => {
     setLogging(action);
     try {
       const body: Record<string, unknown> = { action };
       if (workerId !== undefined) body.workerId = workerId;
+      if (action === "on_site" || action === "complete") {
+        const coords = await getCoords();
+        if (coords) { body.lat = coords.lat; body.lng = coords.lng; }
+      }
       const res = await fetch(`/api/jobs/${job.id}/attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
