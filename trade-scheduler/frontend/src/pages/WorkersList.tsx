@@ -193,6 +193,7 @@ function WorkerForm({
 }) {
   const form = useForm<WorkerFormValues>({
     resolver: zodResolver(workerSchema),
+    mode: "onBlur",
     defaultValues: {
       name: "", tradeType: "", phone: "", email: "",
       isAvailable: true, skills: [], hourlyRate: null, maxWeeklyHours: 38,
@@ -218,7 +219,7 @@ function WorkerForm({
           {form.formState.errors.name && <p className="text-destructive text-xs mt-1">{form.formState.errors.name.message}</p>}
         </div>
         <div>
-          <Label required>Trade Specialization</Label>
+          <Label required>Trade Specialisation</Label>
           <Input {...form.register("tradeType")} placeholder="e.g. Master Plumber" />
           {form.formState.errors.tradeType && <p className="text-destructive text-xs mt-1">{form.formState.errors.tradeType.message}</p>}
         </div>

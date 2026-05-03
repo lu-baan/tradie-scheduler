@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Building2, Clock, Bell, MapPin, DollarSign, Shield, Wrench, Plus, X, User } from "lucide-react";
+import { Save, Building2, Bell, MapPin, Shield, Wrench, Plus, X, User } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
 
@@ -12,12 +12,6 @@ interface AppSettings {
   contactEmail: string;
   contactPhone: string;
   businessAddress: string;
-  gstRate: number;
-  currency: string;
-  distanceUnits: string;
-  workStartHour: string;
-  workEndHour: string;
-  workDays: string[];
   smsNotifications: boolean;
   emailNotifications: boolean;
   emergencyAlerts: boolean;
@@ -26,8 +20,6 @@ interface AppSettings {
   maxJobTitleLength: number;
   maxNotesLength: number;
 }
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const DEFAULT_TRADE_TYPES = [
   "Carpenter", "Electrician", "General Builder", "HVAC",
@@ -145,12 +137,6 @@ export function Settings() {
     contactEmail: "",
     contactPhone: "",
     businessAddress: "",
-    gstRate: 10,
-    currency: "AUD",
-    distanceUnits: "km",
-    workStartHour: "07:00",
-    workEndHour: "17:00",
-    workDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
     smsNotifications: true,
     emailNotifications: true,
     emergencyAlerts: true,
@@ -260,60 +246,6 @@ export function Settings() {
             onChange={e => update("businessAddress", e.target.value)}
             placeholder="123 Main St, Melbourne VIC 3000"
           />
-        </div>
-      </SectionCard>
-
-      {/* Financial */}
-      <SectionCard icon={DollarSign} title="Financial">
-        <SettingRow label="Australian GST Rate" description="Applied to invoice generation">
-          <span className="font-mono text-lg">{settings.gstRate}%</span>
-        </SettingRow>
-        <SettingRow label="Default Currency">
-          <span className="font-mono text-lg">AUD ($)</span>
-        </SettingRow>
-        <SettingRow label="Distance Units">
-          <span className="font-mono text-lg">Kilometers (km)</span>
-        </SettingRow>
-      </SectionCard>
-
-      {/* Working Hours */}
-      <SectionCard icon={Clock} title="Working Hours">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Start Time</Label>
-            <Input type="time" value={settings.workStartHour} onChange={e => update("workStartHour", e.target.value)} />
-          </div>
-          <div>
-            <Label>End Time</Label>
-            <Input type="time" value={settings.workEndHour} onChange={e => update("workEndHour", e.target.value)} />
-          </div>
-        </div>
-        <div>
-          <Label>Working Days</Label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {WEEKDAYS.map(day => {
-              const active = settings.workDays.includes(day);
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  className={`px-3 py-1.5 rounded-md text-xs font-display uppercase border transition-colors ${
-                    active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background border-input text-muted-foreground hover:border-primary/50"
-                  }`}
-                  onClick={() =>
-                    update("workDays", active
-                      ? settings.workDays.filter(d => d !== day)
-                      : [...settings.workDays, day]
-                    )
-                  }
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
         </div>
       </SectionCard>
 

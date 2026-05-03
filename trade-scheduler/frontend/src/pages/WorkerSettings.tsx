@@ -22,6 +22,7 @@ export function WorkerSettings() {
   })();
 
   const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [email, setEmail] = useState(() => sessionStorage.getItem("ts2_email") ?? "");
   const [name, setName] = useState("");
   const [tradeType, setTradeType] = useState("");
@@ -44,6 +45,10 @@ export function WorkerSettings() {
 
   const handleSave = async () => {
     if (!workerId) return;
+    if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone)) {
+      setPhoneError("Enter a valid Australian phone number");
+      return;
+    }
     setSaving(true);
     try {
       const [workerRes] = await Promise.all([
@@ -121,8 +126,15 @@ export function WorkerSettings() {
               type="tel"
               value={phone}
               placeholder="e.g. 0411 234 567"
-              onChange={e => { setPhone(e.target.value); setHasChanges(true); }}
+              onChange={e => { setPhone(e.target.value); setHasChanges(true); setPhoneError(""); }}
+              onBlur={() => {
+                if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone))
+                  setPhoneError("Enter a valid Australian phone number");
+                else setPhoneError("");
+              }}
+              className={phoneError ? "border-destructive" : ""}
             />
+            {phoneError && <p className="text-destructive text-xs mt-1">{phoneError}</p>}
           </div>
 
           <div>
