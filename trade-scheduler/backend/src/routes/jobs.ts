@@ -740,8 +740,8 @@ router.post("/:id/attendance", async (req: Request, res: Response) => {
     const { action, lat, lng } = AttendanceBody.parse(req.body);
     const event: AttendanceEvent = { workerId, action, ts: new Date().toISOString() };
 
-    // Geotag on_site and complete events when coordinates are supplied
-    if ((action === "on_site" || action === "complete") && lat !== undefined && lng !== undefined) {
+    // Geotag any event when coordinates are supplied by the client
+    if (lat !== undefined && lng !== undefined) {
       event.lat = lat;
       event.lng = lng;
       event.suburb = await reverseGeocodeSuburb(lat, lng).catch(() => `${lat},${lng}`);

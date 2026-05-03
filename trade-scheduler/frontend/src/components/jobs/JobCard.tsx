@@ -298,10 +298,8 @@ function TimeAttendancePanel({
     try {
       const body: Record<string, unknown> = { action };
       if (workerId !== undefined) body.workerId = workerId;
-      if (action === "on_site" || action === "complete") {
-        const coords = await getCoords();
-        if (coords) { body.lat = coords.lat; body.lng = coords.lng; }
-      }
+      const coords = await getCoords();
+      if (coords) { body.lat = coords.lat; body.lng = coords.lng; }
       const res = await fetch(`/api/jobs/${job.id}/attendance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

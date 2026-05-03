@@ -7,12 +7,33 @@ import geoRouter from "./geo";
 import leaveRouter from "./leave";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
+import { db, workersTable } from "../db";
+import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 // Public routes — no auth required.
 router.use(healthRouter);
 router.use("/auth", authRouter);
+
+// Worker self-profile — auth only (workers can read/update their own record).
+router.get("/workers/me", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const wid = req.session.workerId;
+    if (!wid) { res.status(404).json({ error: "No worker profile linked to this account" }); return; }
+    const [worker] = await db.select().from(workersTable).where(eq(workersTable.id, wid));
+    if (!worker) { res.status(404).json({ error: "Worker not found" }); return; }
+    res.json({
+      ...worker,
+      createdAt: worker.createdAt.toISOString(),
+      unavailableUntil: worker.unavailableUntil ? worker.unavailableUntil.toISOString() : null,
+      skills: (() => { try { return JSON.parse(worker.skillsJson || "[]"); } catch { return []; } })(),
+    });
+  } catch (err) {
+    console.error("[workers/me]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // Protected routes — valid session required.
 router.use("/jobs", requireAuth, jobsRouter);

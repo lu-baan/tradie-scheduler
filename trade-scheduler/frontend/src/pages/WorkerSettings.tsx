@@ -30,21 +30,17 @@ export function WorkerSettings() {
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
-    if (!workerId) { setLoading(false); return; }
-    fetch("/api/workers", { credentials: "include" })
-      .then(r => r.json())
-      .then((workers: any[]) => {
-        const me = workers.find((w: any) => w.id === workerId);
-        if (me) {
-          setName(me.name ?? "");
-          setPhone(me.phone ?? "");
-          setEmail(me.email ?? sessionStorage.getItem("ts2_email") ?? "");
-          setTradeType(me.tradeType ?? "");
-        }
+    fetch("/api/workers/me", { credentials: "include" })
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then((me: any) => {
+        setName(me.name ?? "");
+        setPhone(me.phone ?? "");
+        setEmail(me.email ?? sessionStorage.getItem("ts2_email") ?? "");
+        setTradeType(me.tradeType ?? "");
       })
       .catch(() => toast.error("Failed to load profile"))
       .finally(() => setLoading(false));
-  }, [workerId]);
+  }, []);
 
   const handleSave = async () => {
     if (!workerId) return;
