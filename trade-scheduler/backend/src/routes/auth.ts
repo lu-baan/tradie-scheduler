@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, usersTable, workersTable, passwordResetTokensTable } from "../db";
+import { db, pool, usersTable, workersTable, passwordResetTokensTable } from "../db";
 import { eq, count, and, gt } from "drizzle-orm";
 import { z } from "zod/v4";
 import crypto from "crypto";
@@ -373,12 +373,65 @@ router.post("/reset-password", authLimiter, async (req: Request, res: Response) 
     // Consume the token immediately so it can't be reused.
     await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.id, row.id));
 
+    // Terminate all active sessions for this user so other devices are logged out.
+    await pool.query(
+      `DELETE FROM "session" WHERE (sess->>'userId')::integer = $1`,
+      [row.userId],
+    );
+
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: "Validation error", details: err.message });
     } else {
       console.error("[auth] reset-password error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
+// ── PATCH /api/auth/change-password ──────────────────────────────────────────
+// Allows a logged-in user to change their own password without a reset email.
+
+router.patch("/change-password", requireAuth, authLimiter, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = z.object({
+      currentPassword: z.string().min(1),
+      newPassword:     z.string().min(8),
+    }).parse(req.body);
+
+    const [user] = await db
+      .select({ id: usersTable.id, passwordHash: usersTable.passwordHash })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.session.userId!))
+      .limit(1);
+
+    if (!user) {
+      res.status(401).json({ error: "User not found" });
+      return;
+    }
+
+    const valid = await verifyPassword(currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(400).json({ error: "Current password is incorrect" });
+      return;
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await db.update(usersTable).set({ passwordHash }).where(eq(usersTable.id, user.id));
+
+    // Invalidate all OTHER sessions for this user (keep the current session active).
+    await pool.query(
+      `DELETE FROM "session" WHERE (sess->>'userId')::integer = $1 AND sid != $2`,
+      [user.id, req.sessionID],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: "Validation error", details: err.message });
+    } else {
+      console.error("[auth] change-password error:", err);
       res.status(500).json({ error: "Internal server error" });
     }
   }

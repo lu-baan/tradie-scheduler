@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, User } from "lucide-react";
+import { Save, User, Eye, EyeOff, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -29,6 +29,40 @@ export function WorkerSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+
+  const [pwCurrent, setPwCurrent]         = useState("");
+  const [pwNew, setPwNew]                 = useState("");
+  const [pwConfirm, setPwConfirm]         = useState("");
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew]         = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [pwSaving, setPwSaving]           = useState(false);
+  const [pwError, setPwError]             = useState<string | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwError(null);
+    if (pwNew.length < 8) { setPwError("New password must be at least 8 characters"); return; }
+    if (pwNew !== pwConfirm) { setPwError("New passwords do not match"); return; }
+    setPwSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to change password");
+      }
+      toast.success("Password changed successfully");
+      setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    } catch (err: any) {
+      setPwError(err.message || "Failed to change password");
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/workers/me", { credentials: "include" })
@@ -157,6 +191,79 @@ export function WorkerSettings() {
           </Button>
         </div>
       )}
+
+      {/* Change Password */}
+      <Card className="p-6 bg-card border-white/5 shadow-2xl">
+        <div className="flex items-center gap-2 mb-5">
+          <Lock size={20} className="text-primary" />
+          <h3 className="font-display text-lg text-primary uppercase">Change Password</h3>
+        </div>
+        <div className="space-y-4">
+          {pwError && (
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg p-3">
+              {pwError}
+            </div>
+          )}
+          <div>
+            <Label>Current Password</Label>
+            <div className="relative mt-1">
+              <input
+                type={showPwCurrent ? "text" : "password"}
+                value={pwCurrent}
+                onChange={e => { setPwCurrent(e.target.value); setPwError(null); }}
+                placeholder="Current password"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwCurrent(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label>New Password</Label>
+            <div className="relative mt-1">
+              <input
+                type={showPwNew ? "text" : "password"}
+                value={pwNew}
+                onChange={e => { setPwNew(e.target.value); setPwError(null); }}
+                placeholder="At least 8 characters"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwNew(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwNew ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label>Confirm New Password</Label>
+            <div className="relative mt-1">
+              <input
+                type={showPwConfirm ? "text" : "password"}
+                value={pwConfirm}
+                onChange={e => { setPwConfirm(e.target.value); setPwError(null); }}
+                placeholder="Re-enter new password"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwConfirm(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleChangePassword}
+              disabled={pwSaving || !pwCurrent || !pwNew || !pwConfirm}
+              size="sm"
+            >
+              <Lock size={14} className="mr-1.5" />
+              {pwSaving ? "Saving…" : "Change Password"}
+            </Button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

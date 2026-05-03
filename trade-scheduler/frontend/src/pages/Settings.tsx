@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Building2, Bell, MapPin, Shield, Wrench, Plus, X, User } from "lucide-react";
+import { Save, Building2, Bell, MapPin, Shield, Wrench, Plus, X, User, Eye, EyeOff, Lock } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
 
@@ -130,6 +130,41 @@ export function Settings() {
     }
   };
 
+  // ── Change Password ───────────────────────────────────────────────────────────
+  const [pwCurrent, setPwCurrent]     = useState("");
+  const [pwNew, setPwNew]             = useState("");
+  const [pwConfirm, setPwConfirm]     = useState("");
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew]         = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
+  const [pwSaving, setPwSaving]       = useState(false);
+  const [pwError, setPwError]         = useState<string | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwError(null);
+    if (pwNew.length < 8) { setPwError("New password must be at least 8 characters"); return; }
+    if (pwNew !== pwConfirm) { setPwError("New passwords do not match"); return; }
+    setPwSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to change password");
+      }
+      toast.success("Password changed successfully");
+      setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    } catch (err: any) {
+      setPwError(err.message || "Failed to change password");
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   // ── App settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<AppSettings>({
     businessName: "",
@@ -200,6 +235,78 @@ export function Settings() {
             </Button>
           </div>
         )}
+      </SectionCard>
+
+      {/* Change Password */}
+      <SectionCard icon={Lock} title="Change Password">
+        <p className="text-xs text-muted-foreground -mt-2">
+          Change your password without needing a reset email.
+        </p>
+        {pwError && (
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm rounded-lg p-3">
+            {pwError}
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <Label>Current Password</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPwCurrent ? "text" : "password"}
+                value={pwCurrent}
+                onChange={e => { setPwCurrent(e.target.value); setPwError(null); }}
+                placeholder="Current password"
+                className="pr-10"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwCurrent(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label>New Password</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPwNew ? "text" : "password"}
+                value={pwNew}
+                onChange={e => { setPwNew(e.target.value); setPwError(null); }}
+                placeholder="At least 8 characters"
+                className="pr-10"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwNew(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwNew ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <Label>Confirm New Password</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPwConfirm ? "text" : "password"}
+                value={pwConfirm}
+                onChange={e => { setPwConfirm(e.target.value); setPwError(null); }}
+                placeholder="Re-enter new password"
+                className="pr-10"
+              />
+              <button type="button" tabIndex={-1} onClick={() => setShowPwConfirm(p => !p)}
+                className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors">
+                {showPwConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={handleChangePassword}
+            disabled={pwSaving || !pwCurrent || !pwNew || !pwConfirm}
+            size="sm"
+          >
+            <Lock size={14} className="mr-1.5" />
+            {pwSaving ? "Saving…" : "Change Password"}
+          </Button>
+        </div>
       </SectionCard>
 
       {/* Business Details */}
