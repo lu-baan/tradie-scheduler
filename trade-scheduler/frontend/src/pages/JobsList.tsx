@@ -4,6 +4,7 @@ import { JobCard } from "@/components/jobs/JobCard";
 import { JobForm } from "@/components/jobs/JobForm";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +12,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, SlidersHorizontal, MapPin, Loader2, BriefcaseBusiness, Info, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, SlidersHorizontal, MapPin, Loader2, BriefcaseBusiness, Info, ArrowUp, ArrowDown, Search, X } from "lucide-react";
 import type { UserRole } from "@/App";
 import * as Tabs from "@radix-ui/react-tabs";
 import * as Slider from "@radix-ui/react-slider";
+
+type LocalSortBy = ListJobsSortBy | "upcoming";
 
 const SORT_DESCRIPTIONS: Record<string, string> = {
   date: "Sort by scheduled date",
@@ -22,16 +25,18 @@ const SORT_DESCRIPTIONS: Record<string, string> = {
   distance: "Sort by distance from your location",
   smart: "Combined score using distance + price + validity code weights",
   validityCode: "Sort by validity code (priority)",
+  upcoming: "Next happening: Code 9 first, then by priority code, then by scheduled time",
 };
 
 type SortDir = "asc" | "desc";
 
-const SORT_DEFAULT_DIR: Record<ListJobsSortBy, SortDir> = {
+const SORT_DEFAULT_DIR: Record<LocalSortBy, SortDir> = {
   date: "asc",
   price: "desc",
   distance: "asc",
   smart: "desc",
   validityCode: "desc",
+  upcoming: "asc",
 };
 
 export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
@@ -42,12 +47,13 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
     const n = parseInt(v, 10);
     return isNaN(n) ? null : n;
   })();
-  const [sortBy, setSortBy] = useState<ListJobsSortBy>("smart");
+  const [sortBy, setSortBy] = useState<LocalSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [priceWeight, setPriceWeight] = useState(0.5);
   const [filterType, setFilterType] = useState<"all" | "quote" | "booking" | "completed" | "cancelled">("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showSortInfo, setShowSortInfo] = useState(false);
+  const [locationSearch, setLocationSearch] = useState("");
 
   const { location, suburb, requestLocation, loading: locLoading } = useGeolocation();
 
@@ -57,15 +63,18 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
     }
   }, [sortBy, requestLocation]);
 
+  // Map local sort to a valid API sort value
+  const apiSortBy: ListJobsSortBy = sortBy === "upcoming" ? "date" : sortBy as ListJobsSortBy;
+
   const { data: jobs, isLoading } = useListJobs({
-    sortBy,
+    sortBy: apiSortBy,
     lat: location?.lat,
     lng: location?.lng,
     priceWeight,
     distanceWeight: 1 - priceWeight,
   });
 
-  const handleSortChange = (newSort: ListJobsSortBy) => {
+  const handleSortChange = (newSort: LocalSortBy) => {
     if (newSort === sortBy) {
       setSortDir(d => d === "asc" ? "desc" : "asc");
     } else {
@@ -85,16 +94,29 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
           )
         : []; // worker with no linked workerId sees nothing
     }
+
+    // Filter by location/address search
+    if (locationSearch.trim()) {
+      const q = locationSearch.toLowerCase();
+      all = all.filter(j => j.address?.toLowerCase().includes(q));
+    }
+
     let result: typeof all;
     if (tab === "all") result = all.filter(job => job.status !== "completed" && job.status !== "cancelled");
     else if (tab === "completed") result = all.filter(job => job.status === "completed");
     else if (tab === "cancelled") result = all.filter(job => job.status === "cancelled");
     else result = all.filter(job => job.jobType === tab && job.status !== "completed" && job.status !== "cancelled");
 
-    // Emergencies always pin to the top; everything else sorts by the chosen criteria.
-    // Unassigned status does not influence position.
     const dir = sortDir === "asc" ? 1 : -1;
     const sorted = (() => {
+      if (sortBy === "upcoming") {
+        // Code 9 handled by partition below; within non-emergency: validityCode desc → scheduledDate asc
+        return [...result].sort((a, b) => {
+          const vc = (b.validityCode ?? 0) - (a.validityCode ?? 0);
+          if (vc !== 0) return vc;
+          return (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "");
+        });
+      }
       if (sortBy === "date") {
         return [...result].sort((a, b) =>
           dir * ((a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? ""))
@@ -110,7 +132,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
       return sortDir === "asc" ? result : [...result].reverse();
     })();
 
-    // Stable partition: emergencies first, then the rest in their sorted order.
+    // Stable partition: emergencies always first, then the rest in their sorted order.
     return [
       ...sorted.filter(j => j.isEmergency),
       ...sorted.filter(j => !j.isEmergency),
@@ -169,7 +191,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                 <span className="text-xs font-display uppercase text-muted-foreground flex items-center gap-1">
                   <SlidersHorizontal size={13} /> Sort:
                 </span>
-                {(["date", "price", "distance", "smart", "validityCode"] as ListJobsSortBy[]).map(sort => (
+                {(["upcoming", "date", "price", "distance", "smart", "validityCode"] as LocalSortBy[]).map(sort => (
                   <button
                     type="button"
                     key={sort}
@@ -181,24 +203,26 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                         : "bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
                     }`}
                   >
-                    {sort === "validityCode" ? "Priority" : sort.charAt(0).toUpperCase() + sort.slice(1)}
-                    {sortBy === sort && (
+                    {sort === "validityCode" ? "Priority" : sort === "upcoming" ? "Upcoming" : sort.charAt(0).toUpperCase() + sort.slice(1)}
+                    {sortBy === sort && sort !== "upcoming" && (
                       sortDir === "asc"
                         ? <ArrowUp size={11} />
                         : <ArrowDown size={11} />
                     )}
                   </button>
                 ))}
-                {/* Standalone asc/desc toggle */}
-                <button
-                  type="button"
-                  onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-                  title={sortDir === "asc" ? "Currently ascending — click for descending" : "Currently descending — click for ascending"}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-border text-muted-foreground hover:text-primary hover:border-primary/50 transition-all"
-                >
-                  {sortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
-                  {sortDir === "asc" ? "Asc" : "Desc"}
-                </button>
+                {/* Standalone asc/desc toggle — hidden for upcoming since order is fixed */}
+                {sortBy !== "upcoming" && (
+                  <button
+                    type="button"
+                    onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
+                    title={sortDir === "asc" ? "Currently ascending — click for descending" : "Currently descending — click for ascending"}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs border border-border text-muted-foreground hover:text-primary hover:border-primary/50 transition-all"
+                  >
+                    {sortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                    {sortDir === "asc" ? "Asc" : "Desc"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="ml-0.5"
@@ -234,6 +258,26 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                   </p>
                 </div>
               )}
+
+              {/* Location search */}
+              <div className="relative max-w-sm">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={locationSearch}
+                  onChange={e => setLocationSearch(e.target.value)}
+                  placeholder="Filter by address or suburb…"
+                  className="pl-8 pr-8 h-9 text-sm"
+                />
+                {locationSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLocationSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Sort info panel */}
@@ -244,7 +288,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                   {Object.entries(SORT_DESCRIPTIONS).map(([key, desc]) => (
                     <div key={key} className="flex items-start gap-2 text-xs">
                       <span className="font-semibold text-primary capitalize min-w-[60px]">
-                        {key === "validityCode" ? "Priority" : key}:
+                        {key === "validityCode" ? "Priority" : key === "upcoming" ? "Upcoming" : key}:
                       </span>
                       <span className="text-muted-foreground">{desc}</span>
                     </div>
@@ -284,7 +328,9 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                   <div className="py-16 sm:py-20 text-center text-muted-foreground bg-card/30 rounded-xl border border-dashed border-white/10">
                     <BriefcaseBusiness className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
                     <h3 className="text-lg sm:text-xl font-display uppercase">No jobs found</h3>
-                    <p className="text-sm mt-1">Adjust your filters or create a new enquiry.</p>
+                    <p className="text-sm mt-1">
+                      {locationSearch ? `No jobs matching "${locationSearch}" — try a different location.` : "Adjust your filters or create a new enquiry."}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">

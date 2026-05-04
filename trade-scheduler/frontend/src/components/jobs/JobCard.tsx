@@ -125,7 +125,7 @@ function WorkerDistanceList({ jobId, workers }: { jobId: number; workers: Worker
       </div>
       {sorted.map(w => (
         <div key={w.id} className="flex items-center justify-between bg-secondary/50 rounded px-2 py-1.5 gap-2">
-          <span className="text-xs font-medium truncate">{w.name}</span>
+          <span className="text-xs font-bold truncate">{w.name}</span>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
             {isLoading ? (
               <Loader2 size={10} className="animate-spin" />

@@ -3,8 +3,29 @@ import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, X, Users, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Search, X, Users, ChevronLeft, ChevronRight, ArrowUpDown, Clock } from "lucide-react";
 import { toast } from "sonner";
+
+const RECENT_KEY = "ts2_client_recent_searches";
+const MAX_RECENT = 5;
+
+function getRecentSearches(): string[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); }
+  catch { return []; }
+}
+
+function saveRecentSearch(term: string): string[] {
+  const prev = getRecentSearches();
+  const updated = [term, ...prev.filter(s => s !== term)].slice(0, MAX_RECENT);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  return updated;
+}
+
+function removeRecentSearch(term: string): string[] {
+  const updated = getRecentSearches().filter(s => s !== term);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+  return updated;
+}
 
 interface Client {
   clientId:    number;
@@ -40,18 +61,27 @@ function formatDate(iso: string) {
 
 export function ClientsPage() {
   const [, navigate] = useLocation();
-  const [search, setSearch]           = useState("");
+  const [search, setSearch]             = useState("");
   const [debouncedSearch, setDebounced] = useState("");
-  const [sort, setSort]               = useState<SortOption>("recent");
-  const [page, setPage]               = useState(1);
-  const [data, setData]               = useState<ClientsResponse | null>(null);
-  const [loading, setLoading]         = useState(true);
+  const [sort, setSort]                 = useState<SortOption>("recent");
+  const [page, setPage]                 = useState(1);
+  const [data, setData]                 = useState<ClientsResponse | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => getRecentSearches());
+  const [searchFocused, setSearchFocused]   = useState(false);
 
   // Debounce search input by 300 ms
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Save non-empty searches to recent history
+  useEffect(() => {
+    if (debouncedSearch.trim()) {
+      setRecentSearches(saveRecentSearch(debouncedSearch.trim()));
+    }
+  }, [debouncedSearch]);
 
   // Reset to page 1 whenever search or sort changes
   useEffect(() => { setPage(1); }, [debouncedSearch, sort]);
@@ -107,6 +137,8 @@ export function ClientsPage() {
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, phone or address…"
           className="pl-9 pr-9"
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
         />
         {search && (
           <button
@@ -116,6 +148,34 @@ export function ClientsPage() {
           >
             <X size={14} />
           </button>
+        )}
+
+        {/* Recent searches dropdown */}
+        {searchFocused && !search && recentSearches.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-20 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-3 py-1.5 font-display">
+              Recent searches
+            </p>
+            {recentSearches.map(term => (
+              <div key={term} className="flex items-center gap-2 px-3 py-2 hover:bg-secondary/50 group">
+                <button
+                  type="button"
+                  onClick={() => { setSearch(term); setSearchFocused(false); }}
+                  className="flex items-center gap-2 flex-1 text-left text-sm min-w-0"
+                >
+                  <Clock size={12} className="text-muted-foreground shrink-0" />
+                  <span className="truncate">{term}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setRecentSearches(removeRecentSearch(term)); }}
+                  className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
