@@ -6,6 +6,7 @@ import authRouter from "./auth";
 import geoRouter from "./geo";
 import leaveRouter from "./leave";
 import twilioRouter from "./twilio";
+import clientsRouter from "./clients";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
 import { db, workersTable } from "../db";
@@ -43,6 +44,7 @@ router.use("/jobs", requireAuth, jobsRouter);
 router.use("/workers", requireAdmin, workersRouter);
 router.use("/geo", requireAuth, geoRouter);
 router.use("/leave", leaveRouter);
+router.use("/clients", clientsRouter);
 
 // Admin-only test endpoint - should be removed before going fully public.
 router.get("/test-email", requireAdmin, async (_req: Request, res: Response) => {
