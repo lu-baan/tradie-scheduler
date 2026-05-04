@@ -14,6 +14,8 @@ import { AuthPage } from "@/pages/AuthPage";
 import { AuthManage } from "@/pages/AuthManage";
 import { LocationView } from "@/pages/LocationView";
 import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
+import { ClientsPage } from "@/pages/ClientsPage";
+import { ClientProfilePage } from "@/pages/ClientProfilePage";
 import NotFound from "@/pages/not-found";
 
 export type UserRole = "admin" | "worker";
@@ -51,6 +53,12 @@ function Router({ userRole, username, onLogout, theme, onToggleTheme }: { userRo
         </Route>
         <Route path="/auth/manage">
           {userRole === "admin" ? <AuthManage /> : <Redirect to="/jobs" />}
+        </Route>
+        <Route path="/clients">
+          {userRole === "admin" ? <ClientsPage /> : <Redirect to="/jobs" />}
+        </Route>
+        <Route path="/clients/:clientId">
+          {userRole === "admin" ? <ClientProfilePage /> : <Redirect to="/jobs" />}
         </Route>
         <Route component={NotFound} />
       </Switch>

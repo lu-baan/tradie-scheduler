@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, BriefcaseBusiness, Calendar, Users, Settings,
-  X, Menu, LogOut, ShieldCheck, UserPlus, Sun, Moon, MapPin,
+  X, Menu, LogOut, ShieldCheck, UserPlus, Sun, Moon, MapPin, BookUser,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const MAIN_NAV_ITEMS = [
   { href: "/jobs", label: "Jobs", icon: BriefcaseBusiness, adminOnly: false },
   { href: "/calendar", label: "Calendar", icon: Calendar, adminOnly: false },
   { href: "/workers", label: "Workforce", icon: Users, adminOnly: true },
+  { href: "/clients", label: "Clients", icon: BookUser, adminOnly: true },
   { href: "/location", label: "Location", icon: MapPin, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: false },
 ];
