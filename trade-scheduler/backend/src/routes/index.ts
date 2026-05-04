@@ -5,6 +5,7 @@ import workersRouter from "./workers";
 import authRouter from "./auth";
 import geoRouter from "./geo";
 import leaveRouter from "./leave";
+import twilioRouter from "./twilio";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
 import { db, workersTable } from "../db";
@@ -12,11 +13,12 @@ import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Public routes — no auth required.
+// Public routes - no auth required.
 router.use(healthRouter);
 router.use("/auth", authRouter);
+router.use("/twilio", twilioRouter);
 
-// Worker self-profile — auth only (workers can read/update their own record).
+// Worker self-profile - auth only (workers can read/update their own record).
 router.get("/workers/me", requireAuth, async (req: Request, res: Response) => {
   try {
     const wid = req.session.workerId;
@@ -35,15 +37,15 @@ router.get("/workers/me", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Protected routes — valid session required.
+// Protected routes - valid session required.
 router.use("/jobs", requireAuth, jobsRouter);
-// Workers data is admin-only — the UI hides it from workers, and the API enforces it.
+// Workers data is admin-only - the UI hides it from workers, and the API enforces it.
 router.use("/workers", requireAdmin, workersRouter);
 router.use("/geo", requireAuth, geoRouter);
 router.use("/leave", leaveRouter);
 
-// Admin-only test endpoint — should be removed before going fully public.
-router.get("/test-email", requireAdmin, async (req: Request, res: Response) => {
+// Admin-only test endpoint - should be removed before going fully public.
+router.get("/test-email", requireAdmin, async (_req: Request, res: Response) => {
   try {
     await sendInvoiceEmail({
       clientName: "Test Client",
@@ -53,7 +55,7 @@ router.get("/test-email", requireAdmin, async (req: Request, res: Response) => {
       totalWithGst: 110.00,
       pdfBuffer: Buffer.from("test pdf content"),
     });
-    res.json({ ok: true, message: "Email sent — check Mailtrap inbox" });
+    res.json({ ok: true, message: "Email sent - check Mailtrap inbox" });
   } catch (err: any) {
     console.error("Test email failed:", err);
     res.status(500).json({ ok: false, error: err.message });
