@@ -41,7 +41,6 @@ const workerSchema = z.object({
   isAvailable: z.boolean().default(true),
   skills: z.array(z.string()).default([]),
   hourlyRate: z.coerce.number().min(0).optional().nullable(),
-  maxWeeklyHours: z.coerce.number().min(1).max(168).optional().nullable(),
 });
 type WorkerFormValues = z.infer<typeof workerSchema>;
 
@@ -196,7 +195,7 @@ function WorkerForm({
     mode: "onBlur",
     defaultValues: {
       name: "", tradeType: "", phone: "", email: "",
-      isAvailable: true, skills: [], hourlyRate: null, maxWeeklyHours: 38,
+      isAvailable: true, skills: [], hourlyRate: null,
       ...defaultValues,
     },
   });
@@ -238,19 +237,12 @@ function WorkerForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label>Hourly Rate (AUD)</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-3 text-muted-foreground text-sm">$</span>
-            <Input type="number" min="0" step="0.5" className="pl-7"
-              {...form.register("hourlyRate")} placeholder="e.g. 45.00" />
-          </div>
-        </div>
-        <div>
-          <Label>Max Weekly Hours</Label>
-          <Input type="number" min="1" max="168" step="0.5"
-            {...form.register("maxWeeklyHours")} placeholder="38" />
+      <div>
+        <Label>Hourly Rate (AUD)</Label>
+        <div className="relative">
+          <span className="absolute left-3 top-3 text-muted-foreground text-sm">$</span>
+          <Input type="number" min="0" step="0.5" className="pl-7"
+            {...form.register("hourlyRate")} placeholder="e.g. 45.00" />
         </div>
       </div>
 
@@ -518,7 +510,7 @@ function WorkerCard({
   onDelete: () => void;
   onToggleAvail: (checked: boolean) => void;
   onRefreshLeave: () => void;
-  weekJobs: { scheduledDate?: string | null; estimatedHours?: number | null; assignedWorkerIds: number[] }[];
+  weekJobs: { scheduledDate?: string | null; estimatedHours?: number | null; assignedWorkerIds: number[]; attendance?: { workerId: number; action: string; ts: string }[] }[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -531,13 +523,15 @@ function WorkerCard({
   const visibleSkills = skills.slice(0, SKILL_LIMIT);
   const extraSkills = skills.length - SKILL_LIMIT;
 
-  const cap = worker.maxWeeklyHours ?? 38;
-  const scheduledHrs = weekJobs
+  const hoursPresent = weekJobs
     .filter(j => j.assignedWorkerIds.includes(worker.id))
-    .reduce((s, j) => s + (j.estimatedHours ?? 0), 0);
-  const pct = Math.min(100, Math.round((scheduledHrs / cap) * 100));
-  const overCap = pct >= 100;
-  const nearCap = pct >= 80 && !overCap;
+    .reduce((total, j) => {
+      const evts = (j.attendance ?? []).filter(e => e.workerId === worker.id);
+      const ci = evts.find(e => e.action === "clock_in");
+      const done = evts.find(e => e.action === "complete");
+      if (!ci || !done) return total;
+      return total + Math.max(0, (new Date(done.ts).getTime() - new Date(ci.ts).getTime()) / 3_600_000);
+    }, 0);
 
   return (
     <div className={`border-b border-border/50 last:border-b-0 transition-colors ${expanded ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"}`}>
@@ -635,24 +629,16 @@ function WorkerCard({
             </div>
           </div>
 
-          {/* Capacity bar */}
-          <div className="flex-1 min-w-0 max-w-[160px]">
-            <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-              <span className="flex items-center gap-0.5"><Clock size={9} /> This week</span>
-              <span className={overCap ? "text-destructive font-bold" : nearCap ? "text-orange-400 font-bold" : ""}>
-                {scheduledHrs.toFixed(0)}/{cap}h
-              </span>
-            </div>
-            <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${overCap ? "bg-destructive" : nearCap ? "bg-orange-400" : "bg-green-500"}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+          {/* Hours present */}
+          <div className="flex flex-col gap-0.5 shrink-0">
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock size={9} />
+              <span>{hoursPresent > 0 ? `${hoursPresent.toFixed(1)}h` : "0h"} present this week</span>
+            </span>
             {worker.hourlyRate && (
-              <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-0.5">
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                 <DollarSign size={9} />{worker.hourlyRate}/hr
-              </p>
+              </span>
             )}
           </div>
 
@@ -910,7 +896,6 @@ export function WorkersList() {
                 isAvailable: editTarget.isAvailable,
                 skills: editTarget.skills ?? [],
                 hourlyRate: editTarget.hourlyRate ?? null,
-                maxWeeklyHours: editTarget.maxWeeklyHours ?? 38,
               }}
               isPending={updateWorker.isPending}
               submitLabel="Save Changes"

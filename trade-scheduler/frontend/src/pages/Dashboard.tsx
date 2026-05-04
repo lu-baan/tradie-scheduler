@@ -51,12 +51,12 @@ export function Dashboard() {
 
   // Unassigned today
   const todayStr = new Date().toISOString().slice(0, 10);
-  const unassignedToday = allJobs.filter(j =>
+  const todayBookings = allJobs.filter(j =>
     j.scheduledDate?.startsWith(todayStr) &&
     j.jobType === "booking" &&
-    (j.assignedWorkerIds ?? []).length === 0 &&
     j.status !== "cancelled"
-  ).length;
+  );
+  const unassignedToday = todayBookings.filter(j => (j.assignedWorkerIds ?? []).length === 0).length;
 
   // Mock chart data for visual appeal based on job types
   const chartData = [
@@ -122,7 +122,9 @@ export function Dashboard() {
             {unassignedToday}
           </span>
           <p className="text-xs text-muted-foreground mt-1">
-            {unassignedToday === 0 ? "All jobs staffed" : `${unassignedToday} job${unassignedToday > 1 ? "s" : ""} need workers`}
+            {unassignedToday === 0
+              ? todayBookings.length === 0 ? "No bookings today" : "All jobs staffed"
+              : `${unassignedToday} job${unassignedToday > 1 ? "s" : ""} need workers`}
           </p>
         </Card>
 
