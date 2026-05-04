@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
-import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, X, ShieldCheck } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, X, ShieldCheck, MapPin } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
@@ -63,7 +63,7 @@ const jobSchema = z.object({
     .string()
     .min(2, "Title is required (min 2 characters)")
     .max(JOB_TITLE_MAX, `Title must be under ${JOB_TITLE_MAX} characters`),
-  tradeType: z.string().min(2, "Trade type is required"),
+  tradeType: z.string().optional().default(""),
   clientName: z
     .string()
     .min(2, "Client name is required")
@@ -177,6 +177,21 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const [includeGst, setIncludeGst] = useState(true);
   const [materials, setMaterials] = useState<MaterialLine[]>([]);
 
+
+  interface WorkerLocEntry {
+    workerId: number;
+    location: { suburb: string; action: string } | null;
+  }
+  const { data: workerLocations } = useQuery<WorkerLocEntry[]>({
+    queryKey: ["/api/workers/locations"],
+    queryFn: async () => {
+      const res = await fetch("/api/workers/locations", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+  const locationMap = new Map((workerLocations ?? []).map(w => [w.workerId, w.location]));
 
   const createJob = useCreateJob({
     mutation: {
@@ -429,23 +444,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             )}
           </div>
 
-          {/* Trade Type */}
-          <div>
-            <Label required>Trade Type</Label>
-            <select
-              {...form.register("tradeType")}
-              className="flex h-12 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-base focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Trade</option>
-              {loadTradeTypes().map((t: string) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            {form.formState.errors.tradeType && (
-              <p className="text-destructive text-sm mt-1">{form.formState.errors.tradeType.message}</p>
-            )}
-          </div>
-
           {/* Client Details */}
           <Card className="p-4 bg-secondary/30 border-white/5">
             <h4 className="font-display uppercase text-sm mb-4 text-primary">Client Details</h4>
@@ -514,7 +512,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             className="w-full h-12 text-lg mt-4"
             onClick={async () => {
               const ok = await form.trigger([
-                "title", "tradeType", "clientName", "clientPhone", "clientEmail", "address",
+                "title", "clientName", "clientPhone", "clientEmail", "address",
               ]);
               if (ok) setStep(2);
             }}
@@ -961,6 +959,17 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                           <span className="text-xs text-muted-foreground block truncate">
                             {w.tradeType}{!w.isAvailable && " (Off Duty)"}
                           </span>
+                          {(() => {
+                            const loc = locationMap.get(w.id);
+                            return loc ? (
+                              <span className="flex items-center gap-0.5 text-[10px] text-primary/70 truncate mt-0.5">
+                                <MapPin size={9} className="shrink-0" />
+                                {loc.suburb}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">No location</span>
+                            );
+                          })()}
                           <div className="flex gap-0.5 mt-1.5">
                             {[0, 1, 2, 3].map(i => (
                               <div
