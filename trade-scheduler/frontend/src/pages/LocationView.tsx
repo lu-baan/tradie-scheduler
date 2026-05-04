@@ -42,10 +42,10 @@ function Avatar({ name }: { name: string }) {
 }
 
 const ACTION_LABEL: Record<string, string> = {
-  on_site:  "Clocked in",
-  complete: "Clocked out",
-  clock_in: "Clocked in",
-  en_route: "En route",
+  clock_in: "Clocked In",
+  en_route: "En Route",
+  on_site:  "On Site",
+  complete: "Completed",
 };
 
 function fmtTime(iso: string) {
