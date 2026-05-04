@@ -93,6 +93,49 @@ function getNextFreeSlot(jobs: any[], date: Date): string | null {
   return null;
 }
 
+function getAssignedWorkerIds(job: any): number[] {
+  const workerIds = Array.isArray(job.assignedWorkerIds)
+    ? job.assignedWorkerIds.filter((id: unknown): id is number => typeof id === "number")
+    : [];
+
+  if (workerIds.length > 0) {
+    return workerIds;
+  }
+  if (Array.isArray(job.assignedWorkers)) {
+    return job.assignedWorkers.flatMap((worker: any) =>
+      typeof worker?.id === "number" ? [worker.id] : []
+    );
+  }
+  return [];
+}
+
+function getEffectiveTravelMins(job: any, jobs: any[]): number | null {
+  if (job.travelTimeMinutes != null && job.travelTimeMinutes > 0) return job.travelTimeMinutes;
+  if (!job.scheduledDate) return null;
+
+  const assignedIds = getAssignedWorkerIds(job);
+  if (assignedIds.length === 0) return null;
+
+  const jobStart = new Date(job.scheduledDate).getTime();
+  let minGap: number | null = null;
+
+  for (const other of jobs) {
+    if (other.id === job.id || !other.scheduledDate) continue;
+
+    const otherIds = getAssignedWorkerIds(other);
+    if (!otherIds.some(id => assignedIds.includes(id))) continue;
+
+    const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
+    const gap = Math.round((jobStart - otherEnd) / 60_000);
+
+    if (gap > 0 && gap <= 120 && (minGap === null || gap < minGap)) {
+      minGap = gap;
+    }
+  }
+
+  return minGap;
+}
+
 // ── Dot indicator ─────────────────────────────────────────────────────────────
 
 function JobDots({ count, active = false }: { count: number; active?: boolean }) {
@@ -225,47 +268,43 @@ function TimeColumn({
       return [{ job, height: Math.min(overflow, gridMaxPx) }];
     });
 
-  function getEffectiveTravelMins(job: any): number | null {
-    if (job.travelTimeMinutes != null && job.travelTimeMinutes > 0) return job.travelTimeMinutes;
-    const assignedIds: number[] = job.assignedWorkerIds ?? [];
-    if (assignedIds.length === 0 || !job.scheduledDate) return null;
-    const jobStart = new Date(job.scheduledDate).getTime();
-    let minGap: number | null = null;
-    for (const other of timedJobs) {
-      if (other.id === job.id || !other.scheduledDate) continue;
-      const otherIds: number[] = other.assignedWorkerIds ?? [];
-      if (!otherIds.some((id: number) => assignedIds.includes(id))) continue;
-      const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
-      if (otherEnd < jobStart) {
-        const gap = Math.round((jobStart - otherEnd) / 60_000);
-        if (gap >= 0 && gap <= 120 && (minGap === null || gap < minGap)) minGap = gap;
-      }
-    }
-    return minGap;
-  }
-
   function renderTravelBlock(job: any, jobTop: number, travelMins: number, col: number, totalCols: number) {
     const travelH = Math.max((travelMins / 60) * HOUR_H, 10);
     const top = Math.max(0, jobTop - travelH);
     const height = jobTop - top;
     if (height < 6) return null;
     const w = 100 / totalCols;
-    const showLabel = height >= 16;
+    const compact = height < 18;
     return (
       <div
         key={`${job.id}-travel`}
-        className="absolute rounded border border-dashed overflow-hidden pointer-events-none z-[5] flex items-center px-1 gap-1"
+        className="absolute pointer-events-none z-[5]"
         style={{
           top: top + 1,
           height: height - 1,
           left: `calc(${col * w}% + 3px)`,
           width: `calc(${w}% - 6px)`,
-          background: "rgba(234,88,12,0.12)",
-          borderColor: "rgba(234,88,12,0.55)",
         }}
       >
-        <Car size={9} className="text-orange-400 shrink-0" />
-        {showLabel && <span className="text-[9px] text-orange-400 font-semibold">{travelMins}m drive</span>}
+        <div
+          className={cn(
+            "absolute inset-0 rounded border border-dashed border-orange-500/60 bg-orange-500/10",
+            compact ? "overflow-visible" : "flex items-center gap-1 overflow-hidden px-1"
+          )}
+        >
+          {!compact && (
+            <>
+              <Car size={9} className="text-orange-400 shrink-0" />
+              <span className="truncate text-[9px] text-orange-400 font-semibold">{travelMins}m drive</span>
+            </>
+          )}
+        </div>
+        {compact && (
+          <div className="absolute left-1/2 top-1/2 z-[11] flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-orange-500/60 bg-background/95 px-1.5 py-0.5 text-[9px] font-semibold text-orange-400 shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            <Car size={9} className="shrink-0" />
+            <span>{travelMins}m</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -372,7 +411,7 @@ function TimeColumn({
           const totalCols = Math.max(1, colEnds.length);
 
           return positioned.flatMap(({ job, pos }, i) => {
-            const travelMins = getEffectiveTravelMins(job);
+            const travelMins = getEffectiveTravelMins(job, timedJobs);
             return [
               travelMins ? renderTravelBlock(job, pos.top, travelMins, cols[i], totalCols) : null,
               renderJobBlock(job, pos.top, pos.height, cols[i], totalCols),
@@ -431,21 +470,7 @@ function DaySchedulePopup({
           {dayJobs.flatMap(job => {
             const start = new Date(job.scheduledDate);
             const end = new Date(start.getTime() + (job.estimatedHours || 1) * 3_600_000);
-            let travelMins: number | null = job.travelTimeMinutes ?? null;
-            if (!travelMins) {
-              const assignedIds: number[] = job.assignedWorkerIds ?? [];
-              const jobStartMs = start.getTime();
-              for (const other of dayJobs) {
-                if (other.id === job.id || !other.scheduledDate) continue;
-                const otherIds: number[] = other.assignedWorkerIds ?? [];
-                if (!otherIds.some((id: number) => assignedIds.includes(id))) continue;
-                const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
-                if (otherEnd <= jobStartMs) {
-                  const gap = Math.round((jobStartMs - otherEnd) / 60_000);
-                  if (gap > 0 && gap <= 120 && (!travelMins || gap < travelMins)) travelMins = gap;
-                }
-              }
-            }
+            const travelMins = getEffectiveTravelMins(job, dayJobs);
             const travelStart = travelMins ? new Date(start.getTime() - travelMins * 60_000) : null;
             return [
               travelMins && travelStart ? (
