@@ -236,37 +236,36 @@ function TimeColumn({
       const otherIds: number[] = other.assignedWorkerIds ?? [];
       if (!otherIds.some((id: number) => assignedIds.includes(id))) continue;
       const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
-      if (otherEnd <= jobStart) {
+      if (otherEnd < jobStart) {
         const gap = Math.round((jobStart - otherEnd) / 60_000);
-        if (gap > 0 && gap <= 120 && (minGap === null || gap < minGap)) minGap = gap;
+        if (gap >= 0 && gap <= 120 && (minGap === null || gap < minGap)) minGap = gap;
       }
     }
     return minGap;
   }
 
   function renderTravelBlock(job: any, jobTop: number, travelMins: number, col: number, totalCols: number) {
-    const travelH = (travelMins / 60) * HOUR_H;
+    const travelH = Math.max((travelMins / 60) * HOUR_H, 10);
     const top = Math.max(0, jobTop - travelH);
     const height = jobTop - top;
-    if (height < 4) return null;
+    if (height < 6) return null;
     const w = 100 / totalCols;
+    const showLabel = height >= 16;
     return (
       <div
         key={`${job.id}-travel`}
-        className="absolute rounded border border-dashed px-1 py-0.5 overflow-hidden pointer-events-none z-[5]"
+        className="absolute rounded border border-dashed overflow-hidden pointer-events-none z-[5] flex items-center px-1 gap-1"
         style={{
           top: top + 1,
-          height: Math.max(height - 2, 8),
-          left: `calc(${col * w}% + 2px)`,
-          width: `calc(${w}% - 4px)`,
-          background: "rgba(234,88,12,0.06)",
-          borderColor: "rgba(234,88,12,0.2)",
+          height: height - 1,
+          left: `calc(${col * w}% + 3px)`,
+          width: `calc(${w}% - 6px)`,
+          background: "rgba(234,88,12,0.12)",
+          borderColor: "rgba(234,88,12,0.55)",
         }}
       >
-        <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70">
-          <Car size={8} />
-          {height >= 20 && <span>{travelMins}m drive</span>}
-        </div>
+        <Car size={9} className="text-orange-400 shrink-0" />
+        {showLabel && <span className="text-[9px] text-orange-400 font-semibold">{travelMins}m drive</span>}
       </div>
     );
   }
