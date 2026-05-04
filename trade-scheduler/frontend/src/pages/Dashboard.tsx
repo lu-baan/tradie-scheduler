@@ -58,14 +58,6 @@ export function Dashboard() {
     j.status !== "cancelled"
   ).length;
 
-  // Overtime risk: workers over 80% of their weekly cap
-  const overtimeRisk = workers.filter(w => {
-    const hrs = weekJobs
-      .filter(j => (j.assignedWorkerIds ?? []).includes(w.id))
-      .reduce((s, j) => s + (j.estimatedHours ?? 0), 0);
-    return hrs >= (w.maxWeeklyHours ?? 38) * 0.8;
-  }).length;
-
   // Mock chart data for visual appeal based on job types
   const chartData = [
     { name: "Quote", count: allJobs.filter(j => j.jobType === "quote").length },
@@ -84,7 +76,7 @@ export function Dashboard() {
       </div>
 
       {/* ── WFM KPI strip ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Utilization */}
         <Card className="p-4 border-white/5">
           <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
@@ -134,18 +126,6 @@ export function Dashboard() {
           </p>
         </Card>
 
-        {/* Overtime risk */}
-        <Card className={`p-4 border-white/5 ${overtimeRisk > 0 ? "border-orange-500/30" : ""}`}>
-          <p className="text-[10px] uppercase font-display tracking-widest text-muted-foreground mb-1 flex items-center gap-1">
-            <AlertTriangle size={10} /> Overtime Risk
-          </p>
-          <span className={`text-2xl font-display font-bold ${overtimeRisk > 0 ? "text-orange-400" : "text-green-400"}`}>
-            {overtimeRisk}
-          </span>
-          <p className="text-xs text-muted-foreground mt-1">
-            {overtimeRisk === 0 ? "No workers near cap" : `worker${overtimeRisk > 1 ? "s" : ""} ≥80% weekly cap`}
-          </p>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
