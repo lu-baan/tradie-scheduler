@@ -70,18 +70,25 @@ export function AppLayout({
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-black font-display font-bold">
+      <div className="md:hidden sticky top-0 z-40 flex items-center gap-3 border-b border-border bg-card/80 p-4 backdrop-blur-md">
+        <div className="min-w-0 flex flex-1 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary font-display font-bold text-black">
             TS2
           </div>
-          <span className="font-display font-bold text-xl tracking-wide">Trade Sched</span>
+          <div className="min-w-0 leading-none">
+            <p className="font-display text-[9px] font-semibold uppercase tracking-[0.28em] text-primary/90">
+              Trade
+            </p>
+            <p className="truncate font-display text-sm font-bold text-foreground sm:text-base">
+              Scheduler 2
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={onToggleTheme}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:text-foreground"
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           >
             {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
@@ -89,7 +96,7 @@ export function AppLayout({
           <button
             type="button"
             onClick={onLogout}
-            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:text-destructive"
             title="Log out"
           >
             <LogOut size={22} />
@@ -97,7 +104,7 @@ export function AppLayout({
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-foreground"
+            className="rounded-md p-1 text-foreground"
           >
             {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
