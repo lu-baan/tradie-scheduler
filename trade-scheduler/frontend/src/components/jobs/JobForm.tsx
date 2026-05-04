@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, X, ShieldCheck, MapPin } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, ArrowUp, ArrowDown, X, ShieldCheck, MapPin } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
@@ -162,6 +162,27 @@ function CharCount({ current, max }: { current: number; max: number }) {
   );
 }
 
+// ── Geo helpers ───────────────────────────────────────────────────────────────
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function timeAgo(ts: string): string {
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; onSuccess: () => void }) {
@@ -172,6 +193,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
   const [requiredSkills, setRequiredSkills] = useState<string[]>(initialData?.requiredSkills ?? []);
   const [skillInput, setSkillInput] = useState("");
+  const [workerSortKey, setWorkerSortKey] = useState<"name" | "distance">("name");
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
@@ -180,7 +202,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
 
   interface WorkerLocEntry {
     workerId: number;
-    location: { suburb: string; action: string } | null;
+    location: { suburb: string; action: string; ts: string; lat?: number; lng?: number } | null;
   }
   const { data: workerLocations } = useQuery<WorkerLocEntry[]>({
     queryKey: ["/api/workers/locations"],
@@ -284,6 +306,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const watchedDate = form.watch("scheduledDate");
   const watchedTime = form.watch("scheduledTime");
   const watchedHours = form.watch("estimatedHours");
+  const jobLat = form.watch("latitude");
+  const jobLng = form.watch("longitude");
 
   // Double-booking detection: check assigned workers against existing jobs
   const bookingConflicts: string[] = (() => {
@@ -854,26 +878,51 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
               })()}
 
               {/* Sort controls */}
-              <div className="flex items-center justify-end mb-2">
-                <button
-                  type="button"
-                  onClick={() => setWorkerSortDir(d => d === "asc" ? "desc" : "asc")}
-                  className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-input text-xs text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
-                  title={workerSortDir === "asc" ? "A → Z (click to reverse)" : "Z → A (click to reverse)"}
-                >
-                  {workerSortDir === "asc" ? <ArrowUpAZ size={14} /> : <ArrowDownAZ size={14} />}
-                  {workerSortDir === "asc" ? "A–Z" : "Z–A"}
-                </button>
+              <div className="flex items-center gap-1.5 justify-end mb-2">
+                {(["name", "distance"] as const).map(key => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      if (workerSortKey === key) setWorkerSortDir(d => d === "asc" ? "desc" : "asc");
+                      else { setWorkerSortKey(key); setWorkerSortDir("asc"); }
+                    }}
+                    className={`flex items-center gap-1 px-2 py-1.5 rounded-md border text-xs font-semibold transition-colors ${
+                      workerSortKey === key
+                        ? "bg-primary/15 border-primary/40 text-primary"
+                        : "border-input text-muted-foreground hover:text-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {key === "name"
+                      ? (workerSortKey === "name" && workerSortDir === "desc" ? <ArrowDownAZ size={13} /> : <ArrowUpAZ size={13} />)
+                      : (workerSortKey === "distance" && workerSortDir === "desc" ? <ArrowDown size={13} /> : <ArrowUp size={13} />)
+                    }
+                    {key === "name" ? "Name" : "Distance"}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-2">
-                {[...(workers ?? [])]
-                  .sort((a, b) =>
-                    workerSortDir === "asc"
+                {(() => {
+                  const enriched = [...(workers ?? [])].map(w => {
+                    const loc = locationMap.get(w.id) ?? null;
+                    const dist = (jobLat && jobLng && loc?.lat != null && loc?.lng != null)
+                      ? haversineKm(jobLat, jobLng, loc.lat, loc.lng)
+                      : null;
+                    return { ...w, loc, dist };
+                  });
+                  enriched.sort((a, b) => {
+                    if (workerSortKey === "distance") {
+                      const da = a.dist ?? (workerSortDir === "asc" ? Infinity : -Infinity);
+                      const db = b.dist ?? (workerSortDir === "asc" ? Infinity : -Infinity);
+                      return workerSortDir === "asc" ? da - db : db - da;
+                    }
+                    return workerSortDir === "asc"
                       ? a.name.localeCompare(b.name)
-                      : b.name.localeCompare(a.name)
-                  )
-                  .map(w => {
+                      : b.name.localeCompare(a.name);
+                  });
+                  return enriched;
+                })().map(w => {
                   const selectedDate = form.watch("scheduledDate");
                   const selectedTime = form.watch("scheduledTime");
                   const estimatedHrs = parseFloat(String(form.watch("estimatedHours") ?? 1)) || 1;
@@ -953,23 +1002,28 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                           );
                         })()}
 
-                        {/* Left: name + dots */}
-                        <div className="w-32 shrink-0">
+                        {/* Left: name + location + dots */}
+                        <div className="w-36 shrink-0">
                           <span className="font-semibold text-sm block truncate">{w.name}</span>
                           <span className="text-xs text-muted-foreground block truncate">
                             {w.tradeType}{!w.isAvailable && " (Off Duty)"}
                           </span>
-                          {(() => {
-                            const loc = locationMap.get(w.id);
-                            return loc ? (
-                              <span className="flex items-center gap-0.5 text-[10px] text-primary/70 truncate mt-0.5">
+                          {w.loc ? (
+                            <div className="mt-0.5 space-y-0.5">
+                              <span className="flex items-center gap-0.5 text-[10px] text-primary/80 truncate">
                                 <MapPin size={9} className="shrink-0" />
-                                {loc.suburb}
+                                {w.loc.suburb}
                               </span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">No location</span>
-                            );
-                          })()}
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                {w.dist != null && (
+                                  <span className="text-orange-400 font-semibold">{w.dist.toFixed(1)} km</span>
+                                )}
+                                <span>{timeAgo(w.loc.ts)}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">No location</span>
+                          )}
                           <div className="flex gap-0.5 mt-1.5">
                             {[0, 1, 2, 3].map(i => (
                               <div
