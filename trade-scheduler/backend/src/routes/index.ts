@@ -55,7 +55,7 @@ router.get("/test-email", requireAdmin, async (_req: Request, res: Response) => 
       totalWithGst: 110.00,
       pdfBuffer: Buffer.from("test pdf content"),
     });
-    res.json({ ok: true, message: "Email sent - check Mailtrap inbox" });
+    res.json({ ok: true, message: "Email sent via Mailtrap API" });
   } catch (err: any) {
     console.error("Test email failed:", err);
     res.status(500).json({ ok: false, error: err.message });

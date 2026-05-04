@@ -1,35 +1,64 @@
-import nodemailer from "nodemailer";
+import { MailtrapClient, type Mail } from "mailtrap";
 
-// ── Shared SMTP transporter (Mailtrap) ────────────────────────────────────────
+const DEFAULT_FROM_EMAIL = "noreply@tradescheduler.com.au";
+const DEFAULT_FROM_NAME = "Trade Scheduler";
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.MAILTRAP_HOST ?? "sandbox.smtp.mailtrap.io",
-    port: Number(process.env.MAILTRAP_SMTP_PORT ?? 587),
-    auth: {
-      user: process.env.MAILTRAP_USERNAME,
-      pass: process.env.MAILTRAP_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-  });
+let mailtrapClient: MailtrapClient | null = null;
+
+function parseBoolean(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined;
+  return value.toLowerCase() === "true";
 }
 
-// ── Password reset ────────────────────────────────────────────────────────────
+function getMailtrapClient(): MailtrapClient {
+  if (mailtrapClient) return mailtrapClient;
+
+  const token = process.env.MAILTRAP_TOKEN ?? process.env.MAILTRAP_API_KEY;
+  if (!token) {
+    throw new Error("Missing Mailtrap API token. Set MAILTRAP_TOKEN or MAILTRAP_API_KEY.");
+  }
+
+  const inboxIdRaw = process.env.MAILTRAP_INBOX_ID;
+  const testInboxId = inboxIdRaw ? Number(inboxIdRaw) : undefined;
+  if (inboxIdRaw && Number.isNaN(testInboxId)) {
+    throw new Error("MAILTRAP_INBOX_ID must be a number.");
+  }
+
+  const sandboxFlag = parseBoolean(process.env.MAILTRAP_USE_SANDBOX);
+  const sandbox = sandboxFlag ?? testInboxId !== undefined;
+  if (sandbox && testInboxId === undefined) {
+    throw new Error("MAILTRAP_INBOX_ID is required when Mailtrap sandbox mode is enabled.");
+  }
+
+  // Reuse a single API client so each send does not rebuild transport state.
+  mailtrapClient = new MailtrapClient({
+    token,
+    sandbox,
+    testInboxId,
+  });
+
+  return mailtrapClient;
+}
+
+function getFromAddress() {
+  return {
+    email: process.env.MAILTRAP_FROM_EMAIL ?? DEFAULT_FROM_EMAIL,
+    name: process.env.MAILTRAP_FROM_NAME ?? DEFAULT_FROM_NAME,
+  };
+}
+
+async function sendMail(mail: Mail): Promise<void> {
+  await getMailtrapClient().send(mail);
+}
 
 export async function sendPasswordResetEmail(opts: {
   toEmail: string;
   toName: string;
   resetLink: string;
 }): Promise<void> {
-  const fromEmail = process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au";
-  const fromName  = process.env.MAILTRAP_FROM_NAME  ?? "Trade Scheduler";
-
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from:    `"${fromName}" <${fromEmail}>`,
-    to:      `"${opts.toName}" <${opts.toEmail}>`,
+  await sendMail({
+    from: getFromAddress(),
+    to: [{ email: opts.toEmail, name: opts.toName }],
     subject: "Reset your Trade Scheduler 2 password",
     text: `Hi ${opts.toName},\n\nYou requested a password reset. Click the link below to set a new password:\n\n${opts.resetLink}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\nRegards,\nTrade Scheduler`,
     html: `
@@ -52,8 +81,6 @@ export async function sendPasswordResetEmail(opts: {
   });
 }
 
-// ── Invoice ───────────────────────────────────────────────────────────────────
-
 interface InvoiceEmailData {
   clientName: string;
   clientEmail: string;
@@ -64,14 +91,10 @@ interface InvoiceEmailData {
 }
 
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
-  const fromEmail = process.env.MAILTRAP_FROM_EMAIL ?? "noreply@tradescheduler.com.au";
-  const fromName  = process.env.MAILTRAP_FROM_NAME  ?? "Trade Scheduler";
-
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from:    `"${fromName}" <${fromEmail}>`,
-    to:      `"${data.clientName}" <${data.clientEmail}>`,
-    subject: `Invoice ${data.invoiceNumber} — ${data.jobTitle}`,
+  await sendMail({
+    from: getFromAddress(),
+    to: [{ email: data.clientEmail, name: data.clientName }],
+    subject: `Invoice ${data.invoiceNumber} - ${data.jobTitle}`,
     text: `Hi ${data.clientName},\n\nThank you for your business! Please find your invoice attached.\n\nInvoice: ${data.invoiceNumber}\nJob: ${data.jobTitle}\nTotal (inc. GST): $${data.totalWithGst.toFixed(2)}\n\nRegards,\nTrade Scheduler`,
     html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#222">
@@ -105,7 +128,7 @@ export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
       {
         filename: `invoice-${data.invoiceNumber}.pdf`,
         content: data.pdfBuffer,
-        contentType: "application/pdf",
+        type: "application/pdf",
       },
     ],
   });
