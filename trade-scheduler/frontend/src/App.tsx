@@ -27,9 +27,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function Router({ userRole, onLogout, theme, onToggleTheme }: { userRole: UserRole; onLogout: () => void; theme: "dark" | "light"; onToggleTheme: () => void }) {
+function Router({ userRole, username, onLogout, theme, onToggleTheme }: { userRole: UserRole; username: string; onLogout: () => void; theme: "dark" | "light"; onToggleTheme: () => void }) {
   return (
-    <AppLayout userRole={userRole} onLogout={onLogout} theme={theme} onToggleTheme={onToggleTheme}>
+    <AppLayout userRole={userRole} username={username} onLogout={onLogout} theme={theme} onToggleTheme={onToggleTheme}>
       <Switch>
         <Route path="/">
           {userRole === "admin" ? <Dashboard /> : <Redirect to="/jobs" />}
@@ -65,6 +65,7 @@ function App() {
   const [userRole, setUserRole] = useState<UserRole>(() => {
     return (sessionStorage.getItem("ts2_role") as UserRole) ?? "worker";
   });
+  const [username, setUsername] = useState(() => sessionStorage.getItem("ts2_full_name") ?? "");
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("ts2_theme") as "dark" | "light") ?? "dark";
   });
@@ -83,6 +84,7 @@ function App() {
     sessionStorage.setItem("ts2_role", role);
     setIsAuthenticated(true);
     setUserRole(role);
+    setUsername(sessionStorage.getItem("ts2_full_name") ?? "");
   };
 
   const handleLogout = () => {
@@ -114,7 +116,7 @@ function App() {
         />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           {isAuthenticated ? (
-            <Router userRole={userRole} onLogout={handleLogout} theme={theme} onToggleTheme={handleToggleTheme} />
+            <Router userRole={userRole} username={username} onLogout={handleLogout} theme={theme} onToggleTheme={handleToggleTheme} />
           ) : (
             <Switch>
               <Route path="/reset-password">

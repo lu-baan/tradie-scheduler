@@ -23,12 +23,14 @@ const AUTH_NAV_ITEMS = [
 export function AppLayout({
   children,
   userRole,
+  username,
   onLogout,
   theme,
   onToggleTheme,
 }: {
   children: React.ReactNode;
   userRole: UserRole;
+  username: string;
   onLogout: () => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
@@ -208,6 +210,11 @@ export function AppLayout({
             <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wide font-display">
               {userRole === "admin" ? "Admin / Foreman" : "Worker"}
             </p>
+            {username && (
+              <p className="font-display font-bold text-lg text-foreground mt-2 leading-tight truncate">
+                {username}
+              </p>
+            )}
           </div>
 
           <button

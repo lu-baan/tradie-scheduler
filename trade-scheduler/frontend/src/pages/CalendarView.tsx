@@ -30,8 +30,8 @@ import type { UserRole } from "@/App";
 
 type ViewMode = "month" | "week" | "day";
 
-const HOUR_START = 7;
-const HOUR_END = 20;
+const HOUR_START = 0;
+const HOUR_END = 24;
 const HOURS = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i);
 const HOUR_H = 64;
 
@@ -225,6 +225,25 @@ function TimeColumn({
       return [{ job, height: Math.min(overflow, gridMaxPx) }];
     });
 
+  function getEffectiveTravelMins(job: any): number | null {
+    if (job.travelTimeMinutes != null && job.travelTimeMinutes > 0) return job.travelTimeMinutes;
+    const assignedIds: number[] = job.assignedWorkerIds ?? [];
+    if (assignedIds.length === 0 || !job.scheduledDate) return null;
+    const jobStart = new Date(job.scheduledDate).getTime();
+    let minGap: number | null = null;
+    for (const other of timedJobs) {
+      if (other.id === job.id || !other.scheduledDate) continue;
+      const otherIds: number[] = other.assignedWorkerIds ?? [];
+      if (!otherIds.some((id: number) => assignedIds.includes(id))) continue;
+      const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
+      if (otherEnd <= jobStart) {
+        const gap = Math.round((jobStart - otherEnd) / 60_000);
+        if (gap > 0 && gap <= 120 && (minGap === null || gap < minGap)) minGap = gap;
+      }
+    }
+    return minGap;
+  }
+
   function renderTravelBlock(job: any, jobTop: number, travelMins: number, col: number, totalCols: number) {
     const travelH = (travelMins / 60) * HOUR_H;
     const top = Math.max(0, jobTop - travelH);
@@ -353,12 +372,13 @@ function TimeColumn({
           }
           const totalCols = Math.max(1, colEnds.length);
 
-          return positioned.flatMap(({ job, pos }, i) => [
-            job.travelTimeMinutes
-              ? renderTravelBlock(job, pos.top, job.travelTimeMinutes, cols[i], totalCols)
-              : null,
-            renderJobBlock(job, pos.top, pos.height, cols[i], totalCols),
-          ]);
+          return positioned.flatMap(({ job, pos }, i) => {
+            const travelMins = getEffectiveTravelMins(job);
+            return [
+              travelMins ? renderTravelBlock(job, pos.top, travelMins, cols[i], totalCols) : null,
+              renderJobBlock(job, pos.top, pos.height, cols[i], totalCols),
+            ];
+          });
         })()}
     </div>
   );
@@ -412,7 +432,21 @@ function DaySchedulePopup({
           {dayJobs.flatMap(job => {
             const start = new Date(job.scheduledDate);
             const end = new Date(start.getTime() + (job.estimatedHours || 1) * 3_600_000);
-            const travelMins = job.travelTimeMinutes;
+            let travelMins: number | null = job.travelTimeMinutes ?? null;
+            if (!travelMins) {
+              const assignedIds: number[] = job.assignedWorkerIds ?? [];
+              const jobStartMs = start.getTime();
+              for (const other of dayJobs) {
+                if (other.id === job.id || !other.scheduledDate) continue;
+                const otherIds: number[] = other.assignedWorkerIds ?? [];
+                if (!otherIds.some((id: number) => assignedIds.includes(id))) continue;
+                const otherEnd = new Date(other.scheduledDate).getTime() + (other.estimatedHours ?? 1) * 3_600_000;
+                if (otherEnd <= jobStartMs) {
+                  const gap = Math.round((jobStartMs - otherEnd) / 60_000);
+                  if (gap > 0 && gap <= 120 && (!travelMins || gap < travelMins)) travelMins = gap;
+                }
+              }
+            }
             const travelStart = travelMins ? new Date(start.getTime() - travelMins * 60_000) : null;
             return [
               travelMins && travelStart ? (

@@ -39,6 +39,7 @@ export const jobsTable = pgTable("jobs", {
   imageUrls: text("image_urls").notNull().default("[]"),
   requiredSkillsJson: text("required_skills_json").notNull().default("[]"),
   attendanceJson: text("attendance_json").notNull().default("[]"),
+  travelTimeMinutes: integer("travel_time_minutes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

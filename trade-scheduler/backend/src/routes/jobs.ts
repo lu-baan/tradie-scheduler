@@ -109,7 +109,7 @@ async function hydrateJobs(
       requiredSkills: parseJsonArr<string>(job.requiredSkillsJson),
       attendance: parseJsonArr<AttendanceEvent>(job.attendanceJson),
       distanceKm: drive.distanceKm,
-      travelTimeMinutes: drive.durationMinutes,
+      travelTimeMinutes: job.travelTimeMinutes ?? drive.durationMinutes,
       smartScore: null as number | null,
       createdAt: job.createdAt.toISOString(),
       updatedAt: job.updatedAt.toISOString(),
