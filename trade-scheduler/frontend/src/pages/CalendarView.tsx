@@ -18,7 +18,7 @@ import {
 } from "date-fns";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText, Car } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
@@ -225,6 +225,33 @@ function TimeColumn({
       return [{ job, height: Math.min(overflow, gridMaxPx) }];
     });
 
+  function renderTravelBlock(job: any, jobTop: number, travelMins: number, col: number, totalCols: number) {
+    const travelH = (travelMins / 60) * HOUR_H;
+    const top = Math.max(0, jobTop - travelH);
+    const height = jobTop - top;
+    if (height < 4) return null;
+    const w = 100 / totalCols;
+    return (
+      <div
+        key={`${job.id}-travel`}
+        className="absolute rounded border border-dashed px-1 py-0.5 overflow-hidden pointer-events-none z-[5]"
+        style={{
+          top: top + 1,
+          height: Math.max(height - 2, 8),
+          left: `calc(${col * w}% + 2px)`,
+          width: `calc(${w}% - 4px)`,
+          background: "rgba(234,88,12,0.06)",
+          borderColor: "rgba(234,88,12,0.2)",
+        }}
+      >
+        <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground/70">
+          <Car size={8} />
+          {height >= 20 && <span>{travelMins}m drive</span>}
+        </div>
+      </div>
+    );
+  }
+
   function renderJobBlock(job: any, top: number, height: number, col: number, totalCols: number, continuation = false) {
     const w = 100 / totalCols;
     const left = col * w;
@@ -326,9 +353,12 @@ function TimeColumn({
           }
           const totalCols = Math.max(1, colEnds.length);
 
-          return positioned.map(({ job, pos }, i) =>
-            renderJobBlock(job, pos.top, pos.height, cols[i], totalCols)
-          );
+          return positioned.flatMap(({ job, pos }, i) => [
+            job.travelTimeMinutes
+              ? renderTravelBlock(job, pos.top, job.travelTimeMinutes, cols[i], totalCols)
+              : null,
+            renderJobBlock(job, pos.top, pos.height, cols[i], totalCols),
+          ]);
         })()}
     </div>
   );
@@ -379,10 +409,22 @@ function DaySchedulePopup({
         <p className="text-sm text-muted-foreground text-center py-4">No jobs scheduled for this day.</p>
       ) : (
         <div className="space-y-2">
-          {dayJobs.map(job => {
+          {dayJobs.flatMap(job => {
             const start = new Date(job.scheduledDate);
             const end = new Date(start.getTime() + (job.estimatedHours || 1) * 3_600_000);
-            return (
+            const travelMins = job.travelTimeMinutes;
+            const travelStart = travelMins ? new Date(start.getTime() - travelMins * 60_000) : null;
+            return [
+              travelMins && travelStart ? (
+                <div
+                  key={`${job.id}-travel`}
+                  className="rounded-lg px-3 py-1.5 border border-dashed border-border bg-muted/20 text-[11px] flex items-center gap-2 text-muted-foreground -mb-1"
+                >
+                  <Car size={10} className="shrink-0" />
+                  <span>{format(travelStart, "h:mm a")} → {format(start, "h:mm a")}</span>
+                  <span className="ml-auto opacity-70">~{travelMins} min travel</span>
+                </div>
+              ) : null,
               <div
                 key={job.id}
                 className={cn("rounded-lg px-3 py-2 border text-sm", jobColorClass(job))}
@@ -402,8 +444,8 @@ function DaySchedulePopup({
                     </span>
                   )}
                 </div>
-              </div>
-            );
+              </div>,
+            ];
           })}
         </div>
       )}
