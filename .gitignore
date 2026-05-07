@@ -46,6 +46,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Generated repomix artifact — not for version control
+repomix-output.xml
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

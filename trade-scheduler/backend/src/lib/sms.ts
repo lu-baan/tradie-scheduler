@@ -1,9 +1,12 @@
 import twilio from "twilio";
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID!,
-  process.env.TWILIO_AUTH_TOKEN!
-);
+const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+const apiKeySid = process.env.TWILIO_API_KEY_SID;
+const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+
+const client = apiKeySid && apiKeySecret
+  ? twilio(apiKeySid, apiKeySecret, { accountSid })
+  : twilio(accountSid, process.env.TWILIO_AUTH_TOKEN!);
 const publicApiBaseUrl = (process.env.PUBLIC_API_BASE_URL ?? "https://trade-scheduler-api.onrender.com").replace(/\/$/, "");
 export const twilioDeliveryStatusCallbackUrl = `${publicApiBaseUrl}/api/twilio/message-status`;
 const twilioMessagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID?.trim();

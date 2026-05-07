@@ -26,7 +26,16 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\User\\\\Desktop\\\\3048 app\\\\team225-app_fit3048\" -Filter \".env*\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(findstr /i \"email\")",
-      "Bash(Select-String \"email\")"
+      "Bash(Select-String \"email\")",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm add:*)",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(pnpm --filter @workspace/db build)",
+      "Bash(curl -s http://localhost:3000/api/jobs)",
+      "Bash(grep -r \"DATABASE_URL\" e:/Job-Sorter/trade-scheduler/backend/.env*)"
     ]
   }
 }
