@@ -18,7 +18,7 @@ import {
   getMinutes,
 } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText, Car } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText, Car, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
@@ -550,6 +550,26 @@ function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState(job.notes ?? "");
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+
+  const sendOnMyWay = async () => {
+    setSmsSending(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/sms/on-my-way`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "SMS failed");
+      }
+      toast.success("SMS sent", { description: "Customer notified you're ~30 min away." });
+    } catch (err: any) {
+      toast.error("SMS failed", { description: err.message });
+    } finally {
+      setSmsSending(false);
+    }
+  };
 
   const saveMutation = useUpdateJob({
     mutation: {
@@ -655,12 +675,23 @@ function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
       {!isCompleted ? (
         <>
           {!completeOpen ? (
-            <Button
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
-              onClick={() => setCompleteOpen(true)}
-            >
-              <CheckCircle2 size={15} className="mr-2" /> Mark Job Complete
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                onClick={sendOnMyWay}
+                disabled={smsSending}
+              >
+                {smsSending ? <Loader2 size={13} className="animate-spin mr-1" /> : <Send size={13} className="mr-1" />}
+                On My Way
+              </Button>
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                onClick={() => setCompleteOpen(true)}
+              >
+                <CheckCircle2 size={15} className="mr-2" /> Complete
+              </Button>
+            </div>
           ) : (
             <div className="border border-green-500/30 bg-green-500/5 rounded-lg p-4 space-y-3">
               <p className="text-sm font-semibold">Confirm job complete?</p>
