@@ -1,26 +1,18 @@
-// Sends via Mailtrap sandbox HTTP API (no SMTP, no accountId required).
-// Set MAILTRAP_INBOX_ID for sandbox testing; omit it to use production sending.
+import nodemailer from "nodemailer";
 
-const FROM_EMAIL = process.env.MAILTRAP_FROM_EMAIL ?? "noreply@demomailtrap.co";
-const FROM_NAME  = process.env.MAILTRAP_FROM_NAME  ?? "Trade Scheduler";
+const transporter = nodemailer.createTransport({
+  host:   "smtp.gmail.com",
+  port:   587,
+  secure: false,
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
-async function sendViaSandbox(payload: object): Promise<void> {
-  const token   = process.env.MAILTRAP_TOKEN;
-  const inboxId = process.env.MAILTRAP_INBOX_ID;
-  if (!token)   throw new Error("MAILTRAP_TOKEN is not set");
-  if (!inboxId) throw new Error("MAILTRAP_INBOX_ID is not set");
-
-  const res = await fetch(`https://sandbox.api.mailtrap.io/api/send/${inboxId}`, {
-    method:  "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body:    JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Mailtrap sandbox error ${res.status}: ${body}`);
-  }
-}
+const FROM_EMAIL = process.env.GMAIL_FROM_EMAIL ?? process.env.GMAIL_USER ?? "";
+const FROM_NAME  = process.env.GMAIL_FROM_NAME  ?? "Trade Scheduler";
+const FROM       = `"${FROM_NAME}" <${FROM_EMAIL}>`;
 
 // ── Password reset ────────────────────────────────────────────────────────────
 
@@ -29,9 +21,9 @@ export async function sendPasswordResetEmail(opts: {
   toName:    string;
   resetLink: string;
 }): Promise<void> {
-  await sendViaSandbox({
-    from:    { email: FROM_EMAIL, name: FROM_NAME },
-    to:      [{ email: opts.toEmail, name: opts.toName }],
+  await transporter.sendMail({
+    from:    FROM,
+    to:      `"${opts.toName}" <${opts.toEmail}>`,
     subject: "Reset your Trade Scheduler 2 password",
     html: `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
@@ -66,9 +58,9 @@ interface InvoiceEmailData {
 }
 
 export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
-  await sendViaSandbox({
-    from:    { email: FROM_EMAIL, name: FROM_NAME },
-    to:      [{ email: data.clientEmail, name: data.clientName }],
+  await transporter.sendMail({
+    from:    FROM,
+    to:      `"${data.clientName}" <${data.clientEmail}>`,
     subject: `Invoice ${data.invoiceNumber} — ${data.jobTitle}`,
     html: `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#222">
@@ -92,9 +84,8 @@ export async function sendInvoiceEmail(data: InvoiceEmailData): Promise<void> {
     attachments: [
       {
         filename:    `invoice-${data.invoiceNumber}.pdf`,
-        content:     data.pdfBuffer.toString("base64"),
-        type:        "application/pdf",
-        disposition: "attachment",
+        content:     data.pdfBuffer,
+        contentType: "application/pdf",
       },
     ],
   });
