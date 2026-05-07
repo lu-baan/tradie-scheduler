@@ -25,7 +25,7 @@ const SORT_DESCRIPTIONS: Record<string, string> = {
   distance: "Sort by distance from your location",
   smart: "Combined score using distance + price + validity code weights",
   validityCode: "Sort by validity code (priority)",
-  upcoming: "Next happening: Code 9 first, then by priority code, then by scheduled time",
+  upcoming: "Next happening jobs: Code 9 emergencies first, then by scheduled time",
 };
 
 type SortDir = "asc" | "desc";
@@ -110,10 +110,14 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
     const dir = sortDir === "asc" ? 1 : -1;
     const sorted = (() => {
       if (sortBy === "upcoming") {
-        // Code 9 handled by partition below; within non-emergency: validityCode desc → scheduledDate asc
-        return [...result].sort((a, b) => {
-          const vc = (b.validityCode ?? 0) - (a.validityCode ?? 0);
-          if (vc !== 0) return vc;
+        // Filter to show only future jobs (scheduled date >= now)
+        const now = new Date();
+        const futureJobs = result.filter(job => {
+          if (!job.scheduledDate) return false;
+          return new Date(job.scheduledDate) >= now;
+        });
+        // Code 9 handled by partition below; within non-emergency: sort by scheduledDate asc only
+        return [...futureJobs].sort((a, b) => {
           return (a.scheduledDate ?? "").localeCompare(b.scheduledDate ?? "");
         });
       }
