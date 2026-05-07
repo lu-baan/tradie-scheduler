@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { MapPin, Search, ArrowUpAZ, ArrowDownAZ, RefreshCw, Clock, WifiOff, Phone, Mail, Briefcase, Navigation } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format, parseISO } from "date-fns";
 import { useGeolocation } from "@/hooks/use-geolocation";
 
@@ -20,17 +20,6 @@ interface WorkerLocation {
     ts: string;
     action: string;
   } | null;
-}
-
-interface WorkerDetail {
-  id: number;
-  name: string;
-  tradeType: string;
-  phone: string | null;
-  email: string | null;
-  isAvailable: boolean;
-  hourlyRate: number | null;
-  skills: string[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,97 +59,6 @@ function fmtTime(iso: string) {
   } catch {
     return iso;
   }
-}
-
-// ── Worker Profile Dialog ─────────────────────────────────────────────────────
-
-function WorkerProfileDialog({ entry, onClose }: { entry: WorkerLocation; onClose: () => void }) {
-  const [worker, setWorker] = useState<WorkerDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/workers", { credentials: "include" })
-      .then(r => r.json())
-      .then((workers: WorkerDetail[]) => {
-        setWorker(workers.find(w => w.id === entry.workerId) ?? null);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [entry.workerId]);
-
-  return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <Avatar name={entry.workerName} size="lg" />
-            <div>
-              <p className="font-display font-bold text-lg leading-tight">{entry.workerName}</p>
-              <p className="text-sm text-primary font-medium">{entry.tradeType}</p>
-            </div>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-3 text-sm pt-1">
-          {/* Availability */}
-          <span className={`inline-flex text-xs font-bold px-2.5 py-1 rounded-full ${entry.isAvailable ? "bg-green-500/15 text-green-400" : "bg-muted text-muted-foreground"}`}>
-            {entry.isAvailable ? "Available" : "Off Duty"}
-          </span>
-
-          {loading ? (
-            <div className="py-4 text-center text-muted-foreground text-xs">Loading profile…</div>
-          ) : (
-            <>
-              {/* Contact */}
-              {worker?.phone && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone size={14} className="text-primary shrink-0" />
-                  <a href={`tel:${worker.phone}`} className="hover:text-primary transition-colors">{worker.phone}</a>
-                </div>
-              )}
-              {worker?.email && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail size={14} className="text-primary shrink-0" />
-                  <a href={`mailto:${worker.email}`} className="hover:text-primary transition-colors text-xs truncate">{worker.email}</a>
-                </div>
-              )}
-
-              {/* Trade / Rate */}
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Briefcase size={14} className="text-primary shrink-0" />
-                <span>{entry.tradeType}{worker?.hourlyRate ? ` · $${worker.hourlyRate}/hr` : ""}</span>
-              </div>
-
-              {/* Skills */}
-              {worker?.skills && worker.skills.length > 0 && (
-                <div className="pt-1">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-display mb-1.5">Skills & Licences</p>
-                  <div className="flex flex-wrap gap-1">
-                    {worker.skills.map(s => (
-                      <span key={s} className="text-[10px] bg-secondary px-2 py-0.5 rounded-full">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Last known location */}
-          {entry.location && (
-            <div className="flex items-start gap-2 pt-3 border-t border-border">
-              <MapPin size={14} className="text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium">{entry.location.suburb}</p>
-                <p className="text-xs text-muted-foreground">
-                  {ACTION_LABEL[entry.location.action] ?? entry.location.action} · {fmtTime(entry.location.ts)}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 // ── Worker location card ──────────────────────────────────────────────────────
@@ -213,13 +111,13 @@ function WorkerLocationCard({ entry, onClick }: { entry: WorkerLocation; onClick
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function LocationView() {
+  const [, navigate] = useLocation();
   const [data, setData] = useState<WorkerLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [profileWorker, setProfileWorker] = useState<WorkerLocation | null>(null);
 
   const { location, suburb, requestLocation, loading: locLoading } = useGeolocation();
 
@@ -360,14 +258,9 @@ export function LocationView() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {sorted.map(w => (
-            <WorkerLocationCard key={w.workerId} entry={w} onClick={() => setProfileWorker(w)} />
+            <WorkerLocationCard key={w.workerId} entry={w} onClick={() => navigate(`/workers/${w.workerId}`)} />
           ))}
         </div>
-      )}
-
-      {/* Worker profile dialog */}
-      {profileWorker && (
-        <WorkerProfileDialog entry={profileWorker} onClose={() => setProfileWorker(null)} />
       )}
     </div>
   );
