@@ -121,272 +121,272 @@ const SCHEDULE: Day[] = [
   // JAMES KOWALSKI — Electrician
   // ════════════════════════════════════════════════════════════════════════════
   { w:0, date:"2026-05-04", startHour:8, status:"completed", jobs:[
-    { title:"Power point additions", clientName:"Marcus Webb", clientPhone:"0312233445", addr:"123 Smith St, Fitzroy VIC 3065", hrs:2.5, price:680, vc:1 },
-    { title:"Switchboard safety audit", clientName:"Diana Lowe", clientPhone:"0323344556", addr:"18 Johnston St, Collingwood VIC 3066", hrs:2, price:520, vc:2 },
+    { title:"Power point additions", clientName:"Marcus Webb", clientPhone:"0490001702", addr:"123 Smith St, Fitzroy VIC 3065", hrs:2.5, price:680, vc:1 },
+    { title:"Switchboard safety audit", clientName:"Diana Lowe", clientPhone:"0490001702", addr:"18 Johnston St, Collingwood VIC 3066", hrs:2, price:520, vc:2 },
   ]},
   { w:0, date:"2026-05-06", startHour:8, status:"completed", jobs:[
-    { title:"Outdoor lighting install", clientName:"Chris Doyle", clientPhone:"0334455667", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3.5, price:1650, vc:2 },
-    { title:"Safety switch replacement", clientName:"Rebecca Yates", clientPhone:"0345566778", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:2, price:480, vc:1 },
+    { title:"Outdoor lighting install", clientName:"Chris Doyle", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3.5, price:1650, vc:2 },
+    { title:"Safety switch replacement", clientName:"Rebecca Yates", clientPhone:"0490001702", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:2, price:480, vc:1 },
   ]},
   { w:0, date:"2026-05-08", startHour:8, status:"completed", jobs:[
-    { title:"Kitchen circuit upgrade", clientName:"Brent Sutton", clientPhone:"0356677889", addr:"32 Lygon St, Carlton VIC 3053", hrs:4, price:1920, vc:3 },
-    { title:"Fault finding & repair", clientName:"Nadia Frost", clientPhone:"0367788990", addr:"45 Church St, Richmond VIC 3121", hrs:2, price:560, vc:2 },
+    { title:"Kitchen circuit upgrade", clientName:"Brent Sutton", clientPhone:"0490001702", addr:"32 Lygon St, Carlton VIC 3053", hrs:4, price:1920, vc:3 },
+    { title:"Fault finding & repair", clientName:"Nadia Frost", clientPhone:"0490001702", addr:"45 Church St, Richmond VIC 3121", hrs:2, price:560, vc:2 },
   ]},
   { w:0, date:"2026-05-12", startHour:8, status:"completed", jobs:[
-    { title:"LED downlight installation", clientName:"Felix Harper", clientPhone:"0378899001", addr:"100 High St, Northcote VIC 3070", hrs:3, price:840, vc:1 },
-    { title:"Carport power supply", clientName:"Zara Mills", clientPhone:"0389900112", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:2.5, price:750, vc:2 },
+    { title:"LED downlight installation", clientName:"Felix Harper", clientPhone:"0490001702", addr:"100 High St, Northcote VIC 3070", hrs:3, price:840, vc:1 },
+    { title:"Carport power supply", clientName:"Zara Mills", clientPhone:"0490001702", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:2.5, price:750, vc:2 },
   ]},
   { w:0, date:"2026-05-14", startHour:7, status:"completed", jobs:[
-    { title:"Full house rewire — stage 1", clientName:"Graham Reeves", clientPhone:"0300112233", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:5, price:3200, vc:3 },
-    { title:"Security lighting — rear yard", clientName:"Lena Chambers", clientPhone:"0311223344", addr:"8 High St, Kew VIC 3101", hrs:2.5, price:890, vc:2 },
+    { title:"Full house rewire — stage 1", clientName:"Graham Reeves", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:5, price:3200, vc:3 },
+    { title:"Security lighting — rear yard", clientName:"Lena Chambers", clientPhone:"0490001702", addr:"8 High St, Kew VIC 3101", hrs:2.5, price:890, vc:2 },
   ]},
   { w:0, date:"2026-05-19", startHour:8, status:"confirmed", jobs:[
-    { title:"Switchboard upgrade — 3-phase", clientName:"Derek Lawson", clientPhone:"0322334455", addr:"34 Buckley St, Essendon VIC 3040", hrs:5, price:2900, vc:3 },
-    { title:"Smoke alarm compliance", clientName:"Heidi Cross", clientPhone:"0333445566", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:1.5, price:380, vc:1 },
+    { title:"Switchboard upgrade — 3-phase", clientName:"Derek Lawson", clientPhone:"0490001702", addr:"34 Buckley St, Essendon VIC 3040", hrs:5, price:2900, vc:3 },
+    { title:"Smoke alarm compliance", clientName:"Heidi Cross", clientPhone:"0490001702", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:1.5, price:380, vc:1 },
   ]},
   { w:0, date:"2026-05-21", startHour:8, status:"confirmed", jobs:[
-    { title:"Office electrical fitout", clientName:"BluePeak Consulting", clientPhone:"0344556677", addr:"500 Bourke St, Melbourne VIC 3000", hrs:5, price:4200, vc:3 },
-    { title:"Emergency exit lighting", clientName:"Docklands Gym", clientPhone:"0355667788", addr:"43 Waterfront Way, Docklands VIC 3008", hrs:2.5, price:960, vc:2 },
+    { title:"Office electrical fitout", clientName:"BluePeak Consulting", clientPhone:"0490001702", addr:"500 Bourke St, Melbourne VIC 3000", hrs:5, price:4200, vc:3 },
+    { title:"Emergency exit lighting", clientName:"Docklands Gym", clientPhone:"0490001702", addr:"43 Waterfront Way, Docklands VIC 3008", hrs:2.5, price:960, vc:2 },
   ]},
   { w:0, date:"2026-05-26", startHour:8, status:"pending", jobs:[
-    { title:"Bathroom exhaust fan install", clientName:"Petra Voss", clientPhone:"0366778899", addr:"78 Acland St, St Kilda VIC 3182", hrs:2, price:420, vc:1 },
-    { title:"Hot water timer & circuit", clientName:"Yusuf Karim", clientPhone:"0377889900", addr:"201 Chapel St, Prahran VIC 3181", hrs:2.5, price:680, vc:2 },
+    { title:"Bathroom exhaust fan install", clientName:"Petra Voss", clientPhone:"0490001702", addr:"78 Acland St, St Kilda VIC 3182", hrs:2, price:420, vc:1 },
+    { title:"Hot water timer & circuit", clientName:"Yusuf Karim", clientPhone:"0490001702", addr:"201 Chapel St, Prahran VIC 3181", hrs:2.5, price:680, vc:2 },
   ]},
   { w:0, date:"2026-05-28", startHour:8, status:"pending", jobs:[
-    { title:"Rewire rear cottage", clientName:"Fiona Hartley", clientPhone:"0388990011", addr:"38 Were St, Brighton VIC 3186", hrs:4.5, price:2600, vc:3 },
-    { title:"Garden lighting circuit", clientName:"Claude Bernard", clientPhone:"0399001122", addr:"25 Orrong Rd, Caulfield VIC 3162", hrs:2, price:580, vc:1 },
+    { title:"Rewire rear cottage", clientName:"Fiona Hartley", clientPhone:"0490001702", addr:"38 Were St, Brighton VIC 3186", hrs:4.5, price:2600, vc:3 },
+    { title:"Garden lighting circuit", clientName:"Claude Bernard", clientPhone:"0490001702", addr:"25 Orrong Rd, Caulfield VIC 3162", hrs:2, price:580, vc:1 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // SARAH NGUYEN — Plumber
   // ════════════════════════════════════════════════════════════════════════════
   { w:1, date:"2026-05-05", startHour:8, status:"completed", jobs:[
-    { title:"Leaking tap & valve replacement", clientName:"Simone Archer", clientPhone:"0411334455", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:2, price:480, vc:1 },
-    { title:"Drain unblocking", clientName:"Boris Holt", clientPhone:"0422445566", addr:"22 Victoria St, Abbotsford VIC 3067", hrs:1.5, price:320, vc:1 },
+    { title:"Leaking tap & valve replacement", clientName:"Simone Archer", clientPhone:"0490001702", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:2, price:480, vc:1 },
+    { title:"Drain unblocking", clientName:"Boris Holt", clientPhone:"0490001702", addr:"22 Victoria St, Abbotsford VIC 3067", hrs:1.5, price:320, vc:1 },
   ]},
   { w:1, date:"2026-05-07", startHour:8, status:"completed", jobs:[
-    { title:"Bathroom tap set replacement", clientName:"Ingrid Moller", clientPhone:"0433556677", addr:"201 Chapel St, Prahran VIC 3181", hrs:2.5, price:650, vc:2 },
-    { title:"Toilet suite install", clientName:"Wayne Briggs", clientPhone:"0444667788", addr:"78 Acland St, St Kilda VIC 3182", hrs:2, price:520, vc:1 },
+    { title:"Bathroom tap set replacement", clientName:"Ingrid Moller", clientPhone:"0490001702", addr:"201 Chapel St, Prahran VIC 3181", hrs:2.5, price:650, vc:2 },
+    { title:"Toilet suite install", clientName:"Wayne Briggs", clientPhone:"0490001702", addr:"78 Acland St, St Kilda VIC 3182", hrs:2, price:520, vc:1 },
   ]},
   { w:1, date:"2026-05-09", startHour:8, status:"completed", jobs:[
-    { title:"Hot water system service", clientName:"Tamara Nguyen", clientPhone:"0455778899", addr:"32 Lygon St, Carlton VIC 3053", hrs:2, price:580, vc:2 },
-    { title:"Laundry connection — new build", clientName:"Uni of Melbourne", clientPhone:"0390111222", addr:"Grattan St, Parkville VIC 3052", hrs:2.5, price:780, vc:2 },
+    { title:"Hot water system service", clientName:"Tamara Nguyen", clientPhone:"0490001702", addr:"32 Lygon St, Carlton VIC 3053", hrs:2, price:580, vc:2 },
+    { title:"Laundry connection — new build", clientName:"Uni of Melbourne", clientPhone:"0490001702", addr:"Grattan St, Parkville VIC 3052", hrs:2.5, price:780, vc:2 },
   ]},
   { w:1, date:"2026-05-13", startHour:8, status:"completed", jobs:[
-    { title:"Full bathroom rough-in", clientName:"Gary Newton", clientPhone:"0466889900", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:5, price:2200, vc:3 },
-    { title:"Outside tap installation", clientName:"Vera Coleman", clientPhone:"0477990011", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:1.5, price:280, vc:1 },
+    { title:"Full bathroom rough-in", clientName:"Gary Newton", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:5, price:2200, vc:3 },
+    { title:"Outside tap installation", clientName:"Vera Coleman", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:1.5, price:280, vc:1 },
   ]},
   { w:1, date:"2026-05-15", startHour:8, status:"completed", jobs:[
-    { title:"Drain camera inspection", clientName:"Pete Hoffman", clientPhone:"0488001122", addr:"100 High St, Northcote VIC 3070", hrs:2, price:450, vc:2 },
-    { title:"Water pressure regulator", clientName:"Xian Wong", clientPhone:"0499112233", addr:"45 St Georges Rd, Thornbury VIC 3071", hrs:1.5, price:380, vc:1 },
+    { title:"Drain camera inspection", clientName:"Pete Hoffman", clientPhone:"0490001702", addr:"100 High St, Northcote VIC 3070", hrs:2, price:450, vc:2 },
+    { title:"Water pressure regulator", clientName:"Xian Wong", clientPhone:"0490001702", addr:"45 St Georges Rd, Thornbury VIC 3071", hrs:1.5, price:380, vc:1 },
   ]},
   { w:1, date:"2026-05-19", startHour:8, status:"confirmed", jobs:[
-    { title:"Kitchen renovation plumbing", clientName:"Aaron Finley", clientPhone:"0400223344", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:5, price:2800, vc:3 },
-    { title:"Garden tap + irrigation main", clientName:"Damien Ashford", clientPhone:"0411334455", addr:"3 Albany Rd, Toorak VIC 3142", hrs:2, price:620, vc:2 },
+    { title:"Kitchen renovation plumbing", clientName:"Aaron Finley", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:5, price:2800, vc:3 },
+    { title:"Garden tap + irrigation main", clientName:"Damien Ashford", clientPhone:"0490001702", addr:"3 Albany Rd, Toorak VIC 3142", hrs:2, price:620, vc:2 },
   ]},
   { w:1, date:"2026-05-21", startHour:8, status:"confirmed", jobs:[
-    { title:"HWS replacement — gas", clientName:"Natalie Cross", clientPhone:"0422445566", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:3, price:1450, vc:2 },
-    { title:"Backflow preventer install", clientName:"Allan Park", clientPhone:"0433556677", addr:"Main St, Coburg VIC 3058", hrs:2, price:580, vc:2 },
+    { title:"HWS replacement — gas", clientName:"Natalie Cross", clientPhone:"0490001702", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:3, price:1450, vc:2 },
+    { title:"Backflow preventer install", clientName:"Allan Park", clientPhone:"0490001702", addr:"Main St, Coburg VIC 3058", hrs:2, price:580, vc:2 },
   ]},
   { w:1, date:"2026-05-27", startHour:8, status:"pending", jobs:[
-    { title:"Commercial kitchen plumbing", clientName:"Urban Goods Co.", clientPhone:"0444667788", addr:"12 Hopkins St, Footscray VIC 3011", hrs:5, price:3200, vc:3 },
-    { title:"Outdoor shower connection", clientName:"Nina Walsh", clientPhone:"0455778899", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:2, price:480, vc:1 },
+    { title:"Commercial kitchen plumbing", clientName:"Urban Goods Co.", clientPhone:"0490001702", addr:"12 Hopkins St, Footscray VIC 3011", hrs:5, price:3200, vc:3 },
+    { title:"Outdoor shower connection", clientName:"Nina Walsh", clientPhone:"0490001702", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:2, price:480, vc:1 },
   ]},
   { w:1, date:"2026-05-29", startHour:9, status:"pending", jobs:[
-    { title:"Pipe relining — blocked main", clientName:"Phillip Tan", clientPhone:"0466889900", addr:"23 Buckley St, Moonee Ponds VIC 3039", hrs:3.5, price:2100, vc:2 },
-    { title:"Laundry trough replacement", clientName:"Carol Dempsey", clientPhone:"0477990011", addr:"77 Racecourse Rd, Flemington VIC 3031", hrs:2, price:520, vc:1 },
+    { title:"Pipe relining — blocked main", clientName:"Phillip Tan", clientPhone:"0490001702", addr:"23 Buckley St, Moonee Ponds VIC 3039", hrs:3.5, price:2100, vc:2 },
+    { title:"Laundry trough replacement", clientName:"Carol Dempsey", clientPhone:"0490001702", addr:"77 Racecourse Rd, Flemington VIC 3031", hrs:2, price:520, vc:1 },
   ]},
   // Emergency Code 9
   { w:1, date:"2026-05-31", startHour:7, status:"pending", jobs:[
-    { title:"CODE 9 — Main water main burst", clientName:"Millhouse Apartments", clientPhone:"0433556677", addr:"1 St Georges Rd, Toorak VIC 3142", hrs:4, price:3800, vc:3, notes:"Burst cold main flooding basement. Immediate response." },
+    { title:"CODE 9 — Main water main burst", clientName:"Millhouse Apartments", clientPhone:"0490001702", addr:"1 St Georges Rd, Toorak VIC 3142", hrs:4, price:3800, vc:3, notes:"Burst cold main flooding basement. Immediate response." },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // MICHAEL CHEN — Carpenter
   // ════════════════════════════════════════════════════════════════════════════
   { w:2, date:"2026-05-05", startHour:7, status:"completed", jobs:[
-    { title:"Custom kitchen cabinetry", clientName:"Sophie Bell", clientPhone:"0388112233", addr:"123 Smith St, Fitzroy VIC 3065", hrs:6, price:4800, vc:3 },
-    { title:"Built-in bookshelf", clientName:"Owen Clarke", clientPhone:"0399223344", addr:"32 Lygon St, Carlton VIC 3053", hrs:3, price:1200, vc:2 },
+    { title:"Custom kitchen cabinetry", clientName:"Sophie Bell", clientPhone:"0490001702", addr:"123 Smith St, Fitzroy VIC 3065", hrs:6, price:4800, vc:3 },
+    { title:"Built-in bookshelf", clientName:"Owen Clarke", clientPhone:"0490001702", addr:"32 Lygon St, Carlton VIC 3053", hrs:3, price:1200, vc:2 },
   ]},
   { w:2, date:"2026-05-08", startHour:8, status:"completed", jobs:[
-    { title:"Deck balustrade repair", clientName:"Graham Reeves", clientPhone:"0300334455", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:3, price:1100, vc:2 },
-    { title:"Timber floor repair", clientName:"Lily Pearce", clientPhone:"0311445566", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:980, vc:2 },
+    { title:"Deck balustrade repair", clientName:"Graham Reeves", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:3, price:1100, vc:2 },
+    { title:"Timber floor repair", clientName:"Lily Pearce", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:980, vc:2 },
   ]},
   { w:2, date:"2026-05-12", startHour:8, status:"completed", jobs:[
-    { title:"Study room built-ins", clientName:"Jack Vickers", clientPhone:"0322556677", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:4, price:1850, vc:2 },
-    { title:"Staircase timber cladding", clientName:"Renee Grant", clientPhone:"0333667788", addr:"8 High St, Kew VIC 3101", hrs:4, price:2100, vc:3 },
+    { title:"Study room built-ins", clientName:"Jack Vickers", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:4, price:1850, vc:2 },
+    { title:"Staircase timber cladding", clientName:"Renee Grant", clientPhone:"0490001702", addr:"8 High St, Kew VIC 3101", hrs:4, price:2100, vc:3 },
   ]},
   { w:2, date:"2026-05-19", startHour:8, status:"confirmed", jobs:[
-    { title:"Pergola frame construction", clientName:"Tomas Silva", clientPhone:"0344778899", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:5, price:3600, vc:2 },
-    { title:"Fence panel replacement", clientName:"Pat Kelly", clientPhone:"0355889900", addr:"18 Johnston St, Collingwood VIC 3066", hrs:3, price:1100, vc:1 },
+    { title:"Pergola frame construction", clientName:"Tomas Silva", clientPhone:"0490001702", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:5, price:3600, vc:2 },
+    { title:"Fence panel replacement", clientName:"Pat Kelly", clientPhone:"0490001702", addr:"18 Johnston St, Collingwood VIC 3066", hrs:3, price:1100, vc:1 },
   ]},
   { w:2, date:"2026-05-20", startHour:8, status:"confirmed", jobs:[
-    { title:"Reception desk — commercial fitout", clientName:"BluePeak Consulting", clientPhone:"0344556677", addr:"500 Bourke St, Melbourne VIC 3000", hrs:6, price:5400, vc:3, numTradies:2 },
-    { title:"Boardroom cabinetry", clientName:"BluePeak Consulting", clientPhone:"0344556677", addr:"500 Bourke St, Melbourne VIC 3000", hrs:2, price:1800, vc:3, numTradies:2 },
+    { title:"Reception desk — commercial fitout", clientName:"BluePeak Consulting", clientPhone:"0490001702", addr:"500 Bourke St, Melbourne VIC 3000", hrs:6, price:5400, vc:3, numTradies:2 },
+    { title:"Boardroom cabinetry", clientName:"BluePeak Consulting", clientPhone:"0490001702", addr:"500 Bourke St, Melbourne VIC 3000", hrs:2, price:1800, vc:3, numTradies:2 },
   ]},
   { w:2, date:"2026-05-26", startHour:8, status:"pending", jobs:[
-    { title:"Home office renovation", clientName:"Rita Hanson", clientPhone:"0366990011", addr:"25 Doncaster Rd, Doncaster VIC 3108", hrs:4, price:2200, vc:2 },
-    { title:"Pergola decking", clientName:"Sam Yeo", clientPhone:"0377001122", addr:"1 Albany St, Box Hill VIC 3128", hrs:3, price:1500, vc:2 },
+    { title:"Home office renovation", clientName:"Rita Hanson", clientPhone:"0490001702", addr:"25 Doncaster Rd, Doncaster VIC 3108", hrs:4, price:2200, vc:2 },
+    { title:"Pergola decking", clientName:"Sam Yeo", clientPhone:"0490001702", addr:"1 Albany St, Box Hill VIC 3128", hrs:3, price:1500, vc:2 },
   ]},
   { w:2, date:"2026-05-28", startHour:8, status:"pending", jobs:[
-    { title:"Custom wardrobe — master bedroom", clientName:"Connor Walsh", clientPhone:"0388112233", addr:"45 Whitehorse Rd, Balwyn VIC 3103", hrs:5, price:2800, vc:2 },
-    { title:"Laundry fitout", clientName:"Moira Flynn", clientPhone:"0399223344", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:2.5, price:900, vc:1 },
+    { title:"Custom wardrobe — master bedroom", clientName:"Connor Walsh", clientPhone:"0490001702", addr:"45 Whitehorse Rd, Balwyn VIC 3103", hrs:5, price:2800, vc:2 },
+    { title:"Laundry fitout", clientName:"Moira Flynn", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:2.5, price:900, vc:1 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // EMMA THOMPSON — Painter
   // ════════════════════════════════════════════════════════════════════════════
   { w:3, date:"2026-05-05", startHour:7, status:"completed", jobs:[
-    { title:"Interior repaint — 2BR unit", clientName:"Claire Dubois", clientPhone:"0400334455", addr:"32 Lygon St, Carlton VIC 3053", hrs:7, price:2100, vc:2 },
-    { title:"Feature wall — lounge", clientName:"Marcus Webb", clientPhone:"0411445566", addr:"123 Smith St, Fitzroy VIC 3065", hrs:3, price:680, vc:1 },
+    { title:"Interior repaint — 2BR unit", clientName:"Claire Dubois", clientPhone:"0490001702", addr:"32 Lygon St, Carlton VIC 3053", hrs:7, price:2100, vc:2 },
+    { title:"Feature wall — lounge", clientName:"Marcus Webb", clientPhone:"0490001702", addr:"123 Smith St, Fitzroy VIC 3065", hrs:3, price:680, vc:1 },
   ]},
   { w:3, date:"2026-05-07", startHour:7, status:"completed", jobs:[
-    { title:"Exterior trim repaint", clientName:"Daniel Rowe", clientPhone:"0422556677", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:5, price:2400, vc:2 },
-    { title:"Bathroom repaint", clientName:"Susanna Price", clientPhone:"0433667788", addr:"78 Acland St, St Kilda VIC 3182", hrs:3, price:760, vc:1 },
+    { title:"Exterior trim repaint", clientName:"Daniel Rowe", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:5, price:2400, vc:2 },
+    { title:"Bathroom repaint", clientName:"Susanna Price", clientPhone:"0490001702", addr:"78 Acland St, St Kilda VIC 3182", hrs:3, price:760, vc:1 },
   ]},
   { w:3, date:"2026-05-12", startHour:7, status:"completed", jobs:[
-    { title:"3-bedroom house interior", clientName:"Henry Wallace", clientPhone:"0444778899", addr:"15 Johnston St, Collingwood VIC 3066", hrs:7, price:3200, vc:3, numTradies:2 },
-    { title:"Staircase & hallway repaint", clientName:"Yuki Tanaka", clientPhone:"0455889900", addr:"100 High St, Northcote VIC 3070", hrs:4, price:1100, vc:2 },
+    { title:"3-bedroom house interior", clientName:"Henry Wallace", clientPhone:"0490001702", addr:"15 Johnston St, Collingwood VIC 3066", hrs:7, price:3200, vc:3, numTradies:2 },
+    { title:"Staircase & hallway repaint", clientName:"Yuki Tanaka", clientPhone:"0490001702", addr:"100 High St, Northcote VIC 3070", hrs:4, price:1100, vc:2 },
   ]},
   { w:3, date:"2026-05-19", startHour:7, status:"confirmed", jobs:[
-    { title:"Apartment interior — full repaint", clientName:"Leo Stern", clientPhone:"0466990011", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:7, price:2800, vc:2 },
-    { title:"Fence paint — front", clientName:"Anna Kovalev", clientPhone:"0477001122", addr:"22 Victoria St, Abbotsford VIC 3067", hrs:3, price:650, vc:1 },
+    { title:"Apartment interior — full repaint", clientName:"Leo Stern", clientPhone:"0490001702", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:7, price:2800, vc:2 },
+    { title:"Fence paint — front", clientName:"Anna Kovalev", clientPhone:"0490001702", addr:"22 Victoria St, Abbotsford VIC 3067", hrs:3, price:650, vc:1 },
   ]},
   { w:3, date:"2026-05-22", startHour:8, status:"confirmed", jobs:[
-    { title:"Victorian home exterior repaint", clientName:"Paul Barker", clientPhone:"0488112233", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:6, price:3800, vc:3 },
-    { title:"Sunroom interior", clientName:"Cora Newton", clientPhone:"0499223344", addr:"8 High St, Kew VIC 3101", hrs:2.5, price:680, vc:1 },
+    { title:"Victorian home exterior repaint", clientName:"Paul Barker", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:6, price:3800, vc:3 },
+    { title:"Sunroom interior", clientName:"Cora Newton", clientPhone:"0490001702", addr:"8 High St, Kew VIC 3101", hrs:2.5, price:680, vc:1 },
   ]},
   { w:3, date:"2026-05-27", startHour:7, status:"pending", jobs:[
-    { title:"Weatherboard exterior — full", clientName:"Tanya Brennan", clientPhone:"0400334455", addr:"38 Were St, Brighton VIC 3186", hrs:7, price:5200, vc:3 },
-    { title:"Garage walls & ceiling", clientName:"Rob Stanley", clientPhone:"0411445566", addr:"25 Orrong Rd, Caulfield VIC 3162", hrs:3, price:820, vc:1 },
+    { title:"Weatherboard exterior — full", clientName:"Tanya Brennan", clientPhone:"0490001702", addr:"38 Were St, Brighton VIC 3186", hrs:7, price:5200, vc:3 },
+    { title:"Garage walls & ceiling", clientName:"Rob Stanley", clientPhone:"0490001702", addr:"25 Orrong Rd, Caulfield VIC 3162", hrs:3, price:820, vc:1 },
   ]},
   { w:3, date:"2026-05-29", startHour:7, status:"pending", jobs:[
-    { title:"Commercial office repaint", clientName:"Prestige Realty", clientPhone:"0422556677", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:7, price:3400, vc:2, numTradies:2 },
-    { title:"Retail shopfront repaint", clientName:"Oak & Stone Café", clientPhone:"0433667788", addr:"54 High St, Armadale VIC 3143", hrs:3, price:850, vc:1 },
+    { title:"Commercial office repaint", clientName:"Prestige Realty", clientPhone:"0490001702", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:7, price:3400, vc:2, numTradies:2 },
+    { title:"Retail shopfront repaint", clientName:"Oak & Stone Café", clientPhone:"0490001702", addr:"54 High St, Armadale VIC 3143", hrs:3, price:850, vc:1 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // DANIEL MURPHY — HVAC
   // ════════════════════════════════════════════════════════════════════════════
   { w:4, date:"2026-05-06", startHour:8, status:"completed", jobs:[
-    { title:"Split system installation", clientName:"Lily Pearce", clientPhone:"0444889900", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:1800, vc:2 },
-    { title:"AC service & filter clean", clientName:"Bruce Carver", clientPhone:"0455990011", addr:"3 Albany Rd, Toorak VIC 3142", hrs:2, price:480, vc:1 },
+    { title:"Split system installation", clientName:"Lily Pearce", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:1800, vc:2 },
+    { title:"AC service & filter clean", clientName:"Bruce Carver", clientPhone:"0490001702", addr:"3 Albany Rd, Toorak VIC 3142", hrs:2, price:480, vc:1 },
   ]},
   { w:4, date:"2026-05-08", startHour:8, status:"completed", jobs:[
-    { title:"Ducted AC commissioning — office", clientName:"NextStep Pty Ltd", clientPhone:"0377889900", addr:"350 Collins St, Melbourne VIC 3000", hrs:5, price:3200, vc:3 },
-    { title:"Server room cooling unit", clientName:"DataCore Pty Ltd", clientPhone:"0466001122", addr:"111 Flinders St, Melbourne VIC 3000", hrs:3, price:2100, vc:3 },
+    { title:"Ducted AC commissioning — office", clientName:"NextStep Pty Ltd", clientPhone:"0490001702", addr:"350 Collins St, Melbourne VIC 3000", hrs:5, price:3200, vc:3 },
+    { title:"Server room cooling unit", clientName:"DataCore Pty Ltd", clientPhone:"0490001702", addr:"111 Flinders St, Melbourne VIC 3000", hrs:3, price:2100, vc:3 },
   ]},
   { w:4, date:"2026-05-13", startHour:8, status:"completed", jobs:[
-    { title:"Reverse-cycle installation", clientName:"Jack Vickers", clientPhone:"0477112233", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:3, price:1950, vc:2 },
-    { title:"HVAC inspection report", clientName:"Lena Chambers", clientPhone:"0488223344", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:2, price:550, vc:1 },
+    { title:"Reverse-cycle installation", clientName:"Jack Vickers", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:3, price:1950, vc:2 },
+    { title:"HVAC inspection report", clientName:"Lena Chambers", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:2, price:550, vc:1 },
   ]},
   { w:4, date:"2026-05-19", startHour:8, status:"confirmed", jobs:[
-    { title:"3x split system install", clientName:"Sofia Rossi", clientPhone:"0499334455", addr:"32 Lygon St, Carlton VIC 3053", hrs:5, price:4200, vc:3, numTradies:2 },
-    { title:"Ducted gas heater service", clientName:"Ethan Brooks", clientPhone:"0400445566", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:2, price:480, vc:2 },
+    { title:"3x split system install", clientName:"Sofia Rossi", clientPhone:"0490001702", addr:"32 Lygon St, Carlton VIC 3053", hrs:5, price:4200, vc:3, numTradies:2 },
+    { title:"Ducted gas heater service", clientName:"Ethan Brooks", clientPhone:"0490001702", addr:"89 Sydney Rd, Brunswick VIC 3056", hrs:2, price:480, vc:2 },
   ]},
   { w:4, date:"2026-05-21", startHour:8, status:"confirmed", jobs:[
-    { title:"Large commercial HVAC — stage 1", clientName:"Lonsdale Medical Centre", clientPhone:"0388001122", addr:"180 Lonsdale St, Melbourne VIC 3000", hrs:7, price:8500, vc:3, numTradies:2 },
-    { title:"Exhaust fan replacement", clientName:"Pier Hotel", clientPhone:"0411556677", addr:"43 Waterfront Way, Docklands VIC 3008", hrs:2, price:580, vc:1 },
+    { title:"Large commercial HVAC — stage 1", clientName:"Lonsdale Medical Centre", clientPhone:"0490001702", addr:"180 Lonsdale St, Melbourne VIC 3000", hrs:7, price:8500, vc:3, numTradies:2 },
+    { title:"Exhaust fan replacement", clientName:"Pier Hotel", clientPhone:"0490001702", addr:"43 Waterfront Way, Docklands VIC 3008", hrs:2, price:580, vc:1 },
   ]},
   { w:4, date:"2026-05-26", startHour:9, status:"pending", jobs:[
-    { title:"Ducted system — new home", clientName:"Robert Hirano", clientPhone:"0422667788", addr:"123 Springvale Rd, Glen Waverley VIC 3150", hrs:6, price:7200, vc:3 },
-    { title:"Zone controller install", clientName:"Sam Yeo", clientPhone:"0433778899", addr:"1 Albany St, Box Hill VIC 3128", hrs:2.5, price:980, vc:2 },
+    { title:"Ducted system — new home", clientName:"Robert Hirano", clientPhone:"0490001702", addr:"123 Springvale Rd, Glen Waverley VIC 3150", hrs:6, price:7200, vc:3 },
+    { title:"Zone controller install", clientName:"Sam Yeo", clientPhone:"0490001702", addr:"1 Albany St, Box Hill VIC 3128", hrs:2.5, price:980, vc:2 },
   ]},
   { w:4, date:"2026-05-28", startHour:9, status:"pending", jobs:[
-    { title:"Commercial AC service — annual", clientName:"Harborside Café", clientPhone:"0499001122", addr:"90 Bay St, Port Melbourne VIC 3207", hrs:3, price:760, vc:2 },
-    { title:"Split system — bedroom", clientName:"Zoe Farrow", clientPhone:"0400112233", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:2, price:1200, vc:1 },
+    { title:"Commercial AC service — annual", clientName:"Harborside Café", clientPhone:"0490001702", addr:"90 Bay St, Port Melbourne VIC 3207", hrs:3, price:760, vc:2 },
+    { title:"Split system — bedroom", clientName:"Zoe Farrow", clientPhone:"0490001702", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:2, price:1200, vc:1 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // OLIVIA BROWN — General Builder
   // ════════════════════════════════════════════════════════════════════════════
   { w:5, date:"2026-05-05", startHour:7, status:"completed", jobs:[
-    { title:"Office fitout — walls & ceiling", clientName:"BluePeak Consulting", clientPhone:"0344556677", addr:"500 Bourke St, Melbourne VIC 3000", hrs:7, price:6800, vc:3, numTradies:2 },
-    { title:"Partition wall installation", clientName:"Axis Co-work", clientPhone:"0455667788", addr:"350 Collins St, Melbourne VIC 3000", hrs:3, price:1800, vc:2 },
+    { title:"Office fitout — walls & ceiling", clientName:"BluePeak Consulting", clientPhone:"0490001702", addr:"500 Bourke St, Melbourne VIC 3000", hrs:7, price:6800, vc:3, numTradies:2 },
+    { title:"Partition wall installation", clientName:"Axis Co-work", clientPhone:"0490001702", addr:"350 Collins St, Melbourne VIC 3000", hrs:3, price:1800, vc:2 },
   ]},
   { w:5, date:"2026-05-08", startHour:8, status:"completed", jobs:[
-    { title:"Deck construction assist", clientName:"Graham Reeves", clientPhone:"0300334455", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:4, price:2200, vc:2, numTradies:2 },
-    { title:"Carport concrete slab", clientName:"Gus Franklin", clientPhone:"0466778899", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:4, price:2400, vc:2 },
+    { title:"Deck construction assist", clientName:"Graham Reeves", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:4, price:2200, vc:2, numTradies:2 },
+    { title:"Carport concrete slab", clientName:"Gus Franklin", clientPhone:"0490001702", addr:"180 Bridge Rd, Richmond VIC 3121", hrs:4, price:2400, vc:2 },
   ]},
   { w:5, date:"2026-05-13", startHour:8, status:"completed", jobs:[
-    { title:"Heritage render repair", clientName:"City of Melbourne", clientPhone:"0396651000", addr:"15 Johnston St, Collingwood VIC 3066", hrs:4, price:1800, vc:2 },
-    { title:"Terrace structural brickwork", clientName:"Patricia Hale", clientPhone:"0444667788", addr:"77 Napier St, Fitzroy VIC 3065", hrs:3, price:1600, vc:2 },
+    { title:"Heritage render repair", clientName:"City of Melbourne", clientPhone:"0490001702", addr:"15 Johnston St, Collingwood VIC 3066", hrs:4, price:1800, vc:2 },
+    { title:"Terrace structural brickwork", clientName:"Patricia Hale", clientPhone:"0490001702", addr:"77 Napier St, Fitzroy VIC 3065", hrs:3, price:1600, vc:2 },
   ]},
   { w:5, date:"2026-05-20", startHour:7, status:"confirmed", jobs:[
-    { title:"Commercial fitout — stage 2", clientName:"BluePeak Consulting", clientPhone:"0344556677", addr:"500 Bourke St, Melbourne VIC 3000", hrs:7, price:7500, vc:3, numTradies:2 },
-    { title:"Raised floor platform", clientName:"DataCore Pty Ltd", clientPhone:"0466001122", addr:"111 Flinders St, Melbourne VIC 3000", hrs:3, price:2100, vc:3 },
+    { title:"Commercial fitout — stage 2", clientName:"BluePeak Consulting", clientPhone:"0490001702", addr:"500 Bourke St, Melbourne VIC 3000", hrs:7, price:7500, vc:3, numTradies:2 },
+    { title:"Raised floor platform", clientName:"DataCore Pty Ltd", clientPhone:"0490001702", addr:"111 Flinders St, Melbourne VIC 3000", hrs:3, price:2100, vc:3 },
   ]},
   { w:5, date:"2026-05-22", startHour:8, status:"confirmed", jobs:[
-    { title:"Retail fitout — full strip & rebuild", clientName:"Urban Goods Co.", clientPhone:"0444667788", addr:"12 Hopkins St, Footscray VIC 3011", hrs:7, price:9800, vc:3, numTradies:2 },
-    { title:"Boundary fence rebuild", clientName:"Steph Murray", clientPhone:"0477889900", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:3, price:1400, vc:1 },
+    { title:"Retail fitout — full strip & rebuild", clientName:"Urban Goods Co.", clientPhone:"0490001702", addr:"12 Hopkins St, Footscray VIC 3011", hrs:7, price:9800, vc:3, numTradies:2 },
+    { title:"Boundary fence rebuild", clientName:"Steph Murray", clientPhone:"0490001702", addr:"56 Ferguson St, Williamstown VIC 3016", hrs:3, price:1400, vc:1 },
   ]},
   { w:5, date:"2026-05-26", startHour:8, status:"pending", jobs:[
-    { title:"Ground floor extension frame", clientName:"Ian Rosenberg", clientPhone:"0455778899", addr:"22 Swan St, Richmond VIC 3121", hrs:6, price:5400, vc:3 },
-    { title:"Bathroom waterproofing", clientName:"Sophie Bell", clientPhone:"0388112233", addr:"123 Smith St, Fitzroy VIC 3065", hrs:2.5, price:880, vc:2 },
+    { title:"Ground floor extension frame", clientName:"Ian Rosenberg", clientPhone:"0490001702", addr:"22 Swan St, Richmond VIC 3121", hrs:6, price:5400, vc:3 },
+    { title:"Bathroom waterproofing", clientName:"Sophie Bell", clientPhone:"0490001702", addr:"123 Smith St, Fitzroy VIC 3065", hrs:2.5, price:880, vc:2 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // RYAN PATEL — Roofer
   // ════════════════════════════════════════════════════════════════════════════
   { w:6, date:"2026-05-05", startHour:7, status:"completed", jobs:[
-    { title:"Ridge capping repoint", clientName:"Lena Chambers", clientPhone:"0488223344", addr:"8 High St, Kew VIC 3101", hrs:3, price:850, vc:2 },
-    { title:"Gutter replacement — side", clientName:"Paul Barker", clientPhone:"0488112233", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:3.5, price:1100, vc:1 },
+    { title:"Ridge capping repoint", clientName:"Lena Chambers", clientPhone:"0490001702", addr:"8 High St, Kew VIC 3101", hrs:3, price:850, vc:2 },
+    { title:"Gutter replacement — side", clientName:"Paul Barker", clientPhone:"0490001702", addr:"12 Auburn Rd, Hawthorn VIC 3122", hrs:3.5, price:1100, vc:1 },
   ]},
   { w:6, date:"2026-05-07", startHour:7, status:"completed", jobs:[
-    { title:"Roof tile replacement — storm damage", clientName:"Vera Coleman", clientPhone:"0333667788", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:4, price:1600, vc:2 },
-    { title:"Colorbond roof inspection", clientName:"Ian Rosenberg", clientPhone:"0455778899", addr:"45 Whitehorse Rd, Balwyn VIC 3103", hrs:2, price:460, vc:1 },
+    { title:"Roof tile replacement — storm damage", clientName:"Vera Coleman", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:4, price:1600, vc:2 },
+    { title:"Colorbond roof inspection", clientName:"Ian Rosenberg", clientPhone:"0490001702", addr:"45 Whitehorse Rd, Balwyn VIC 3103", hrs:2, price:460, vc:1 },
   ]},
   { w:6, date:"2026-05-12", startHour:7, status:"completed", jobs:[
-    { title:"Tile & gutter clean", clientName:"Celia Shaw", clientPhone:"0400556677", addr:"38 Were St, Brighton VIC 3186", hrs:3, price:680, vc:1 },
-    { title:"Roof valley repair", clientName:"Hugh Grant", clientPhone:"0411667788", addr:"15 Hampton St, Hampton VIC 3188", hrs:3, price:920, vc:2 },
+    { title:"Tile & gutter clean", clientName:"Celia Shaw", clientPhone:"0490001702", addr:"38 Were St, Brighton VIC 3186", hrs:3, price:680, vc:1 },
+    { title:"Roof valley repair", clientName:"Hugh Grant", clientPhone:"0490001702", addr:"15 Hampton St, Hampton VIC 3188", hrs:3, price:920, vc:2 },
   ]},
   { w:6, date:"2026-05-19", startHour:7, status:"confirmed", jobs:[
-    { title:"Full roof re-sheet — Colorbond", clientName:"Marcus Okafor", clientPhone:"0422778899", addr:"100 High St, Northcote VIC 3070", hrs:7, price:8500, vc:3, numTradies:2 },
-    { title:"Gutter guard installation", clientName:"Terry Ling", clientPhone:"0433889900", addr:"45 St Georges Rd, Thornbury VIC 3071", hrs:3, price:1100, vc:2 },
+    { title:"Full roof re-sheet — Colorbond", clientName:"Marcus Okafor", clientPhone:"0490001702", addr:"100 High St, Northcote VIC 3070", hrs:7, price:8500, vc:3, numTradies:2 },
+    { title:"Gutter guard installation", clientName:"Terry Ling", clientPhone:"0490001702", addr:"45 St Georges Rd, Thornbury VIC 3071", hrs:3, price:1100, vc:2 },
   ]},
   { w:6, date:"2026-05-21", startHour:7, status:"confirmed", jobs:[
-    { title:"New roof — extension", clientName:"Gary Newton", clientPhone:"0466889900", addr:"Spring St, Preston VIC 3072", hrs:7, price:7200, vc:3, numTradies:2 },
-    { title:"Downpipe replacement", clientName:"Monica Blaine", clientPhone:"0455001122", addr:"88 Broadway, Reservoir VIC 3073", hrs:2, price:480, vc:1 },
+    { title:"New roof — extension", clientName:"Gary Newton", clientPhone:"0490001702", addr:"Spring St, Preston VIC 3072", hrs:7, price:7200, vc:3, numTradies:2 },
+    { title:"Downpipe replacement", clientName:"Monica Blaine", clientPhone:"0490001702", addr:"88 Broadway, Reservoir VIC 3073", hrs:2, price:480, vc:1 },
   ]},
   { w:6, date:"2026-05-26", startHour:7, status:"pending", jobs:[
-    { title:"Heritage slate repair", clientName:"Derek Lawson", clientPhone:"0322334455", addr:"34 Buckley St, Essendon VIC 3040", hrs:5, price:3200, vc:3 },
-    { title:"Fascia & gutter replacement", clientName:"Fiona McCarthy", clientPhone:"0488990011", addr:"36 Douglas Pde, Williamstown VIC 3016", hrs:4, price:1600, vc:2 },
+    { title:"Heritage slate repair", clientName:"Derek Lawson", clientPhone:"0490001702", addr:"34 Buckley St, Essendon VIC 3040", hrs:5, price:3200, vc:3 },
+    { title:"Fascia & gutter replacement", clientName:"Fiona McCarthy", clientPhone:"0490001702", addr:"36 Douglas Pde, Williamstown VIC 3016", hrs:4, price:1600, vc:2 },
   ]},
   { w:6, date:"2026-05-28", startHour:7, status:"pending", jobs:[
-    { title:"Roof restoration — full coat", clientName:"Bob Dempsey", clientPhone:"0477001122", addr:"12 Hopkins St, Footscray VIC 3011", hrs:6, price:4200, vc:2 },
-    { title:"Solar panel frame preparation", clientName:"Oscar Tan", clientPhone:"0488112233", addr:"23 Buckley St, Moonee Ponds VIC 3039", hrs:3, price:980, vc:2 },
+    { title:"Roof restoration — full coat", clientName:"Bob Dempsey", clientPhone:"0490001702", addr:"12 Hopkins St, Footscray VIC 3011", hrs:6, price:4200, vc:2 },
+    { title:"Solar panel frame preparation", clientName:"Oscar Tan", clientPhone:"0490001702", addr:"23 Buckley St, Moonee Ponds VIC 3039", hrs:3, price:980, vc:2 },
   ]},
 
   // ════════════════════════════════════════════════════════════════════════════
   // JESSICA WILLIAMS — Landscaper
   // ════════════════════════════════════════════════════════════════════════════
   { w:7, date:"2026-05-06", startHour:8, status:"completed", jobs:[
-    { title:"Garden redesign — rear yard", clientName:"Damien Ashford", clientPhone:"0477990011", addr:"3 Albany Rd, Toorak VIC 3142", hrs:5, price:3400, vc:3 },
-    { title:"Lawn top dress & seed", clientName:"Lily Pearce", clientPhone:"0311445566", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:2.5, price:620, vc:1 },
+    { title:"Garden redesign — rear yard", clientName:"Damien Ashford", clientPhone:"0490001702", addr:"3 Albany Rd, Toorak VIC 3142", hrs:5, price:3400, vc:3 },
+    { title:"Lawn top dress & seed", clientName:"Lily Pearce", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:2.5, price:620, vc:1 },
   ]},
   { w:7, date:"2026-05-08", startHour:8, status:"completed", jobs:[
-    { title:"Pool surround landscaping", clientName:"Celia Shaw", clientPhone:"0400556677", addr:"38 Were St, Brighton VIC 3186", hrs:6, price:4800, vc:3 },
-    { title:"Hedge planting & mulch", clientName:"Hugh Grant", clientPhone:"0411667788", addr:"15 Hampton St, Hampton VIC 3188", hrs:3, price:780, vc:1 },
+    { title:"Pool surround landscaping", clientName:"Celia Shaw", clientPhone:"0490001702", addr:"38 Were St, Brighton VIC 3186", hrs:6, price:4800, vc:3 },
+    { title:"Hedge planting & mulch", clientName:"Hugh Grant", clientPhone:"0490001702", addr:"15 Hampton St, Hampton VIC 3188", hrs:3, price:780, vc:1 },
   ]},
   { w:7, date:"2026-05-13", startHour:8, status:"completed", jobs:[
-    { title:"Japanese garden install", clientName:"Cora Newton", clientPhone:"0422778899", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:5, price:3200, vc:3 },
-    { title:"Raised vegetable beds", clientName:"Rita Hanson", clientPhone:"0433889900", addr:"25 Doncaster Rd, Doncaster VIC 3108", hrs:3, price:900, vc:2 },
+    { title:"Japanese garden install", clientName:"Cora Newton", clientPhone:"0490001702", addr:"67 Burke Rd, Camberwell VIC 3124", hrs:5, price:3200, vc:3 },
+    { title:"Raised vegetable beds", clientName:"Rita Hanson", clientPhone:"0490001702", addr:"25 Doncaster Rd, Doncaster VIC 3108", hrs:3, price:900, vc:2 },
   ]},
   { w:7, date:"2026-05-20", startHour:8, status:"confirmed", jobs:[
-    { title:"Native front garden redesign", clientName:"Aisha Okonkwo", clientPhone:"0444990011", addr:"123 Springvale Rd, Glen Waverley VIC 3150", hrs:5, price:3400, vc:2 },
-    { title:"Drip irrigation install", clientName:"Tony Fox", clientPhone:"0455001122", addr:"45 Princes Hwy, Clayton VIC 3168", hrs:3, price:1200, vc:2 },
+    { title:"Native front garden redesign", clientName:"Aisha Okonkwo", clientPhone:"0490001702", addr:"123 Springvale Rd, Glen Waverley VIC 3150", hrs:5, price:3400, vc:2 },
+    { title:"Drip irrigation install", clientName:"Tony Fox", clientPhone:"0490001702", addr:"45 Princes Hwy, Clayton VIC 3168", hrs:3, price:1200, vc:2 },
   ]},
   { w:7, date:"2026-05-22", startHour:8, status:"confirmed", jobs:[
-    { title:"Retaining wall + planting", clientName:"Sandy Carr", clientPhone:"0466112233", addr:"39 Bedford Rd, Ringwood VIC 3134", hrs:6, price:4100, vc:3 },
-    { title:"Lawn re-turfing", clientName:"Wayne Briggs", clientPhone:"0444667788", addr:"Mitcham Rd, Vermont VIC 3133", hrs:3, price:1050, vc:1 },
+    { title:"Retaining wall + planting", clientName:"Sandy Carr", clientPhone:"0490001702", addr:"39 Bedford Rd, Ringwood VIC 3134", hrs:6, price:4100, vc:3 },
+    { title:"Lawn re-turfing", clientName:"Wayne Briggs", clientPhone:"0490001702", addr:"Mitcham Rd, Vermont VIC 3133", hrs:3, price:1050, vc:1 },
   ]},
   { w:7, date:"2026-05-27", startHour:8, status:"pending", jobs:[
-    { title:"Garden renovation — front & rear", clientName:"Zoe Farrow", clientPhone:"0477223344", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:5, price:2800, vc:2 },
-    { title:"Paving & gravel path", clientName:"Joel Stein", clientPhone:"0488334455", addr:"54 High St, Armadale VIC 3143", hrs:3, price:1400, vc:2 },
+    { title:"Garden renovation — front & rear", clientName:"Zoe Farrow", clientPhone:"0490001702", addr:"78 Glenferrie Rd, Malvern VIC 3144", hrs:5, price:2800, vc:2 },
+    { title:"Paving & gravel path", clientName:"Joel Stein", clientPhone:"0490001702", addr:"54 High St, Armadale VIC 3143", hrs:3, price:1400, vc:2 },
   ]},
   { w:7, date:"2026-05-29", startHour:8, status:"pending", jobs:[
-    { title:"Pool area garden + lighting", clientName:"Damien Ashford", clientPhone:"0477990011", addr:"3 Albany Rd, Toorak VIC 3142", hrs:5, price:5200, vc:3 },
-    { title:"Courtyard garden — townhouse", clientName:"Nina Walsh", clientPhone:"0399001122", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:1600, vc:2 },
+    { title:"Pool area garden + lighting", clientName:"Damien Ashford", clientPhone:"0490001702", addr:"3 Albany Rd, Toorak VIC 3142", hrs:5, price:5200, vc:3 },
+    { title:"Courtyard garden — townhouse", clientName:"Nina Walsh", clientPhone:"0490001702", addr:"55 Toorak Rd, South Yarra VIC 3141", hrs:3, price:1600, vc:2 },
   ]},
 
 ]; // end SCHEDULE
@@ -394,14 +394,14 @@ const SCHEDULE: Day[] = [
 // ── Quotes (scattered through May, unassigned) ────────────────────────────────
 
 const QUOTES = [
-  { title:"Heritage home rewire quote",          clientName:"Patricia Hale",    clientPhone:"0444667788", clientEmail:"patricia.hale@gmail.com",   addr:"77 Napier St, Fitzroy VIC 3065",          tradeType:"Electrician",    price:5200, hrs:10, vc:2 as const, date:"2026-05-11" },
-  { title:"New Colorbond roof quote",            clientName:"Ian Rosenberg",    clientPhone:"0455778899", clientEmail:"ian.rosenberg@gmail.com",    addr:"22 Swan St, Richmond VIC 3121",           tradeType:"Roofer",         price:15000,hrs:12, vc:1 as const, date:"2026-05-14" },
-  { title:"Whole-house interior paint quote",    clientName:"Zoe Farrow",       clientPhone:"0466889900", clientEmail:"zoe.farrow@gmail.com",       addr:"38 Were St, Brighton VIC 3186",           tradeType:"Painter",        price:6800, hrs:16, vc:2 as const, date:"2026-05-18" },
-  { title:"Pool area landscaping quote",         clientName:"Damien Ashford",   clientPhone:"0477990011", clientEmail:"damien.ashford@gmail.com",   addr:"3 Albany Rd, Toorak VIC 3142",            tradeType:"Landscaper",     price:9500, hrs:12, vc:3 as const, date:"2026-05-20" },
-  { title:"Commercial HVAC design quote",        clientName:"Lonsdale Medical", clientPhone:"0388001122", clientEmail:"admin@lonsdalemedical.com.au",addr:"180 Lonsdale St, Melbourne VIC 3000",     tradeType:"HVAC",           price:24000,hrs:16, vc:3 as const, date:"2026-05-22" },
-  { title:"Custom kitchen joinery quote",        clientName:"Mary Sutton",      clientPhone:"0311334455", clientEmail:"mary.sutton@gmail.com",      addr:"67 Burke Rd, Camberwell VIC 3124",        tradeType:"Carpenter",      price:8500, hrs:14, vc:2 as const, date:"2026-05-23" },
-  { title:"New hot water system quote",          clientName:"Ron Castle",       clientPhone:"0322445566", clientEmail:"ron.castle@gmail.com",       addr:"100 High St, Northcote VIC 3070",         tradeType:"Plumber",        price:2800, hrs:4,  vc:1 as const, date:"2026-05-25" },
-  { title:"3-phase power upgrade quote",         clientName:"Riverside Gym",    clientPhone:"0333556677", clientEmail:"info@riversidegym.com.au",   addr:"90 Bay St, Port Melbourne VIC 3207",      tradeType:"Electrician",    price:6400, hrs:8,  vc:3 as const, date:"2026-05-27" },
+  { title:"Heritage home rewire quote",          clientName:"Patricia Hale",    clientPhone:"0490001702", clientEmail:"patricia.hale@gmail.com",   addr:"77 Napier St, Fitzroy VIC 3065",          tradeType:"Electrician",    price:5200, hrs:10, vc:2 as const, date:"2026-05-11" },
+  { title:"New Colorbond roof quote",            clientName:"Ian Rosenberg",    clientPhone:"0490001702", clientEmail:"ian.rosenberg@gmail.com",    addr:"22 Swan St, Richmond VIC 3121",           tradeType:"Roofer",         price:15000,hrs:12, vc:1 as const, date:"2026-05-14" },
+  { title:"Whole-house interior paint quote",    clientName:"Zoe Farrow",       clientPhone:"0490001702", clientEmail:"zoe.farrow@gmail.com",       addr:"38 Were St, Brighton VIC 3186",           tradeType:"Painter",        price:6800, hrs:16, vc:2 as const, date:"2026-05-18" },
+  { title:"Pool area landscaping quote",         clientName:"Damien Ashford",   clientPhone:"0490001702", clientEmail:"damien.ashford@gmail.com",   addr:"3 Albany Rd, Toorak VIC 3142",            tradeType:"Landscaper",     price:9500, hrs:12, vc:3 as const, date:"2026-05-20" },
+  { title:"Commercial HVAC design quote",        clientName:"Lonsdale Medical", clientPhone:"0490001702", clientEmail:"admin@lonsdalemedical.com.au",addr:"180 Lonsdale St, Melbourne VIC 3000",     tradeType:"HVAC",           price:24000,hrs:16, vc:3 as const, date:"2026-05-22" },
+  { title:"Custom kitchen joinery quote",        clientName:"Mary Sutton",      clientPhone:"0490001702", clientEmail:"mary.sutton@gmail.com",      addr:"67 Burke Rd, Camberwell VIC 3124",        tradeType:"Carpenter",      price:8500, hrs:14, vc:2 as const, date:"2026-05-23" },
+  { title:"New hot water system quote",          clientName:"Ron Castle",       clientPhone:"0490001702", clientEmail:"ron.castle@gmail.com",       addr:"100 High St, Northcote VIC 3070",         tradeType:"Plumber",        price:2800, hrs:4,  vc:1 as const, date:"2026-05-25" },
+  { title:"3-phase power upgrade quote",         clientName:"Riverside Gym",    clientPhone:"0490001702", clientEmail:"info@riversidegym.com.au",   addr:"90 Bay St, Port Melbourne VIC 3207",      tradeType:"Electrician",    price:6400, hrs:8,  vc:3 as const, date:"2026-05-27" },
 ];
 
 // ── Seed function ─────────────────────────────────────────────────────────────
@@ -524,3 +524,4 @@ async function seed() {
 }
 
 seed().catch(e => { console.error(e); process.exit(1); });
+
