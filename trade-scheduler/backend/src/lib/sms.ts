@@ -1,12 +1,19 @@
 import twilio from "twilio";
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-const apiKeySid = process.env.TWILIO_API_KEY_SID;
-const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+function getClient() {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
 
-const client = apiKeySid && apiKeySecret
-  ? twilio(apiKeySid, apiKeySecret, { accountSid })
-  : twilio(accountSid, process.env.TWILIO_AUTH_TOKEN!);
+  if (apiKeySid && apiKeySecret && accountSid) {
+    return twilio(apiKeySid, apiKeySecret, { accountSid });
+  }
+  if (accountSid && authToken) {
+    return twilio(accountSid, authToken);
+  }
+  throw new Error("Twilio not configured: set TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN (or TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET)");
+}
 const publicApiBaseUrl = (process.env.PUBLIC_API_BASE_URL ?? "https://trade-scheduler-api.onrender.com").replace(/\/$/, "");
 export const twilioDeliveryStatusCallbackUrl = `${publicApiBaseUrl}/api/twilio/message-status`;
 const twilioMessagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID?.trim();
@@ -47,7 +54,7 @@ async function sendSmsMessage(to: string, body: string): Promise<void> {
     throw new Error("SMS aborted: configure TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER.");
   }
 
-  await client.messages.create(request);
+  await getClient().messages.create(request);
 }
 
 export async function sendJobCompletedSMS(
