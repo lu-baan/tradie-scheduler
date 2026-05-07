@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   MapPin, Phone, Mail, Clock, Calendar, Users, AlertTriangle, FileText,
   Check, Trash2, Edit2, CheckCircle2, Car, XCircle, ImagePlus, X, Loader2, Images, Save,
-  ShieldCheck, Navigation, MapPinned, LogIn, Timer,
+  ShieldCheck, Navigation, MapPinned, LogIn, Timer, Send,
 } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -207,7 +207,7 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
     <div className={noBorder ? "" : "mt-4 pt-4 border-t border-border"}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
-          <Images size={13} /> Photos {images.length > 0 && `(${images.length})`}
+          <Images size={13} /> Photos & Files {images.length > 0 && `(${images.length})`}
         </span>
         {canEdit && (
           <>
@@ -219,12 +219,12 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
               disabled={uploading}
             >
               {uploading ? <Loader2 size={12} className="animate-spin mr-1" /> : <ImagePlus size={12} className="mr-1" />}
-              {uploading ? "Uploading..." : "Add Photo"}
+              {uploading ? "Uploading..." : "Add File"}
             </Button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -234,27 +234,42 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
 
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
-          {images.map(url => (
-            <div key={url} className="relative group">
-              <img
-                src={url}
-                alt="Job photo"
-                className="w-20 h-20 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setLightbox(url)}
-              />
-              {canEdit && (
-                <button
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                  onClick={() => handleDelete(url)}
-                  disabled={deletingUrl === url}
-                >
-                  {deletingUrl === url
-                    ? <Loader2 size={10} className="animate-spin" />
-                    : <X size={10} />}
-                </button>
-              )}
-            </div>
-          ))}
+          {images.map(url => {
+            const isPdf = url.toLowerCase().includes(".pdf");
+            return (
+              <div key={url} className="relative group">
+                {isPdf ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-20 h-20 flex flex-col items-center justify-center rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    <FileText size={24} />
+                    <span className="text-[9px] mt-1 font-semibold uppercase tracking-wide">PDF</span>
+                  </a>
+                ) : (
+                  <img
+                    src={url}
+                    alt="Job photo"
+                    className="w-20 h-20 object-cover rounded-lg border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => setLightbox(url)}
+                  />
+                )}
+                {canEdit && (
+                  <button
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                    onClick={() => handleDelete(url)}
+                    disabled={deletingUrl === url}
+                  >
+                    {deletingUrl === url
+                      ? <Loader2 size={10} className="animate-spin" />
+                      : <X size={10} />}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -553,6 +568,26 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [emergencyConfirmOpen, setEmergencyConfirmOpen] = useState(false);
   const [resolveEmergencyOpen, setResolveEmergencyOpen] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+
+  const sendOnMyWay = async () => {
+    setSmsSending(true);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}/sms/on-my-way`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "SMS failed");
+      }
+      toast.success("SMS sent", { description: "Customer notified you're ~30 min away." });
+    } catch (err: any) {
+      toast.error("SMS failed", { description: err.message });
+    } finally {
+      setSmsSending(false);
+    }
+  };
 
   const deleteMutation = useDeleteJob({
     mutation: {
@@ -676,16 +711,18 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
               <p className="text-primary font-semibold text-sm">{job.tradeType}</p>
             </div>
 
-            <div className="text-right shrink-0">
-              <div className="font-display text-xl sm:text-2xl font-bold text-foreground whitespace-nowrap">
-                {formatAUD(job.price)}
-              </div>
-              {job.smartScore !== null && job.smartScore !== undefined && (
-                <div className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded mt-1">
-                  Score: {job.smartScore.toFixed(2)}
+            {userRole === "admin" && (
+              <div className="text-right shrink-0">
+                <div className="font-display text-xl sm:text-2xl font-bold text-foreground whitespace-nowrap">
+                  {formatAUD(job.price)}
                 </div>
-              )}
-            </div>
+                {job.smartScore !== null && job.smartScore !== undefined && (
+                  <div className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded mt-1">
+                    Score: {job.smartScore.toFixed(2)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Details grid */}
@@ -862,6 +899,18 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                   )}
                   {!isQuote && !isCompleted && !isCancelled && (
                     <>
+                      {userRole === "worker" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                          onClick={sendOnMyWay}
+                          disabled={smsSending}
+                        >
+                          {smsSending ? <Loader2 size={13} className="animate-spin mr-1" /> : <Send size={13} className="mr-1" />}
+                          On My Way
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="default"

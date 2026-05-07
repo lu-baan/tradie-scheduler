@@ -74,6 +74,17 @@ export async function sendBookingConfirmationSMS(
   await sendSmsMessage(to, message);
 }
 
+export async function sendOnMyWaySMS(
+  clientName: string,
+  clientPhone: string,
+  jobTitle: string,
+): Promise<void> {
+  const to = toE164AU(clientPhone);
+  validateE164(to, clientPhone);
+  const message = `Hi ${clientName}, your tradie is on the way and will arrive in approximately 30 minutes for "${jobTitle}". See you soon!`;
+  await sendSmsMessage(to, message);
+}
+
 export async function sendBumpedSMS(
   clientName: string,
   clientPhone: string,

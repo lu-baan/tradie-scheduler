@@ -1,3 +1,4 @@
+import React, { useEffect, useRef, useState } from "react";
 import { useListJobs, useListWorkers, useUpdateJob } from "@/lib/api-client";
 import {
   format,
@@ -16,7 +17,6 @@ import {
   getHours,
   getMinutes,
 } from "date-fns";
-import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText, Car } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,18 @@ function jobColorClass(job: any): string {
   if (job.status === "completed") return "bg-green-500/20 border-green-500/30 text-foreground hover:bg-green-500/30";
   if (job.jobType === "quote") return "bg-blue-500/20 border-blue-500/30 text-foreground hover:bg-blue-500/30";
   return "bg-primary/20 border-primary/40 text-foreground hover:bg-primary/30";
+}
+
+function getWorkerBgStyle(job: any, workerColors?: Record<number, string>): React.CSSProperties {
+  if (!workerColors || job.isEmergency || job.status === "completed") return {};
+  const ids = getAssignedWorkerIds(job);
+  for (const id of ids) {
+    const hex = workerColors[id];
+    if (hex) {
+      return { backgroundColor: hex + "33", borderColor: hex + "80" };
+    }
+  }
+  return {};
 }
 
 /** Find the next free block of ≥1h in the workday */
@@ -246,10 +258,12 @@ function TimeColumn({
   day,
   jobs,
   onJobClick,
+  workerColors,
 }: {
   day: Date;
   jobs: any[];
   onJobClick: (j: any) => void;
+  workerColors?: Record<number, string>;
 }) {
   const gridMaxPx = HOURS.length * HOUR_H;
 
@@ -314,6 +328,7 @@ function TimeColumn({
     const left = col * w;
     const clippedHeight = Math.min(height, gridMaxPx - top);
     const overflows = top + height > gridMaxPx;
+    const workerStyle = getWorkerBgStyle(job, workerColors);
     return (
       <div
         key={`${job.id}-${continuation ? "cont" : "orig"}`}
@@ -328,6 +343,7 @@ function TimeColumn({
           height: Math.max(clippedHeight - 2, 18),
           left: `calc(${left}% + 2px)`,
           width: `calc(${w}% - 4px)`,
+          ...workerStyle,
         }}
       >
         {continuation && (
@@ -428,10 +444,12 @@ function DaySchedulePopup({
   day,
   jobs,
   onViewFull,
+  workerColors,
 }: {
   day: Date;
   jobs: any[];
   onViewFull: () => void;
+  workerColors?: Record<number, string>;
 }) {
   const dayJobs = jobs
     .filter(j => j.scheduledDate && isSameDay(new Date(j.scheduledDate), day))
@@ -486,6 +504,7 @@ function DaySchedulePopup({
               <div
                 key={job.id}
                 className={cn("rounded-lg px-3 py-2 border text-sm", jobColorClass(job))}
+                style={getWorkerBgStyle(job, workerColors)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold truncate">{job.title}</span>
@@ -693,6 +712,17 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [workerFilter, setWorkerFilter] = useState<number | "all">("all");
+  const [workerColors, setWorkerColors] = useState<Record<number, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("ts2_worker_colors") ?? "{}"); } catch { return {}; }
+  });
+
+  const updateWorkerColor = (workerId: number, color: string) => {
+    setWorkerColors(prev => {
+      const next = { ...prev, [workerId]: color };
+      localStorage.setItem("ts2_worker_colors", JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Edit job dialog
   const [selectedJob, setSelectedJob] = useState<any>(null);
@@ -826,20 +856,34 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                 All Workers
               </button>
               {workers.map(w => (
-                <button
-                  type="button"
-                  key={w.id}
-                  onClick={() => setWorkerFilter(w.id)}
-                  className={cn(
-                    "w-full text-left px-3 py-1.5 rounded-md text-xs transition-all",
-                    workerFilter === w.id
-                      ? "bg-primary/20 text-primary border border-primary/30 font-semibold"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <span className="truncate block">{w.name}</span>
-                  <span className="text-[10px] opacity-60">{w.tradeType}</span>
-                </button>
+                <div key={w.id} className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setWorkerFilter(w.id)}
+                    className={cn(
+                      "flex-1 min-w-0 text-left px-3 py-1.5 rounded-md text-xs transition-all",
+                      workerFilter === w.id
+                        ? "bg-primary/20 text-primary border border-primary/30 font-semibold"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <span className="truncate block">{w.name}</span>
+                    <span className="text-[10px] opacity-60">{w.tradeType}</span>
+                  </button>
+                  {/* Colour picker swatch */}
+                  <label className="shrink-0 cursor-pointer relative" title="Set worker colour">
+                    <div
+                      className="w-5 h-5 rounded-full border border-white/25 shadow-sm"
+                      style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
+                    />
+                    <input
+                      type="color"
+                      value={workerColors[w.id] ?? "#888888"}
+                      onChange={e => updateWorkerColor(w.id, e.target.value)}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    />
+                  </label>
+                </div>
               ))}
             </div>
           </div>
@@ -993,6 +1037,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                               "text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded truncate font-semibold cursor-pointer",
                               jobColorClass(job)
                             )}
+                            style={getWorkerBgStyle(job, workerColors)}
                           >
                             <span className="hidden sm:inline">
                               {job.scheduledDate && (
@@ -1083,6 +1128,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                             key={job.id}
                             onClick={() => openJob(job)}
                             className={cn("rounded px-1 py-0.5 text-[10px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                            style={getWorkerBgStyle(job, workerColors)}
                           >
                             {job.title}
                           </div>
@@ -1116,7 +1162,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                 </div>
                 {weekDays.map(day => (
                   <div key={day.toISOString()} className="flex-1 border-l border-border/50 min-w-0">
-                    <TimeColumn day={day} jobs={filteredJobs} onJobClick={openJob} />
+                    <TimeColumn day={day} jobs={filteredJobs} onJobClick={openJob} workerColors={workerColors} />
                   </div>
                 ))}
               </div>
@@ -1125,97 +1171,136 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
         )}
 
         {/* ── Day View ── */}
-        {viewMode === "day" && (
-          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <div className="shrink-0 flex items-center justify-center py-3 border-b border-border bg-background/40">
-              <div className="text-center">
-                <div className="text-[10px] font-display uppercase text-muted-foreground tracking-widest">
-                  {format(currentDate, "EEEE")}
+        {viewMode === "day" && (() => {
+          const dayTradeTypes = [...new Set(
+            filteredJobs
+              .filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), currentDate))
+              .map((j: any) => j.tradeType as string)
+              .filter(Boolean)
+          )].sort();
+          const multiCol = dayTradeTypes.length > 1;
+
+          return (
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <div className="shrink-0 flex items-center justify-center py-3 border-b border-border bg-background/40">
+                <div className="text-center">
+                  <div className="text-[10px] font-display uppercase text-muted-foreground tracking-widest">
+                    {format(currentDate, "EEEE")}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-3xl font-bold mx-auto w-12 h-12 flex items-center justify-center rounded-full mt-0.5",
+                      isToday(currentDate) ? "bg-primary text-primary-foreground" : "text-foreground"
+                    )}
+                  >
+                    {format(currentDate, "d")}
+                  </div>
+                  {(() => {
+                    const h = getDayHours(filteredJobs, currentDate);
+                    return h > 0 ? (
+                      <span
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block",
+                          h >= 8 ? "bg-destructive/20 text-destructive"
+                            : h >= 6 ? "bg-orange-500/20 text-orange-400"
+                            : "bg-primary/15 text-primary"
+                        )}
+                      >
+                        {h}h scheduled
+                      </span>
+                    ) : null;
+                  })()}
+                  <div className="flex gap-1.5 justify-center mt-1">
+                    {[0, 1, 2, 3].map(i => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          i < getDots(filteredJobs, currentDate) ? "bg-primary" : "bg-white/10"
+                        )}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div
-                  className={cn(
-                    "text-3xl font-bold mx-auto w-12 h-12 flex items-center justify-center rounded-full mt-0.5",
-                    isToday(currentDate) ? "bg-primary text-primary-foreground" : "text-foreground"
+              </div>
+
+              {/* All-day band – day view */}
+              {(() => {
+                const dayAllDay = filteredJobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), currentDate) && isAllDay(j));
+                if (dayAllDay.length === 0) return null;
+                return (
+                  <div className="shrink-0 flex flex-col gap-0.5 px-2 py-1.5 border-b border-border bg-muted/10">
+                    <span className="text-[8px] text-muted-foreground mb-0.5">all day</span>
+                    {dayAllDay.map((job: any) => (
+                      <div
+                        key={job.id}
+                        onClick={() => openJob(job)}
+                        className={cn("rounded px-2 py-0.5 text-[11px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                        style={getWorkerBgStyle(job, workerColors)}
+                      >
+                        {job.title}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Trade-type column headers – shown only when >1 trade types present */}
+              {multiCol && (
+                <div className="shrink-0 flex border-b border-border bg-background/40">
+                  <div className="w-10 sm:w-12 shrink-0" />
+                  {dayTradeTypes.map(tt => (
+                    <div
+                      key={tt}
+                      className="flex-1 border-l border-border/50 py-2 text-center text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground min-w-0 truncate px-1"
+                    >
+                      {tt}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div
+                ref={timeGridRef}
+                className="flex-1 overflow-y-auto overscroll-contain"
+                style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+              >
+                <div className="flex">
+                  <div className="w-10 sm:w-12 shrink-0 bg-background/20">
+                    {HOURS.map((hour, i) => (
+                      <div
+                        key={hour}
+                        className={cn(
+                          "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
+                          i > 0 && "-mt-2"
+                        )}
+                        style={{ height: HOUR_H }}
+                      >
+                        {format(new Date(2000, 0, 1, hour), "ha")}
+                      </div>
+                    ))}
+                  </div>
+                  {multiCol ? (
+                    dayTradeTypes.map(tt => (
+                      <div key={tt} className="flex-1 border-l border-border/50 min-w-0">
+                        <TimeColumn
+                          day={currentDate}
+                          jobs={filteredJobs.filter((j: any) => j.tradeType === tt)}
+                          onJobClick={openJob}
+                          workerColors={workerColors}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex-1 border-l border-border/50 min-w-0">
+                      <TimeColumn day={currentDate} jobs={filteredJobs} onJobClick={openJob} workerColors={workerColors} />
+                    </div>
                   )}
-                >
-                  {format(currentDate, "d")}
-                </div>
-                {(() => {
-                  const h = getDayHours(filteredJobs, currentDate);
-                  return h > 0 ? (
-                    <span
-                      className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block",
-                        h >= 8 ? "bg-destructive/20 text-destructive"
-                          : h >= 6 ? "bg-orange-500/20 text-orange-400"
-                          : "bg-primary/15 text-primary"
-                      )}
-                    >
-                      {h}h scheduled
-                    </span>
-                  ) : null;
-                })()}
-                <div className="flex gap-1.5 justify-center mt-1">
-                  {[0, 1, 2, 3].map(i => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "w-2 h-2 rounded-full",
-                        i < getDots(filteredJobs, currentDate) ? "bg-primary" : "bg-white/10"
-                      )}
-                    />
-                  ))}
                 </div>
               </div>
             </div>
-
-            {/* All-day band – day view */}
-            {(() => {
-              const dayAllDay = filteredJobs.filter((j: any) => j.scheduledDate && isSameDay(new Date(j.scheduledDate), currentDate) && isAllDay(j));
-              if (dayAllDay.length === 0) return null;
-              return (
-                <div className="shrink-0 flex flex-col gap-0.5 px-2 py-1.5 border-b border-border bg-muted/10">
-                  <span className="text-[8px] text-muted-foreground mb-0.5">all day</span>
-                  {dayAllDay.map((job: any) => (
-                    <div
-                      key={job.id}
-                      onClick={() => openJob(job)}
-                      className={cn("rounded px-2 py-0.5 text-[11px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
-                    >
-                      {job.title}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
-            <div
-              ref={timeGridRef}
-              className="flex-1 overflow-y-auto overscroll-contain"
-              style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
-            >
-              <div className="flex">
-                <div className="w-10 sm:w-12 shrink-0 bg-background/20">
-                  {HOURS.map((hour, i) => (
-                    <div
-                      key={hour}
-                      className={cn(
-                        "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
-                        i > 0 && "-mt-2"
-                      )}
-                      style={{ height: HOUR_H }}
-                    >
-                      {format(new Date(2000, 0, 1, hour), "ha")}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex-1 border-l border-border/50 min-w-0">
-                  <TimeColumn day={currentDate} jobs={filteredJobs} onJobClick={openJob} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── Day Popup Dialog ── */}
@@ -1231,6 +1316,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             <DaySchedulePopup
               day={dayPopup}
               jobs={filteredJobs}
+              workerColors={workerColors}
               onViewFull={() => {
                 setCurrentDate(dayPopup);
                 setViewMode("day");

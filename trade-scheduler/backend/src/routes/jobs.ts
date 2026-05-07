@@ -3,7 +3,7 @@ import { db, jobsTable, workersTable } from "../db";
 import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "@workspace/api-zod";
-import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS } from "../lib/sms";
+import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS, sendOnMyWaySMS } from "../lib/sms";
 import { sendInvoiceEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances, reverseGeocodeSuburb, getWorkerDistancesToJob } from "../lib/maps";
@@ -17,8 +17,8 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
+    if (file.mimetype.startsWith("image/") || file.mimetype === "application/pdf") cb(null, true);
+    else cb(new Error("Only image and PDF files are allowed"));
   },
 });
 
@@ -619,6 +619,36 @@ router.get("/:id/img", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("[img-proxy]", err);
     res.status(500).end();
+  }
+});
+
+// ── POST /api/jobs/:id/sms/on-my-way — notify client tradie is 30 min away ───
+// Available to both admins and assigned workers.
+
+router.post("/:id/sms/on-my-way", async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [job] = await db.select().from(jobsTable).where(eq(jobsTable.id, id));
+    if (!job) { res.status(404).json({ error: "Job not found" }); return; }
+
+    if (req.session.role === "worker") {
+      const assigned = parseWorkerIds(job.assignedWorkerIds);
+      if (!req.session.workerId || !assigned.includes(req.session.workerId)) {
+        res.status(403).json({ error: "Forbidden" }); return;
+      }
+    }
+
+    if (!job.clientPhone) {
+      res.status(400).json({ error: "No client phone number on record" }); return;
+    }
+
+    await sendOnMyWaySMS(job.clientName, job.clientPhone, job.title);
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("[sms] on-my-way error:", err);
+    res.status(500).json({ error: err.message ?? "SMS send failed" });
   }
 });
 
