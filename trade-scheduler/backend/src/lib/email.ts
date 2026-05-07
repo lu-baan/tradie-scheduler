@@ -53,6 +53,7 @@ export async function sendBookingConfirmationEmail(opts: {
   toName:        string;
   jobTitle:      string;
   scheduledDate: string | null;
+  workerNames:   string[];
 }): Promise<void> {
   const dateLine = opts.scheduledDate
     ? new Date(opts.scheduledDate).toLocaleString("en-AU", {
@@ -60,6 +61,8 @@ export async function sendBookingConfirmationEmail(opts: {
         hour: "2-digit", minute: "2-digit",
       })
     : "To be confirmed";
+
+  const tradieLine = opts.workerNames.length > 0 ? opts.workerNames.join(", ") : "To be assigned";
 
   await transporter.sendMail({
     from:    FROM,
@@ -69,7 +72,7 @@ export async function sendBookingConfirmationEmail(opts: {
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
         <div style="background:#ea580c;padding:20px 24px;border-radius:8px 8px 0 0">
           <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Booking Confirmed</h1>
-          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">Trade Scheduler 2</p>
+          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">${FROM_NAME}</p>
         </div>
         <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
           <p>Hi <strong>${opts.toName}</strong>,</p>
@@ -77,13 +80,15 @@ export async function sendBookingConfirmationEmail(opts: {
           <table style="width:100%;border-collapse:collapse;margin:16px 0">
             <tr><td style="padding:8px 0;color:#666;font-size:14px">Job</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobTitle}</td></tr>
             <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Scheduled</td><td style="padding:8px 0;font-weight:600;text-align:right">${dateLine}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Tradie</td><td style="padding:8px 0;font-weight:600;text-align:right">${tradieLine}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Company</td><td style="padding:8px 0;font-weight:600;text-align:right">${FROM_NAME}</td></tr>
           </table>
           <p>Our team will be in touch if anything changes. Thank you for choosing us!</p>
-          <p style="margin-top:24px">Regards,<br><strong>Trade Scheduler</strong></p>
+          <p style="margin-top:24px">Regards,<br><strong>${FROM_NAME}</strong></p>
         </div>
       </div>
     `,
-    text: `Hi ${opts.toName},\n\nYour booking for "${opts.jobTitle}" has been confirmed.\nScheduled: ${dateLine}\n\nThank you for choosing us!\n\nTrade Scheduler`,
+    text: `Hi ${opts.toName},\n\nYour booking for "${opts.jobTitle}" has been confirmed.\nScheduled: ${dateLine}\nTradie: ${tradieLine}\nCompany: ${FROM_NAME}\n\nThank you for choosing us!\n\n${FROM_NAME}`,
   });
 }
 

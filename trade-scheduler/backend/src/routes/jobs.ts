@@ -206,8 +206,13 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
           .catch(err => console.error("Booking confirmation SMS failed:", err));
       }
       if (job.clientEmail) {
-        sendBookingConfirmationEmail({ toEmail: job.clientEmail, toName: job.clientName, jobTitle: job.title, scheduledDate: job.scheduledDate ?? null })
-          .catch(err => console.error("Booking confirmation email failed:", err));
+        sendBookingConfirmationEmail({
+          toEmail:       job.clientEmail,
+          toName:        job.clientName,
+          jobTitle:      job.title,
+          scheduledDate: job.scheduledDate ?? null,
+          workerNames:   hydrated.assignedWorkers.map((w: { name: string }) => w.name),
+        }).catch(err => console.error("Booking confirmation email failed:", err));
       }
     }
 
@@ -457,17 +462,23 @@ router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: R
     }).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
 
-    // Send booking confirmation SMS + email
+    const [hydrated] = await hydrateJobs([job]);
+
+    // Send booking confirmation SMS + email (after DB write succeeds)
     if (job.clientPhone) {
       sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
         .catch(err => console.error("Booking confirmation SMS failed:", err));
     }
     if (job.clientEmail) {
-      sendBookingConfirmationEmail({ toEmail: job.clientEmail, toName: job.clientName, jobTitle: job.title, scheduledDate: job.scheduledDate ?? null })
-        .catch(err => console.error("Booking confirmation email failed:", err));
+      sendBookingConfirmationEmail({
+        toEmail:       job.clientEmail,
+        toName:        job.clientName,
+        jobTitle:      job.title,
+        scheduledDate: job.scheduledDate ?? null,
+        workerNames:   hydrated.assignedWorkers.map((w: { name: string }) => w.name),
+      }).catch(err => console.error("Booking confirmation email failed:", err));
     }
 
-    const [hydrated] = await hydrateJobs([job]);
     res.json(hydrated);
   } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
