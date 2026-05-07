@@ -4,7 +4,7 @@ import { eq, and, inArray, not } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "@workspace/api-zod";
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS, sendOnMyWaySMS } from "../lib/sms";
-import { sendInvoiceEmail } from "../lib/email";
+import { sendInvoiceEmail, sendBookingConfirmationEmail } from "../lib/email";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances, reverseGeocodeSuburb, getWorkerDistancesToJob } from "../lib/maps";
 import { requireAdmin } from "../middlewares/requireAuth";
@@ -199,10 +199,16 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
 
     const [hydrated] = await hydrateJobs([job]);
 
-    // Send confirmation SMS for new bookings
-    if (job.jobType === "booking" && job.clientPhone) {
-      sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
-        .catch(err => console.error("Booking confirmation SMS failed:", err));
+    // Send confirmation SMS + email for new bookings
+    if (job.jobType === "booking") {
+      if (job.clientPhone) {
+        sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
+          .catch(err => console.error("Booking confirmation SMS failed:", err));
+      }
+      if (job.clientEmail) {
+        sendBookingConfirmationEmail({ toEmail: job.clientEmail, toName: job.clientName, jobTitle: job.title, scheduledDate: job.scheduledDate ?? null })
+          .catch(err => console.error("Booking confirmation email failed:", err));
+      }
     }
 
     res.status(201).json(hydrated);
@@ -451,10 +457,14 @@ router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: R
     }).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
 
-    // Send booking confirmation SMS
+    // Send booking confirmation SMS + email
     if (job.clientPhone) {
       sendBookingConfirmationSMS(job.clientName, job.clientPhone, job.title, job.scheduledDate ?? null)
         .catch(err => console.error("Booking confirmation SMS failed:", err));
+    }
+    if (job.clientEmail) {
+      sendBookingConfirmationEmail({ toEmail: job.clientEmail, toName: job.clientName, jobTitle: job.title, scheduledDate: job.scheduledDate ?? null })
+        .catch(err => console.error("Booking confirmation email failed:", err));
     }
 
     const [hydrated] = await hydrateJobs([job]);

@@ -46,6 +46,47 @@ export async function sendPasswordResetEmail(opts: {
   });
 }
 
+// ── Booking confirmation ──────────────────────────────────────────────────────
+
+export async function sendBookingConfirmationEmail(opts: {
+  toEmail:       string;
+  toName:        string;
+  jobTitle:      string;
+  scheduledDate: string | null;
+}): Promise<void> {
+  const dateLine = opts.scheduledDate
+    ? new Date(opts.scheduledDate).toLocaleString("en-AU", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "To be confirmed";
+
+  await transporter.sendMail({
+    from:    FROM,
+    to:      `"${opts.toName}" <${opts.toEmail}>`,
+    subject: `Booking Confirmed — ${opts.jobTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <div style="background:#ea580c;padding:20px 24px;border-radius:8px 8px 0 0">
+          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Booking Confirmed</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">Trade Scheduler 2</p>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
+          <p>Hi <strong>${opts.toName}</strong>,</p>
+          <p>Your booking has been confirmed. Here are the details:</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr><td style="padding:8px 0;color:#666;font-size:14px">Job</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobTitle}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Scheduled</td><td style="padding:8px 0;font-weight:600;text-align:right">${dateLine}</td></tr>
+          </table>
+          <p>Our team will be in touch if anything changes. Thank you for choosing us!</p>
+          <p style="margin-top:24px">Regards,<br><strong>Trade Scheduler</strong></p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${opts.toName},\n\nYour booking for "${opts.jobTitle}" has been confirmed.\nScheduled: ${dateLine}\n\nThank you for choosing us!\n\nTrade Scheduler`,
+  });
+}
+
 // ── Invoice ───────────────────────────────────────────────────────────────────
 
 interface InvoiceEmailData {
