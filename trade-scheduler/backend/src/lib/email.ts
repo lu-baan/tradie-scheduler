@@ -54,6 +54,62 @@ export async function sendBookingConfirmationEmail(opts: {
   jobTitle:      string;
   scheduledDate: string | null;
   workerNames:   string[];
+  confirmToken:  string;
+}): Promise<void> {
+  const dateLine   = opts.scheduledDate
+    ? new Date(opts.scheduledDate).toLocaleString("en-AU", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "To be confirmed";
+  const tradieLine = opts.workerNames.length > 0 ? opts.workerNames.join(", ") : "To be assigned";
+  const base       = (process.env.PUBLIC_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const yesUrl     = `${base}/api/customer/confirm?token=${opts.confirmToken}&action=yes`;
+  const noUrl      = `${base}/api/customer/confirm?token=${opts.confirmToken}&action=no`;
+
+  await transporter.sendMail({
+    from:    FROM,
+    to:      `"${opts.toName}" <${opts.toEmail}>`,
+    subject: `Booking Scheduled — Please Confirm: ${opts.jobTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <div style="background:#ea580c;padding:20px 24px;border-radius:8px 8px 0 0">
+          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Appointment Scheduled</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">${FROM_NAME}</p>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
+          <p>Hi <strong>${opts.toName}</strong>,</p>
+          <p>An appointment has been scheduled for you. Please confirm whether this time works for you.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr><td style="padding:8px 0;color:#666;font-size:14px">Job</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobTitle}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Scheduled</td><td style="padding:8px 0;font-weight:600;text-align:right">${dateLine}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Tradie</td><td style="padding:8px 0;font-weight:600;text-align:right">${tradieLine}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Company</td><td style="padding:8px 0;font-weight:600;text-align:right">${FROM_NAME}</td></tr>
+          </table>
+          <p style="font-weight:600;margin-top:24px">Can you make this appointment?</p>
+          <div style="text-align:center;margin:24px 0;display:flex;gap:16px;justify-content:center">
+            <a href="${yesUrl}" style="background:#16a34a;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;margin-right:12px">✓ YES, confirm</a>
+            <a href="${noUrl}"  style="background:#dc2626;color:#fff;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">✗ NO, reschedule</a>
+          </div>
+          <p style="font-size:12px;color:#999;text-align:center">Or copy these links into your browser:<br>
+            YES: <a href="${yesUrl}" style="color:#16a34a;word-break:break-all">${yesUrl}</a><br>
+            NO: <a href="${noUrl}" style="color:#dc2626;word-break:break-all">${noUrl}</a>
+          </p>
+          <p style="font-size:12px;color:#999;margin-top:16px">These links expire in 7 days.</p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${opts.toName},\n\nAn appointment has been scheduled:\nJob: ${opts.jobTitle}\nScheduled: ${dateLine}\nTradie: ${tradieLine}\nCompany: ${FROM_NAME}\n\nCan you make this appointment?\n\nYES (confirm): ${yesUrl}\nNO (reschedule): ${noUrl}\n\nLinks expire in 7 days.\n\n${FROM_NAME}`,
+  });
+}
+
+// ── Booking YES/NO follow-up emails ───────────────────────────────────────────
+
+export async function sendCustomerConfirmedEmail(opts: {
+  toEmail:       string;
+  toName:        string;
+  jobTitle:      string;
+  scheduledDate: string | null;
 }): Promise<void> {
   const dateLine = opts.scheduledDate
     ? new Date(opts.scheduledDate).toLocaleString("en-AU", {
@@ -62,33 +118,97 @@ export async function sendBookingConfirmationEmail(opts: {
       })
     : "To be confirmed";
 
-  const tradieLine = opts.workerNames.length > 0 ? opts.workerNames.join(", ") : "To be assigned";
-
   await transporter.sendMail({
     from:    FROM,
     to:      `"${opts.toName}" <${opts.toEmail}>`,
-    subject: `Booking Confirmed — ${opts.jobTitle}`,
+    subject: `Confirmed! We'll see you for ${opts.jobTitle}`,
     html: `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
-        <div style="background:#ea580c;padding:20px 24px;border-radius:8px 8px 0 0">
-          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Booking Confirmed</h1>
+        <div style="background:#16a34a;padding:20px 24px;border-radius:8px 8px 0 0">
+          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Appointment Confirmed ✓</h1>
           <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">${FROM_NAME}</p>
         </div>
         <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
           <p>Hi <strong>${opts.toName}</strong>,</p>
-          <p>Your booking has been confirmed. Here are the details:</p>
+          <p>Great! Your appointment is locked in. We look forward to seeing you.</p>
           <table style="width:100%;border-collapse:collapse;margin:16px 0">
             <tr><td style="padding:8px 0;color:#666;font-size:14px">Job</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobTitle}</td></tr>
             <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Scheduled</td><td style="padding:8px 0;font-weight:600;text-align:right">${dateLine}</td></tr>
-            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Tradie</td><td style="padding:8px 0;font-weight:600;text-align:right">${tradieLine}</td></tr>
-            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Company</td><td style="padding:8px 0;font-weight:600;text-align:right">${FROM_NAME}</td></tr>
           </table>
-          <p>Our team will be in touch if anything changes. Thank you for choosing us!</p>
           <p style="margin-top:24px">Regards,<br><strong>${FROM_NAME}</strong></p>
         </div>
       </div>
     `,
-    text: `Hi ${opts.toName},\n\nYour booking for "${opts.jobTitle}" has been confirmed.\nScheduled: ${dateLine}\nTradie: ${tradieLine}\nCompany: ${FROM_NAME}\n\nThank you for choosing us!\n\n${FROM_NAME}`,
+    text: `Hi ${opts.toName},\n\nGreat! Your appointment for "${opts.jobTitle}" is confirmed.\nScheduled: ${dateLine}\n\nWe look forward to seeing you!\n\n${FROM_NAME}`,
+  });
+}
+
+export async function sendCustomerRescheduledEmail(opts: {
+  toEmail:  string;
+  toName:   string;
+  jobTitle: string;
+}): Promise<void> {
+  await transporter.sendMail({
+    from:    FROM,
+    to:      `"${opts.toName}" <${opts.toEmail}>`,
+    subject: `We'll reschedule your appointment — ${opts.jobTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <div style="background:#ea580c;padding:20px 24px;border-radius:8px 8px 0 0">
+          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Reschedule Requested</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">${FROM_NAME}</p>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
+          <p>Hi <strong>${opts.toName}</strong>,</p>
+          <p>No problem — we've noted that you'd like to reschedule your appointment for <strong>${opts.jobTitle}</strong>.</p>
+          <p>Our team will be in touch shortly to arrange a new time that works for you.</p>
+          <p style="margin-top:24px">Regards,<br><strong>${FROM_NAME}</strong></p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${opts.toName},\n\nNo problem — we'll reschedule your appointment for "${opts.jobTitle}".\nOur team will contact you with new available times shortly.\n\n${FROM_NAME}`,
+  });
+}
+
+export async function sendAdminRescheduleNotification(opts: {
+  clientName:    string;
+  jobTitle:      string;
+  scheduledDate: string | null;
+  jobId:         number;
+}): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL ?? process.env.GMAIL_USER ?? "";
+  if (!adminEmail) return;
+
+  const dateLine = opts.scheduledDate
+    ? new Date(opts.scheduledDate).toLocaleString("en-AU", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : "Not set";
+
+  await transporter.sendMail({
+    from:    FROM,
+    to:      adminEmail,
+    subject: `⚠ Reschedule Required — ${opts.jobTitle} (Job #${opts.jobId})`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#222">
+        <div style="background:#dc2626;padding:20px 24px;border-radius:8px 8px 0 0">
+          <h1 style="color:#fff;margin:0;font-size:20px;letter-spacing:1px">Reschedule Required</h1>
+          <p style="color:rgba(255,255,255,0.85);margin:4px 0 0;font-size:13px">${FROM_NAME}</p>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e5;border-top:none">
+          <p>A customer has declined their appointment and requires rescheduling.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0">
+            <tr><td style="padding:8px 0;color:#666;font-size:14px">Job #</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobId}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Job</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.jobTitle}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Client</td><td style="padding:8px 0;font-weight:600;text-align:right">${opts.clientName}</td></tr>
+            <tr style="border-top:1px solid #e5e5e5"><td style="padding:8px 0;color:#666;font-size:14px">Was scheduled</td><td style="padding:8px 0;font-weight:600;text-align:right">${dateLine}</td></tr>
+          </table>
+          <p>Please contact the client and propose a new time.</p>
+        </div>
+      </div>
+    `,
+    text: `Reschedule Required\n\nJob #${opts.jobId}: ${opts.jobTitle}\nClient: ${opts.clientName}\nWas scheduled: ${dateLine}\n\nPlease contact the client and propose a new time.`,
   });
 }
 

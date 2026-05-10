@@ -5,6 +5,7 @@ import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "@workspace/api-zod";
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS, sendOnMyWaySMS } from "../lib/sms";
 import { sendInvoiceEmail, sendBookingConfirmationEmail } from "../lib/email";
+import { createConfirmToken } from "../lib/token";
 import { generateInvoicePDF } from "../lib/pdf";
 import { getDrivingDistances, reverseGeocodeSuburb, getWorkerDistancesToJob } from "../lib/maps";
 import { requireAdmin } from "../middlewares/requireAuth";
@@ -212,6 +213,7 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
           jobTitle:      job.title,
           scheduledDate: job.scheduledDate ?? null,
           workerNames:   hydrated.assignedWorkers.map((w: { name: string }) => w.name),
+          confirmToken:  createConfirmToken(job.id),
         }).catch(err => console.error("Booking confirmation email failed:", err));
       }
     }
@@ -476,6 +478,7 @@ router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: R
         jobTitle:      job.title,
         scheduledDate: job.scheduledDate ?? null,
         workerNames:   hydrated.assignedWorkers.map((w: { name: string }) => w.name),
+        confirmToken:  createConfirmToken(job.id),
       }).catch(err => console.error("Booking confirmation email failed:", err));
     }
 

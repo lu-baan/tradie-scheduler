@@ -7,6 +7,7 @@ import geoRouter from "./geo";
 import leaveRouter from "./leave";
 import twilioRouter from "./twilio";
 import clientsRouter from "./clients";
+import customerRouter from "./customer";
 import { requireAuth, requireAdmin } from "../middlewares/requireAuth";
 import { sendInvoiceEmail } from "../lib/email";
 import { db, workersTable } from "../db";
@@ -18,6 +19,7 @@ const router: IRouter = Router();
 router.use(healthRouter);
 router.use("/auth", authRouter);
 router.use("/twilio", twilioRouter);
+router.use("/customer", customerRouter);
 
 // Worker self-profile - auth only (workers can read/update their own record).
 router.get("/workers/me", requireAuth, async (req: Request, res: Response) => {
