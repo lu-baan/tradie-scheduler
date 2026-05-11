@@ -122,6 +122,14 @@ function generateInvoiceNumber(jobId: number): string {
   return `INV-${new Date().getFullYear()}-${String(jobId).padStart(5, "0")}`;
 }
 
+async function nextBookingQueue(): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(jobsTable)
+    .where(eq(jobsTable.jobType, "booking"));
+  return count + 1;
+}
+
 router.get("/", async (req: Request, res: Response) => {
   try {
     const query = ListJobsQueryParams.parse(req.query);
@@ -186,9 +194,10 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
       return;
     }
     const { requiredSkills: reqSkills, ...restBody } = body as typeof body & { requiredSkills?: string[] };
+    const jobType = body.jobType ?? "quote";
     const [job] = await db.insert(jobsTable).values({
       ...restBody,
-      jobType: body.jobType ?? "quote",
+      jobType,
       validityCode: body.validityCode ?? 2,
       numTradies: body.numTradies ?? 1,
       status: body.status ?? "pending",
@@ -196,6 +205,7 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
       isEmergency: body.isEmergency ?? false,
       assignedWorkerIds: JSON.stringify(body.assignedWorkerIds ?? []),
       requiredSkillsJson: JSON.stringify(reqSkills ?? []),
+      bookingQueue: jobType === "booking" ? await nextBookingQueue() : null,
     }).returning();
 
     const [hydrated] = await hydrateJobs([job]);
@@ -471,6 +481,7 @@ router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: R
       assignedWorkerIds: JSON.stringify(body.assignedWorkerIds ?? []),
       notes: body.notes ?? undefined,
       status: "confirmed",
+      bookingQueue: await nextBookingQueue(),
       updatedAt: new Date(),
     }).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }

@@ -41,6 +41,7 @@ export const jobsTable = pgTable("jobs", {
   attendanceJson: text("attendance_json").notNull().default("[]"),
   travelTimeMinutes: integer("travel_time_minutes"),
   codeNineQueue: integer("code_nine_queue"),
+  bookingQueue: integer("booking_queue"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
