@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, jobsTable, workersTable } from "../db";
-import { eq, and, inArray, not } from "drizzle-orm";
+import { eq, and, inArray, not, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { CreateJobBody, UpdateJobBody, ListJobsQueryParams, ConvertToBookingBody } from "@workspace/api-zod";
 import { sendJobCompletedSMS, sendBookingConfirmationSMS, sendBumpedSMS, sendOnMyWaySMS } from "../lib/sms";
@@ -401,11 +401,22 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
       }
     }
 
+    // Assign Code 9 queue number — count active emergencies already in queue
+    const [{ count }] = await db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(jobsTable)
+      .where(and(
+        eq(jobsTable.isEmergency, true),
+        not(inArray(jobsTable.status, ["completed", "cancelled"])),
+      ));
+    const codeNineQueue = count + 1;
+
     // Build the update payload — assign the target worker if found
     const updatePayload: Record<string, unknown> = {
       isEmergency: true,
       status: "confirmed",
       priority: "urgent",
+      codeNineQueue,
       updatedAt: new Date(),
     };
     if (scheduledStart) updatePayload.scheduledDate = scheduledStart;
