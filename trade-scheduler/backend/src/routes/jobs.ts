@@ -122,12 +122,37 @@ function generateInvoiceNumber(jobId: number): string {
   return `INV-${new Date().getFullYear()}-${String(jobId).padStart(5, "0")}`;
 }
 
-async function nextBookingQueue(): Promise<number> {
+/** Next position at the back of the unified queue. */
+async function nextQueueNumber(): Promise<number> {
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(jobsTable)
-    .where(eq(jobsTable.jobType, "booking"));
+    .where(and(
+      eq(jobsTable.jobType, "booking"),
+      not(inArray(jobsTable.status, ["completed", "cancelled"])),
+    ));
   return count + 1;
+}
+
+/** Insert Code 9 after existing Code 9s, shift everything else down. */
+async function insertCode9Queue(): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(jobsTable)
+    .where(and(
+      eq(jobsTable.isEmergency, true),
+      not(inArray(jobsTable.status, ["completed", "cancelled"])),
+    ));
+  const position = count + 1;
+  // Shift all non-Code-9 bookings that are at or after this position down by 1
+  await db.execute(
+    sql`UPDATE jobs SET queue_number = queue_number + 1
+        WHERE job_type = 'booking'
+          AND is_emergency = false
+          AND status NOT IN ('completed', 'cancelled')
+          AND queue_number >= ${position}`
+  );
+  return position;
 }
 
 router.get("/", async (req: Request, res: Response) => {
@@ -205,7 +230,7 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
       isEmergency: body.isEmergency ?? false,
       assignedWorkerIds: JSON.stringify(body.assignedWorkerIds ?? []),
       requiredSkillsJson: JSON.stringify(reqSkills ?? []),
-      bookingQueue: jobType === "booking" ? await nextBookingQueue() : null,
+      queueNumber: jobType === "booking" ? await nextQueueNumber() : null,
     }).returning();
 
     const [hydrated] = await hydrateJobs([job]);
@@ -411,22 +436,12 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
       }
     }
 
-    // Assign Code 9 queue number — count active emergencies already in queue
-    const [{ count }] = await db
-      .select({ count: sql<number>`cast(count(*) as int)` })
-      .from(jobsTable)
-      .where(and(
-        eq(jobsTable.isEmergency, true),
-        not(inArray(jobsTable.status, ["completed", "cancelled"])),
-      ));
-    const codeNineQueue = count + 1;
-
     // Build the update payload — assign the target worker if found
     const updatePayload: Record<string, unknown> = {
       isEmergency: true,
       status: "confirmed",
       priority: "urgent",
-      codeNineQueue,
+      queueNumber: await insertCode9Queue(),
       updatedAt: new Date(),
     };
     if (scheduledStart) updatePayload.scheduledDate = scheduledStart;
@@ -481,7 +496,7 @@ router.post("/:id/convert-to-booking", requireAdmin, async (req: Request, res: R
       assignedWorkerIds: JSON.stringify(body.assignedWorkerIds ?? []),
       notes: body.notes ?? undefined,
       status: "confirmed",
-      bookingQueue: await nextBookingQueue(),
+      queueNumber: await nextQueueNumber(),
       updatedAt: new Date(),
     }).where(eq(jobsTable.id, id)).returning();
     if (!job) { res.status(404).json({ error: "Job not found" }); return; }
