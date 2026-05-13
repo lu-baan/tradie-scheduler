@@ -15,7 +15,6 @@ import {
 import { Plus, SlidersHorizontal, MapPin, Loader2, BriefcaseBusiness, Info, ArrowUp, ArrowDown, Search, X } from "lucide-react";
 import type { UserRole } from "@/App";
 import * as Tabs from "@radix-ui/react-tabs";
-import * as Slider from "@radix-ui/react-slider";
 
 type LocalSortBy = ListJobsSortBy | "upcoming";
 
@@ -49,7 +48,6 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
   })();
   const [sortBy, setSortBy] = useState<LocalSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [priceWeight, setPriceWeight] = useState(0.5);
   const [filterType, setFilterType] = useState<"all" | "quote" | "booking" | "completed" | "cancelled">("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showSortInfo, setShowSortInfo] = useState(false);
@@ -70,8 +68,8 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
     sortBy: apiSortBy,
     lat: location?.lat,
     lng: location?.lng,
-    priceWeight,
-    distanceWeight: 1 - priceWeight,
+    priceWeight: 0.5,
+    distanceWeight: 0.5,
   });
 
   const handleSortChange = (newSort: LocalSortBy) => {
@@ -237,31 +235,6 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
                 </button>
               </div>
 
-              {/* Smart sort weight slider */}
-              {sortBy === "smart" && (
-                <div className="w-full max-w-md bg-card p-3 rounded-md border border-border">
-                  <div className="flex justify-between text-xs font-display uppercase mb-2 text-muted-foreground">
-                    <span>Distance ({(1 - priceWeight).toFixed(1)})</span>
-                    <span>Price ({priceWeight.toFixed(1)})</span>
-                  </div>
-                  <Slider.Root
-                    className="relative flex items-center select-none touch-none w-full h-5"
-                    value={[priceWeight * 100]}
-                    max={100}
-                    step={10}
-                    onValueChange={v => setPriceWeight(v[0] / 100)}
-                  >
-                    <Slider.Track className="bg-secondary relative grow rounded-full h-2">
-                      <Slider.Range className="absolute bg-primary rounded-full h-full" />
-                    </Slider.Track>
-                    <Slider.Thumb className="block w-5 h-5 bg-white rounded-full shadow-lg border-2 border-primary focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </Slider.Root>
-                  <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
-                    Slide left to prioritise closer jobs, or right to prioritise higher-paying jobs.
-                    The smart score also factors in the job's validity code (priority level).
-                  </p>
-                </div>
-              )}
 
               {/* Location search */}
               <div className="relative max-w-sm">
