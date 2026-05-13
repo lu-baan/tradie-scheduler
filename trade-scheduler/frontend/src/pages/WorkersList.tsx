@@ -21,7 +21,7 @@ import * as z from "zod";
 import {
   Users, Phone, Mail, Trash2, CalendarClock, Edit2,
   Plus, X, DollarSign, ClipboardList, ChevronDown, ChevronUp,
-  CheckCircle2, XCircle, Clock, MoreHorizontal,
+  Clock, MoreHorizontal,
 } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
@@ -293,32 +293,11 @@ const LEAVE_STATUS_STYLES: Record<string, string> = {
   denied: "bg-destructive/10 border-destructive/30 text-destructive",
 };
 
-function LeavePanel({ worker, leaveRequests, onRefresh }: {
+function LeavePanel({ worker, leaveRequests }: {
   worker: Worker;
   leaveRequests: LeaveRequest[];
-  onRefresh: () => void;
 }) {
   const myLeave = leaveRequests.filter(r => r.workerId === worker.id);
-  const [approvingId, setApprovingId] = useState<number | null>(null);
-
-  const approve = async (id: number, status: "approved" | "denied") => {
-    setApprovingId(id);
-    try {
-      const res = await fetch(`/api/leave/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success(status === "approved" ? "Leave approved" : "Leave denied");
-      onRefresh();
-    } catch {
-      toast.error("Failed to update leave request");
-    } finally {
-      setApprovingId(null);
-    }
-  };
 
   return (
     <div className="space-y-2">
@@ -327,143 +306,16 @@ function LeavePanel({ worker, leaveRequests, onRefresh }: {
       ) : (
         myLeave.map(r => (
           <div key={r.id} className={`rounded-lg border p-2 text-xs ${LEAVE_STATUS_STYLES[r.status]}`}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold">{LEAVE_TYPE_LABELS[r.leaveType]}</p>
-                <p className="text-muted-foreground">
-                  {r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}
-                  {r.startTime && ` · ${r.startTime}–${r.endTime}`}
-                </p>
-                {r.reason && <p className="mt-0.5 italic text-muted-foreground">"{r.reason}"</p>}
-              </div>
-              {r.status === "pending" && (
-                <div className="flex gap-1 shrink-0">
-                  <button
-                    className="p-1 rounded bg-green-500/20 hover:bg-green-500/40 text-green-400 transition-colors"
-                    disabled={approvingId === r.id}
-                    onClick={() => approve(r.id, "approved")}
-                    title="Approve"
-                  >
-                    <CheckCircle2 size={13} />
-                  </button>
-                  <button
-                    className="p-1 rounded bg-destructive/20 hover:bg-destructive/40 text-destructive transition-colors"
-                    disabled={approvingId === r.id}
-                    onClick={() => approve(r.id, "denied")}
-                    title="Deny"
-                  >
-                    <XCircle size={13} />
-                  </button>
-                </div>
-              )}
-            </div>
+            <p className="font-semibold">{LEAVE_TYPE_LABELS[r.leaveType]} · <span className="capitalize">{r.status}</span></p>
+            <p className="text-muted-foreground">
+              {r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}
+              {r.startTime && ` · ${r.startTime}–${r.endTime}`}
+            </p>
+            {r.reason && <p className="mt-0.5 italic text-muted-foreground">"{r.reason}"</p>}
           </div>
         ))
       )}
-      <AddLeaveButton workerId={worker.id} workerName={worker.name} onSuccess={onRefresh} />
     </div>
-  );
-}
-
-function AddLeaveButton({ workerId, workerName, onSuccess }: { workerId: number; workerName: string; onSuccess: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [type, setType] = useState<"sick"|"annual"|"training"|"personal"|"other">("annual");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
-  const todayStr = format(new Date(), "yyyy-MM-dd");
-
-  const handleSubmit = async () => {
-    if (!startDate || !endDate) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/leave", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          workerId, leaveType: type, startDate, endDate,
-          startTime: startTime || null, endTime: endTime || null,
-          reason: reason || null,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success(`Leave request created for ${workerName}`);
-      onSuccess();
-      setOpen(false);
-      setStartDate(""); setEndDate(""); setStartTime(""); setEndTime(""); setReason("");
-    } catch {
-      toast.error("Failed to create leave request");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <button
-        type="button"
-        className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
-        onClick={() => setOpen(true)}
-      >
-        <Plus size={11} /> Request leave
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
-          <DialogHeader>
-            <DialogTitle>Request Leave — {workerName}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <Label>Leave Type</Label>
-              <select
-                value={type}
-                onChange={e => setType(e.target.value as any)}
-                className="w-full h-10 rounded-md border border-input bg-background/50 px-3 text-sm"
-              >
-                {Object.entries(LEAVE_TYPE_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label required>Start Date</Label>
-                <Input type="date" min={todayStr} value={startDate} onChange={e => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} />
-              </div>
-              <div>
-                <Label required>End Date</Label>
-                <Input type="date" min={startDate || todayStr} value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>From Time (optional)</Label>
-                <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-              </div>
-              <div>
-                <Label>To Time (optional)</Label>
-                <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <Label>Reason (optional)</Label>
-              <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Medical appointment" />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!startDate || !endDate || saving}>
-              {saving ? "Saving…" : "Submit Request"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 
@@ -500,7 +352,6 @@ function WorkerCard({
   onEdit,
   onDelete,
   onToggleAvail,
-  onRefreshLeave,
   weekJobs,
 }: {
   worker: Worker;
@@ -509,7 +360,6 @@ function WorkerCard({
   onEdit: () => void;
   onDelete: () => void;
   onToggleAvail: (checked: boolean) => void;
-  onRefreshLeave: () => void;
   weekJobs: { scheduledDate?: string | null; estimatedHours?: number | null; assignedWorkerIds: number[]; attendance?: { workerId: number; action: string; ts: string }[] }[];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -706,7 +556,7 @@ function WorkerCard({
                   </span>
                 )}
               </p>
-              <LeavePanel worker={worker} leaveRequests={leaveRequests} onRefresh={onRefreshLeave} />
+              <LeavePanel worker={worker} leaveRequests={leaveRequests} />
             </div>
           </div>
         </div>
@@ -849,7 +699,6 @@ export function WorkersList() {
               onEdit={() => setEditTarget(worker)}
               onDelete={() => setDeleteTarget(worker)}
               onToggleAvail={c => handleAvailabilityToggle(worker, c)}
-              onRefreshLeave={loadLeave}
               weekJobs={weekJobs}
             />
           ))}
