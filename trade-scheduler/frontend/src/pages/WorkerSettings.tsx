@@ -2,8 +2,21 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, User, Eye, EyeOff, Lock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Save, User, Eye, EyeOff, Lock, CalendarDays, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import type { LeaveRequest } from "@/lib/api-client";
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  sick: "Sick Leave", annual: "Annual Leave", training: "Training",
+  personal: "Personal", other: "Other",
+};
+const LEAVE_STATUS_STYLES: Record<string, string> = {
+  pending:  "bg-yellow-500/10 border-yellow-500/30 text-yellow-400",
+  approved: "bg-green-500/10  border-green-500/30  text-green-400",
+  denied:   "bg-destructive/10 border-destructive/30 text-destructive",
+};
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -29,6 +42,70 @@ export function WorkerSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // ── Leave ──────────────────────────────────────────────────────────────────
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [leaveOpen, setLeaveOpen]         = useState(false);
+  const [leaveType, setLeaveType]         = useState<"sick"|"annual"|"training"|"personal"|"other">("annual");
+  const [leaveStart, setLeaveStart]       = useState("");
+  const [leaveEnd, setLeaveEnd]           = useState("");
+  const [leaveStartTime, setLeaveStartTime] = useState("");
+  const [leaveEndTime, setLeaveEndTime]   = useState("");
+  const [leaveReason, setLeaveReason]     = useState("");
+  const [leaveSaving, setLeaveSaving]     = useState(false);
+  const [cancellingId, setCancellingId]   = useState<number | null>(null);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+
+  const loadLeave = () => {
+    fetch("/api/leave", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setLeaveRequests)
+      .catch(() => {});
+  };
+
+  const handleLeaveSubmit = async () => {
+    if (!leaveStart || !leaveEnd || !workerId) return;
+    setLeaveSaving(true);
+    try {
+      const res = await fetch("/api/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          workerId,
+          leaveType,
+          startDate: leaveStart,
+          endDate: leaveEnd,
+          startTime: leaveStartTime || null,
+          endTime: leaveEndTime || null,
+          reason: leaveReason || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Leave request submitted");
+      loadLeave();
+      setLeaveOpen(false);
+      setLeaveStart(""); setLeaveEnd(""); setLeaveStartTime(""); setLeaveEndTime(""); setLeaveReason("");
+    } catch {
+      toast.error("Failed to submit leave request");
+    } finally {
+      setLeaveSaving(false);
+    }
+  };
+
+  const handleCancelLeave = async (id: number) => {
+    setCancellingId(id);
+    try {
+      const res = await fetch(`/api/leave/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error();
+      toast.success("Leave request cancelled");
+      loadLeave();
+    } catch {
+      toast.error("Failed to cancel leave request");
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const [pwCurrent, setPwCurrent]         = useState("");
   const [pwNew, setPwNew]                 = useState("");
@@ -75,6 +152,7 @@ export function WorkerSettings() {
       })
       .catch(() => toast.error("Failed to load profile"))
       .finally(() => setLoading(false));
+    loadLeave();
   }, []);
 
   const handleSave = async () => {
@@ -114,7 +192,7 @@ export function WorkerSettings() {
   };
 
   if (loading) {
-    return <div className="text-muted-foreground text-sm">Loading...</div>;
+    return <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center text-muted-foreground text-sm">Loading...</div>;
   }
 
   if (!workerId) {
@@ -264,6 +342,103 @@ export function WorkerSettings() {
           </div>
         </div>
       </Card>
+      {/* Leave Requests */}
+      <Card className="p-6 bg-card border-white/5 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={20} className="text-primary" />
+            <h3 className="font-display text-lg text-primary uppercase">My Leave</h3>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setLeaveOpen(true)}>
+            <Plus size={14} className="mr-1" /> Request Leave
+          </Button>
+        </div>
+
+        {leaveRequests.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">No leave requests yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {leaveRequests.map(r => (
+              <div key={r.id} className={`rounded-lg border p-3 text-sm ${LEAVE_STATUS_STYLES[r.status]}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{LEAVE_TYPE_LABELS[r.leaveType]} · <span className="capitalize">{r.status}</span></p>
+                    <p className="text-xs mt-0.5 text-muted-foreground">
+                      {r.startDate === r.endDate ? r.startDate : `${r.startDate} → ${r.endDate}`}
+                      {r.startTime ? ` · ${r.startTime}–${r.endTime}` : ""}
+                    </p>
+                    {r.reason && <p className="text-xs mt-0.5 italic text-muted-foreground">"{r.reason}"</p>}
+                    {r.adminNote && <p className="text-xs mt-0.5 font-medium">Note: {r.adminNote}</p>}
+                  </div>
+                  {r.status === "pending" && (
+                    <button
+                      onClick={() => handleCancelLeave(r.id)}
+                      disabled={cancellingId === r.id}
+                      className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      title="Cancel request"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Request Leave dialog */}
+      <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
+          <DialogHeader>
+            <DialogTitle>Request Leave</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Leave Type</Label>
+              <select
+                value={leaveType}
+                onChange={e => setLeaveType(e.target.value as any)}
+                className="w-full h-10 rounded-md border border-input bg-background/50 px-3 text-sm"
+              >
+                {Object.entries(LEAVE_TYPE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Start Date *</Label>
+                <Input type="date" min={todayStr} value={leaveStart} onChange={e => { setLeaveStart(e.target.value); if (!leaveEnd) setLeaveEnd(e.target.value); }} />
+              </div>
+              <div>
+                <Label>End Date *</Label>
+                <Input type="date" min={leaveStart || todayStr} value={leaveEnd} onChange={e => setLeaveEnd(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>From Time (optional)</Label>
+                <Input type="time" value={leaveStartTime} onChange={e => setLeaveStartTime(e.target.value)} />
+              </div>
+              <div>
+                <Label>To Time (optional)</Label>
+                <Input type="time" value={leaveEndTime} onChange={e => setLeaveEndTime(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <Label>Reason (optional)</Label>
+              <Input value={leaveReason} onChange={e => setLeaveReason(e.target.value)} placeholder="e.g. Medical appointment" />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setLeaveOpen(false)} disabled={leaveSaving}>Cancel</Button>
+            <Button onClick={handleLeaveSubmit} disabled={!leaveStart || !leaveEnd || leaveSaving}>
+              {leaveSaving ? "Submitting…" : "Submit Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
