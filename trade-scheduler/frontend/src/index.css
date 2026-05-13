@@ -159,3 +159,12 @@
   z-index: 99999 !important;
   pointer-events: auto !important;
 }
+
+/* Center Sonner toasts in the middle of the viewport */
+[data-sonner-toaster] {
+  top: 50% !important;
+  bottom: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translate(-50%, -50%) !important;
+}
