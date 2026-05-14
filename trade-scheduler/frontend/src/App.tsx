@@ -124,9 +124,12 @@ function App() {
           position="top-center"
           toastOptions={{
             style: {
-              background: "hsl(var(--card))",
+              background: theme === "dark" ? "hsl(0 0% 22%)" : "hsl(0 0% 88%)",
               border: "1px solid hsl(var(--border))",
               color: "hsl(var(--foreground))",
+            },
+            classNames: {
+              description: theme === "dark" ? "toast-description-dark" : undefined,
             },
           }}
         />

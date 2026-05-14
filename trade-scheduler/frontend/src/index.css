@@ -160,6 +160,10 @@
   pointer-events: auto !important;
 }
 
+.toast-description-dark {
+  color: hsl(0 0% 78%) !important;
+}
+
 /* Center Sonner toasts in the middle of the viewport */
 [data-sonner-toaster] {
   top: 50% !important;
