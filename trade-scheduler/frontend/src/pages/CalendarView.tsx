@@ -1178,13 +1178,10 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             >
               <div className="flex">
                 <div className="w-10 sm:w-12 shrink-0 bg-background/20">
-                  {HOURS.map((hour, i) => (
+                  {HOURS.map((hour) => (
                     <div
                       key={hour}
-                      className={cn(
-                        "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
-                        i > 0 && "-mt-2"
-                      )}
+                      className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground"
                       style={{ height: HOUR_H }}
                     >
                       {format(new Date(2000, 0, 1, hour), "ha")}
@@ -1298,13 +1295,10 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               >
                 <div className="flex">
                   <div className="w-10 sm:w-12 shrink-0 bg-background/20">
-                    {HOURS.map((hour, i) => (
+                    {HOURS.map((hour) => (
                       <div
                         key={hour}
-                        className={cn(
-                          "text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground",
-                          i > 0 && "-mt-2"
-                        )}
+                        className="text-right pr-1 sm:pr-2 text-[8px] sm:text-[9px] text-muted-foreground"
                         style={{ height: HOUR_H }}
                       >
                         {format(new Date(2000, 0, 1, hour), "ha")}
