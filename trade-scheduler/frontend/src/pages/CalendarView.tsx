@@ -866,71 +866,6 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
           </div>
         </div>
 
-        {/* Worker filter (admin only) */}
-        {userRole === "admin" && workers.length > 0 && (
-          <div>
-            <p className="text-[9px] uppercase text-muted-foreground font-bold tracking-widest mb-2">
-              Filter by Worker
-            </p>
-            <div className="space-y-1">
-              <button
-                type="button"
-                onClick={() => setWorkerFilter("all")}
-                className={cn(
-                  "w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2",
-                  workerFilter === "all"
-                    ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Users size={11} />
-                All Workers
-              </button>
-              {workers.map(w => (
-                <div key={w.id} className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setWorkerFilter(w.id)}
-                    className={cn(
-                      "flex-1 min-w-0 text-left px-3 py-1.5 rounded-md text-xs transition-all",
-                      workerFilter === w.id
-                        ? "bg-primary/20 text-primary border border-primary/30 font-semibold"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <span className="truncate block">{w.name}</span>
-                    <span className="text-[10px] opacity-60">{w.tradeType}</span>
-                  </button>
-                  {/* Colour picker swatch */}
-                  <label className="shrink-0 cursor-pointer relative" title="Set worker colour">
-                    <div
-                      className="w-5 h-5 rounded-full border border-white/25 shadow-sm"
-                      style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
-                    />
-                    <input
-                      type="color"
-                      value={workerColors[w.id] ?? "#888888"}
-                      onChange={e => updateWorkerColor(w.id, e.target.value)}
-                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                    />
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Active filter pill */}
-        {workerFilter !== "all" && (
-          <button
-            type="button"
-            onClick={() => setWorkerFilter("all")}
-            className="flex items-center gap-1.5 text-[10px] bg-primary/10 border border-primary/20 text-primary rounded-full px-2.5 py-1 hover:bg-primary/20 transition-colors self-start"
-          >
-            <X size={10} />
-            Clear filter
-          </button>
-        )}
       </div>
 
       {/* ── Main Calendar ── */}
@@ -977,6 +912,66 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             ))}
           </div>
         </div>
+
+        {/* ── Worker filter bar (admin only) ── */}
+        {userRole === "admin" && workers.length > 0 && (
+          <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-background/30 overflow-x-auto">
+            <span className="text-[9px] uppercase text-muted-foreground font-bold tracking-widest shrink-0 mr-1">Workers</span>
+            <button
+              type="button"
+              onClick={() => setWorkerFilter("all")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0",
+                workerFilter === "all"
+                  ? "bg-primary/20 text-primary border border-primary/30"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
+              )}
+            >
+              <Users size={10} /> All
+            </button>
+            {workers.map(w => (
+              <div key={w.id} className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setWorkerFilter(w.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all",
+                    workerFilter === w.id
+                      ? "bg-primary/20 text-primary border border-primary/30"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
+                  )}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
+                  />
+                  {w.name}
+                </button>
+                <label className="shrink-0 cursor-pointer relative" title="Set worker colour">
+                  <div
+                    className="w-4 h-4 rounded-full border border-white/25 shadow-sm"
+                    style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
+                  />
+                  <input
+                    type="color"
+                    value={workerColors[w.id] ?? "#888888"}
+                    onChange={e => updateWorkerColor(w.id, e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  />
+                </label>
+              </div>
+            ))}
+            {workerFilter !== "all" && (
+              <button
+                type="button"
+                onClick={() => setWorkerFilter("all")}
+                className="flex items-center gap-1 text-[10px] bg-primary/10 border border-primary/20 text-primary rounded-full px-2 py-0.5 hover:bg-primary/20 transition-colors shrink-0 ml-1"
+              >
+                <X size={9} /> Clear
+              </button>
+            )}
+          </div>
+        )}
 
         {/* ── Month View ── */}
         {viewMode === "month" && (
