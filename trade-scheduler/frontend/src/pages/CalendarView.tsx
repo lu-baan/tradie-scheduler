@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useListJobs, useListWorkers, useUpdateJob } from "@/lib/api-client";
 import {
   format,
@@ -726,6 +726,12 @@ function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
   );
 }
 
+const WORKER_PALETTE = [
+  "#ef4444", "#f97316", "#eab308", "#22c55e",
+  "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899",
+  "#14b8a6", "#f59e0b",
+];
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
@@ -743,17 +749,12 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [workerFilter, setWorkerFilter] = useState<number | "all">("all");
-  const [workerColors, setWorkerColors] = useState<Record<number, string>>(() => {
-    try { return JSON.parse(localStorage.getItem("ts2_worker_colors") ?? "{}"); } catch { return {}; }
-  });
-
-  const updateWorkerColor = (workerId: number, color: string) => {
-    setWorkerColors(prev => {
-      const next = { ...prev, [workerId]: color };
-      localStorage.setItem("ts2_worker_colors", JSON.stringify(next));
-      return next;
-    });
-  };
+  const [showAllWorkers, setShowAllWorkers] = useState(false);
+  const VISIBLE_WORKERS = 5;
+  const workerColors = useMemo<Record<number, string>>(
+    () => Object.fromEntries(workers.map((w, i) => [w.id, WORKER_PALETTE[i % WORKER_PALETTE.length]])),
+    [workers]
+  );
 
   // Edit job dialog
   const [selectedJob, setSelectedJob] = useState<any>(null);
@@ -915,13 +916,13 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
         {/* ── Worker filter bar (admin only) ── */}
         {userRole === "admin" && workers.length > 0 && (
-          <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-background/30 overflow-x-auto">
+          <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-3 py-2 border-b border-border bg-background/30">
             <span className="text-[9px] uppercase text-muted-foreground font-bold tracking-widest shrink-0 mr-1">Workers</span>
             <button
               type="button"
               onClick={() => setWorkerFilter("all")}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 touch-manipulation",
                 workerFilter === "all"
                   ? "bg-primary/20 text-primary border border-primary/30"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
@@ -929,45 +930,36 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
             >
               <Users size={10} /> All
             </button>
-            {workers.map(w => (
-              <div key={w.id} className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setWorkerFilter(w.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all",
-                    workerFilter === w.id
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
-                  )}
-                >
-                  <div
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
-                  />
-                  {w.name}
-                </button>
-                <label className="shrink-0 cursor-pointer relative" title="Set worker colour">
-                  <div
-                    className="w-4 h-4 rounded-full border border-white/25 shadow-sm"
-                    style={{ backgroundColor: workerColors[w.id] ?? "#888888" }}
-                  />
-                  <input
-                    type="color"
-                    value={workerColors[w.id] ?? "#888888"}
-                    onChange={e => updateWorkerColor(w.id, e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  />
-                </label>
-              </div>
+            {(showAllWorkers ? workers : workers.slice(0, VISIBLE_WORKERS)).map(w => (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => setWorkerFilter(w.id === workerFilter ? "all" : w.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 touch-manipulation",
+                  workerFilter === w.id
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
+                )}
+              >
+                <div
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: workerColors[w.id] }}
+                />
+                {w.name}
+              </button>
             ))}
-            {workerFilter !== "all" && (
+            {workers.length > VISIBLE_WORKERS && (
               <button
                 type="button"
-                onClick={() => setWorkerFilter("all")}
-                className="flex items-center gap-1 text-[10px] bg-primary/10 border border-primary/20 text-primary rounded-full px-2 py-0.5 hover:bg-primary/20 transition-colors shrink-0 ml-1"
+                onClick={() => setShowAllWorkers(v => !v)}
+                className="flex items-center gap-0.5 px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 touch-manipulation text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent"
               >
-                <X size={9} /> Clear
+                {showAllWorkers ? (
+                  <><ChevronRight size={12} className="rotate-180" /> Less</>
+                ) : (
+                  <>+{workers.length - VISIBLE_WORKERS} <ChevronRight size={12} /></>
+                )}
               </button>
             )}
           </div>
