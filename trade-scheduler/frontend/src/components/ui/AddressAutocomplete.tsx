@@ -24,7 +24,12 @@ export function AddressAutocomplete({
 }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const acRef = useRef<any>(null);
+  const onChangeRef = useRef(onChange);
+  const onCoordinatesSelectRef = useRef(onCoordinatesSelect);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onCoordinatesSelectRef.current = onCoordinatesSelect; }, [onCoordinatesSelect]);
 
   // Wait for Maps JS to load
   useEffect(() => {
@@ -61,9 +66,9 @@ export function AddressAutocomplete({
       ac.addListener("place_changed", () => {
         const place = ac.getPlace();
         if (place?.formatted_address) {
-          onChange(place.formatted_address);
-          if (onCoordinatesSelect && place.geometry?.location) {
-            onCoordinatesSelect(
+          onChangeRef.current(place.formatted_address);
+          if (place.geometry?.location) {
+            onCoordinatesSelectRef.current?.(
               place.geometry.location.lat(),
               place.geometry.location.lng(),
             );
@@ -80,7 +85,7 @@ export function AddressAutocomplete({
         acRef.current = null;
       }
     };
-  }, [ready, onChange, onCoordinatesSelect]);
+  }, [ready]);
 
   // Sync controlled value into the input
   useEffect(() => {
