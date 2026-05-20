@@ -68,11 +68,14 @@ const jobSchema = z.object({
     .string()
     .min(2, "Client name is required")
     .max(CLIENT_NAME_MAX, `Name must be under ${CLIENT_NAME_MAX} characters`),
-  clientPhone: z
-    .string()
-    .regex(/^(\+?61|0)[2-478]\d{8}$/, "Enter a valid Australian phone number (e.g. 0412345678)")
-    .optional()
-    .or(z.literal("")),
+  clientPhone: z.preprocess(
+    (val) => typeof val === "string" ? val.replace(/\s+/g, "") : val,
+    z
+      .string()
+      .regex(/^(\+?61|0)[2-478]\d{8}$/, "Enter a valid Australian phone number (e.g. 0412 345 678)")
+      .optional()
+      .or(z.literal(""))
+  ),
   clientEmail: z.string().email("Enter a valid email").optional().or(z.literal("")),
   address: z.string().min(5, "Address is required (min 5 characters)"),
   latitude: z.number().optional().nullable(),
