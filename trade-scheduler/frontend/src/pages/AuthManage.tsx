@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Eye, EyeOff, UserPlus, ShieldCheck, RefreshCw } from "lucide-react";
+import { Loader2, Eye, EyeOff, UserPlus, ShieldCheck, RefreshCw, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 const DEFAULT_TRADE_TYPES = [
@@ -58,6 +58,7 @@ export function AuthManage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -78,6 +79,24 @@ export function AuthManage() {
   const regenerateLoginNumber = useCallback(() => {
     form.setValue("loginNumber", generateLoginNumber(selectedRole));
   }, [form, selectedRole]);
+
+  const copyLoginNumber = useCallback(async () => {
+    const value = form.getValues("loginNumber");
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Fallback for browsers without clipboard API
+      const el = document.createElement("textarea");
+      el.value = value;
+      el.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [form]);
 
   const handleRegister = async (data: RegisterForm) => {
     setIsPending(true);
@@ -181,6 +200,14 @@ export function AuthManage() {
               <div className="flex-1 h-10 flex items-center px-3 rounded-md border border-input bg-secondary/40 font-mono tracking-widest text-lg font-bold text-primary">
                 {form.watch("loginNumber")}
               </div>
+              <button
+                type="button"
+                onClick={copyLoginNumber}
+                className="px-3 h-10 rounded-md border border-input bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                title="Copy login number"
+              >
+                {copied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
+              </button>
               <button
                 type="button"
                 onClick={regenerateLoginNumber}
