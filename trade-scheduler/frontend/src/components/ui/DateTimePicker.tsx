@@ -208,6 +208,7 @@ export function DateTimePicker({ date, time, onDateChange, onTimeChange, disable
               onSelect={(d) => {
                 if (!d) return;
                 onDateChange(format(d, "yyyy-MM-dd"));
+                if (!time) onTimeChange(to24h(hour, minute, period));
               }}
               disabled={disablePast ? (d) => {
                 const today = new Date();
