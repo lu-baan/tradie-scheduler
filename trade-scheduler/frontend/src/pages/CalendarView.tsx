@@ -19,7 +19,7 @@ import {
 } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2, FileText, Car, Send, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatPhone } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
 import { useQueryClient } from "@tanstack/react-query";
@@ -628,7 +628,7 @@ function WorkerJobPanel({ job, onClose }: { job: any; onClose: () => void }) {
         {job.clientPhone && (
           <div className="flex items-center gap-2">
             <Phone size={14} className="text-primary shrink-0" />
-            <a href={`tel:${job.clientPhone}`} className="text-foreground hover:text-primary">{job.clientPhone}</a>
+            <a href={`tel:${job.clientPhone}`} className="text-foreground hover:text-primary">{formatPhone(job.clientPhone)}</a>
           </div>
         )}
         <div className="flex items-center gap-2">

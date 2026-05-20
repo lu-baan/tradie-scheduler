@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { formatPhone } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -224,7 +225,7 @@ export function ClientsPage() {
                       }`}
                     >
                       <td className="px-5 py-3.5 font-semibold text-foreground">{c.clientName}</td>
-                      <td className="px-5 py-3.5 text-muted-foreground">{c.clientPhone ?? "—"}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground">{c.clientPhone ? formatPhone(c.clientPhone) : "—"}</td>
                       <td className="px-5 py-3.5 text-muted-foreground hidden lg:table-cell">{c.clientEmail ?? "—"}</td>
                       <td className="px-5 py-3.5 text-muted-foreground hidden xl:table-cell truncate max-w-[200px]">{c.address}</td>
                       <td className="px-5 py-3.5 text-center">
@@ -250,7 +251,7 @@ export function ClientsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-foreground truncate">{c.clientName}</p>
-                      <p className="text-sm text-muted-foreground">{c.clientPhone ?? "No phone"}</p>
+                      <p className="text-sm text-muted-foreground">{c.clientPhone ? formatPhone(c.clientPhone) : "No phone"}</p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{c.address}</p>
                     </div>
                     <div className="shrink-0 text-right">

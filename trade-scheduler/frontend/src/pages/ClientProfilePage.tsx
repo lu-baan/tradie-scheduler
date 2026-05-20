@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, Mail, MapPin, Briefcase, DollarSign, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { formatPhone } from "@/lib/utils";
 
 interface ClientJob {
   id:             number;
@@ -120,7 +121,7 @@ export function ClientProfilePage() {
               {profile.clientPhone && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone size={13} className="text-primary shrink-0" />
-                  {profile.clientPhone}
+                  {formatPhone(profile.clientPhone)}
                 </div>
               )}
               {profile.clientEmail && (

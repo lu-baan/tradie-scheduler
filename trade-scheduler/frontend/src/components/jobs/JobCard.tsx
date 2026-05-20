@@ -1,6 +1,6 @@
 import { Job, Worker, useDeleteJob, useTriggerEmergency, useConvertToBooking, useUpdateJob } from "@/lib/api-client";
 import type { UserRole } from "@/App";
-import { formatAUD, formatAusDate } from "@/lib/utils";
+import { formatAUD, formatAusDate, formatPhone } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -752,7 +752,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                 <div className="flex items-center gap-2 min-w-0">
                   <Phone size={15} className="text-primary shrink-0" />
                   <a href={`tel:${job.clientPhone}`} className="hover:text-primary transition-colors truncate">
-                    {job.clientPhone}
+                    {formatPhone(job.clientPhone)}
                   </a>
                 </div>
               )}

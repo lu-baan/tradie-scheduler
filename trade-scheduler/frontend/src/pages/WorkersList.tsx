@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPhone } from "@/lib/utils";
 import {
   useListWorkers,
   useCreateWorker,
@@ -32,11 +33,14 @@ import { format, addDays, addWeeks, endOfDay, isAfter } from "date-fns";
 const workerSchema = z.object({
   name: z.string().min(2).max(80),
   tradeType: z.string().min(2).max(60),
-  phone: z
-    .string()
-    .regex(/^(\+?61|0)[2-478]\d{8}$/, "Enter a valid Australian phone number")
-    .optional()
-    .or(z.literal("")),
+  phone: z.preprocess(
+    (val) => typeof val === "string" ? val.replace(/\s+/g, "") : val,
+    z
+      .string()
+      .regex(/^(\+?61|0)[2-478]\d{8}$/, "Enter a valid Australian phone number")
+      .optional()
+      .or(z.literal(""))
+  ),
   email: z.string().email("Enter a valid email").optional().or(z.literal("")),
   isAvailable: z.boolean().default(true),
   skills: z.array(z.string()).default([]),
@@ -402,7 +406,7 @@ function WorkerCard({
             {worker.phone && (
               <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                 <Phone size={9} />
-                <a href={`tel:${worker.phone}`} className="hover:text-primary">{worker.phone}</a>
+                <a href={`tel:${worker.phone}`} className="hover:text-primary">{formatPhone(worker.phone)}</a>
               </p>
             )}
           </div>
@@ -522,7 +526,7 @@ function WorkerCard({
                 {worker.phone ? (
                   <div className="flex items-center gap-2">
                     <Phone size={12} className="text-primary shrink-0" />
-                    <a href={`tel:${worker.phone}`} className="hover:text-primary">{worker.phone}</a>
+                    <a href={`tel:${worker.phone}`} className="hover:text-primary">{formatPhone(worker.phone)}</a>
                   </div>
                 ) : <p className="text-xs italic">No phone</p>}
                 {worker.email ? (
@@ -740,7 +744,7 @@ export function WorkersList() {
               defaultValues={{
                 name: editTarget.name,
                 tradeType: editTarget.tradeType,
-                phone: editTarget.phone ?? "",
+                phone: formatPhone(editTarget.phone ?? ""),
                 email: editTarget.email ?? "",
                 isAvailable: editTarget.isAvailable,
                 skills: editTarget.skills ?? [],
@@ -753,7 +757,7 @@ export function WorkersList() {
                   id: editTarget.id,
                   data: {
                     ...data,
-                    phone: data.phone || null,
+                    phone: data.phone?.replace(/\s+/g, "") || null,
                     email: data.email || null,
                     isAvailable: editTarget.isAvailable,
                     unavailableUntil: editTarget.unavailableUntil,

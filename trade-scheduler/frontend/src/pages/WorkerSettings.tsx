@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatPhone } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -146,7 +147,7 @@ export function WorkerSettings() {
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then((me: any) => {
         setName(me.name ?? "");
-        setPhone(me.phone ?? "");
+        setPhone(formatPhone(me.phone ?? ""));
         setEmail(me.email ?? sessionStorage.getItem("ts2_email") ?? "");
         setTradeType(me.tradeType ?? "");
       })
@@ -157,7 +158,7 @@ export function WorkerSettings() {
 
   const handleSave = async () => {
     if (!workerId) return;
-    if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone)) {
+    if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone.replace(/\s+/g, ""))) {
       setPhoneError("Enter a valid Australian phone number");
       return;
     }
@@ -168,7 +169,7 @@ export function WorkerSettings() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ name, phone, email, tradeType, isAvailable: true }),
+          body: JSON.stringify({ name, phone: phone.replace(/\s+/g, ""), email, tradeType, isAvailable: true }),
         }),
         fetch("/api/auth/profile", {
           method: "PATCH",
@@ -240,7 +241,7 @@ export function WorkerSettings() {
               placeholder="e.g. 0411 234 567"
               onChange={e => { setPhone(e.target.value); setHasChanges(true); setPhoneError(""); }}
               onBlur={() => {
-                if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone))
+                if (phone && !/^(\+?61|0)[2-478]\d{8}$/.test(phone.replace(/\s+/g, "")))
                   setPhoneError("Enter a valid Australian phone number");
                 else setPhoneError("");
               }}

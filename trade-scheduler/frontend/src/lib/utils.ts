@@ -30,3 +30,12 @@ export function formatAusDateTime(dateStr: string | null | undefined) {
     return "Invalid date";
   }
 }
+
+export function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\s+/g, "");
+  if (/^0\d{9}$/.test(digits)) {
+    return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+  }
+  return phone;
+}

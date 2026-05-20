@@ -12,6 +12,7 @@ import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptTex
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
+import { formatPhone } from "@/lib/utils";
 import { format } from "date-fns";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           title: initialData.title,
           tradeType: initialData.tradeType,
           clientName: initialData.clientName,
-          clientPhone: initialData.clientPhone || "",
+          clientPhone: formatPhone(initialData.clientPhone) || "",
           clientEmail: initialData.clientEmail || "",
           address: initialData.address,
           latitude: initialData.latitude,

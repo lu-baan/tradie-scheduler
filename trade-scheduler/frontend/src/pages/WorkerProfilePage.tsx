@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, Mail, Briefcase, DollarSign, Clock, Award } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
+import { formatPhone } from "@/lib/utils";
 
 interface WorkerProfile {
   id: number;
@@ -269,7 +270,7 @@ export function WorkerProfilePage() {
                 <div className="flex items-center gap-2">
                   <Phone size={14} className="text-primary shrink-0" />
                   <a href={`tel:${profile.phone}`} className="hover:text-primary transition-colors">
-                    {profile.phone}
+                    {formatPhone(profile.phone)}
                   </a>
                 </div>
               )}

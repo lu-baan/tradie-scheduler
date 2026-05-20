@@ -93,7 +93,7 @@ export function AuthManage() {
           email: data.email || null,
           role: data.role,
           tradeType: data.tradeType || null,
-          phone: data.phone || null,
+          phone: data.phone?.replace(/\s+/g, "") || null,
         }),
       });
 
