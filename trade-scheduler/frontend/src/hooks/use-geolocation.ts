@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export function useGeolocation() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -6,7 +6,7 @@ export function useGeolocation() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
       return;
@@ -42,7 +42,7 @@ export function useGeolocation() {
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
-  };
+  }, []);
 
   return { location, suburb, error, loading, requestLocation };
 }
