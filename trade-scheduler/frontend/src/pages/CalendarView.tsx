@@ -333,6 +333,7 @@ function TimeColumn({
       <div
         key={`${job.id}-${continuation ? "cont" : "orig"}`}
         onClick={() => onJobClick(job)}
+        title={job.scheduledDate ? `${job.title} — ${format(new Date(job.scheduledDate), "h:mm a, EEE d MMM yyyy")}` : job.title}
         className={cn(
           "absolute rounded border px-1.5 py-1 text-[11px] cursor-pointer overflow-hidden transition-all z-10",
           continuation ? "border-dashed opacity-80" : "",
@@ -349,7 +350,12 @@ function TimeColumn({
         {continuation && (
           <div className="text-[9px] opacity-60 mb-0.5">↳ continued</div>
         )}
-        <div className="font-semibold leading-tight truncate">{job.title}</div>
+        <div className="flex items-center gap-1 leading-tight min-w-0">
+          {job.isEmergency && (
+            <span className="shrink-0 text-[8px] font-bold bg-destructive text-white px-1 py-px rounded uppercase tracking-wide">C9</span>
+          )}
+          <span className="font-semibold truncate">{job.title}</span>
+        </div>
         {clippedHeight > 38 && (
           <div className="text-[10px] opacity-75 truncate">{job.clientName}</div>
         )}
@@ -507,7 +513,12 @@ function DaySchedulePopup({
                 style={getWorkerBgStyle(job, workerColors)}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold truncate">{job.title}</span>
+                  <div className="flex items-center gap-1 min-w-0">
+                    {job.isEmergency && (
+                      <span className="shrink-0 text-[8px] font-bold bg-destructive text-white px-1 py-px rounded uppercase tracking-wide">C9</span>
+                    )}
+                    <span className="font-semibold truncate">{job.title}</span>
+                  </div>
                   <span className="text-[11px] opacity-75 shrink-0">
                     {format(start, "h:mm a")} – {format(end, "h:mm a")}
                   </span>
@@ -1051,18 +1062,20 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                           <div
                             key={job.id}
                             onClick={e => { e.stopPropagation(); openJob(job); }}
+                            title={job.scheduledDate ? `${job.title} — ${format(new Date(job.scheduledDate), "h:mm a, EEE d MMM yyyy")}` : job.title}
                             className={cn(
-                              "text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded truncate font-semibold cursor-pointer",
+                              "text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-semibold cursor-pointer flex items-center gap-0.5 overflow-hidden",
                               jobColorClass(job)
                             )}
                             style={getWorkerBgStyle(job, workerColors)}
                           >
-                            <span className="hidden sm:inline">
-                              {job.scheduledDate && (
-                                <span className="opacity-75 mr-1">{format(new Date(job.scheduledDate), "h:mm")}</span>
-                              )}
+                            {job.isEmergency && (
+                              <span className="shrink-0 text-[7px] font-bold bg-destructive text-white px-0.5 rounded uppercase">C9</span>
+                            )}
+                            <span className="hidden sm:inline shrink-0 opacity-75">
+                              {job.scheduledDate && format(new Date(job.scheduledDate), "h:mm")}
                             </span>
-                            {job.title}
+                            <span className="truncate">{job.title}</span>
                           </div>
                         ))}
                         {dayJobs.length > 2 && (
@@ -1145,10 +1158,14 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                           <div
                             key={job.id}
                             onClick={() => openJob(job)}
-                            className={cn("rounded px-1 py-0.5 text-[10px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                            title={job.scheduledDate ? `${job.title} — ${format(new Date(job.scheduledDate), "EEE d MMM yyyy")} (all day)` : job.title}
+                            className={cn("rounded px-1 py-0.5 text-[10px] font-semibold cursor-pointer border flex items-center gap-1 overflow-hidden", jobColorClass(job))}
                             style={getWorkerBgStyle(job, workerColors)}
                           >
-                            {job.title}
+                            {job.isEmergency && (
+                              <span className="shrink-0 text-[7px] font-bold bg-destructive text-white px-0.5 rounded uppercase">C9</span>
+                            )}
+                            <span className="truncate">{job.title}</span>
                           </div>
                         ))}
                       </div>
@@ -1250,10 +1267,14 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                       <div
                         key={job.id}
                         onClick={() => openJob(job)}
-                        className={cn("rounded px-2 py-0.5 text-[11px] font-semibold cursor-pointer truncate border", jobColorClass(job))}
+                        title={job.scheduledDate ? `${job.title} — ${format(new Date(job.scheduledDate), "EEE d MMM yyyy")} (all day)` : job.title}
+                        className={cn("rounded px-2 py-0.5 text-[11px] font-semibold cursor-pointer border flex items-center gap-1 overflow-hidden", jobColorClass(job))}
                         style={getWorkerBgStyle(job, workerColors)}
                       >
-                        {job.title}
+                        {job.isEmergency && (
+                          <span className="shrink-0 text-[8px] font-bold bg-destructive text-white px-1 py-px rounded uppercase tracking-wide">C9</span>
+                        )}
+                        <span className="truncate">{job.title}</span>
                       </div>
                     ))}
                   </div>
