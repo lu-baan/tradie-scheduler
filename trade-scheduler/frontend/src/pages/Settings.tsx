@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Save, Building2, Bell, MapPin, Shield, Wrench, Plus, X, User, Eye, EyeOff, Lock } from "lucide-react";
+import { Save, Building2, Bell, Shield, Wrench, Plus, X, User, Eye, EyeOff, Lock } from "lucide-react";
 import * as Switch from "@radix-ui/react-switch";
 import { toast } from "sonner";
 
@@ -15,8 +15,6 @@ interface AppSettings {
   smsNotifications: boolean;
   emailNotifications: boolean;
   emergencyAlerts: boolean;
-  autoAssignWorkers: boolean;
-  defaultEstimatedHours: number;
   maxJobTitleLength: number;
   maxNotesLength: number;
 }
@@ -175,8 +173,6 @@ export function Settings() {
     smsNotifications: true,
     emailNotifications: true,
     emergencyAlerts: true,
-    autoAssignWorkers: false,
-    defaultEstimatedHours: 1,
     maxJobTitleLength: 80,
     maxNotesLength: 500,
   });
@@ -354,27 +350,6 @@ export function Settings() {
             placeholder="123 Main St, Melbourne VIC 3000"
           />
         </div>
-      </SectionCard>
-
-      {/* Job Defaults */}
-      <SectionCard icon={MapPin} title="Job Defaults">
-        <SettingRow label="Default Estimated Hours" description="Initial value for new bookings">
-          <Input
-            type="number"
-            min="0.5"
-            max="24"
-            step="0.5"
-            value={settings.defaultEstimatedHours}
-            onChange={e => update("defaultEstimatedHours", Number(e.target.value))}
-            className="w-20 text-center"
-          />
-        </SettingRow>
-        <SettingRow
-          label="Auto-assign Workers"
-          description="Automatically suggest workers based on trade type and availability"
-        >
-          <ToggleSwitch checked={settings.autoAssignWorkers} onChange={c => update("autoAssignWorkers", c)} />
-        </SettingRow>
       </SectionCard>
 
       {/* Trade Types */}
