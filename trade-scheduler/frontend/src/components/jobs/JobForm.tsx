@@ -312,6 +312,8 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const watchedHours = form.watch("estimatedHours");
   const jobLat = form.watch("latitude");
   const jobLng = form.watch("longitude");
+  const numTradiesWatched = parseInt(String(form.watch("numTradies") ?? 1)) || 1;
+  const workersMismatch = jobType === "booking" && selectedWorkerIds.length !== numTradiesWatched;
 
   // Double-booking detection: check assigned workers against existing jobs
   const bookingConflicts: string[] = (() => {
@@ -339,6 +341,17 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   })();
 
   const onSubmit = (data: JobFormValues) => {
+    if (data.jobType === "booking" && data.numTradies) {
+      const required = Number(data.numTradies);
+      if (selectedWorkerIds.length !== required) {
+        toast.error(
+          `${required} tradie${required !== 1 ? "s" : ""} required`,
+          { description: `You've selected ${selectedWorkerIds.length} of ${required}.` },
+        );
+        return;
+      }
+    }
+
     let scheduledDate: string | undefined;
     if (data.scheduledDate) {
       const timePart = data.scheduledTime || "08:00";
@@ -1135,6 +1148,15 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             </div>
           )}
 
+          {/* Worker count enforcement */}
+          {jobType === "booking" && workersMismatch && (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <AlertTriangle size={12} />
+              Select exactly {numTradiesWatched} tradie{numTradiesWatched !== 1 ? "s" : ""} to save
+              ({selectedWorkerIds.length} of {numTradiesWatched} selected)
+            </p>
+          )}
+
           {/* Double-booking warning */}
           {bookingConflicts.length > 0 && (
             <div className="bg-orange-500/10 border border-orange-500/40 rounded-lg p-3 space-y-1">
@@ -1171,7 +1193,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           {/* Submit */}
           <Button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || workersMismatch}
             className="w-full h-14 text-lg mt-6 shadow-[0_0_20px_rgba(234,88,12,0.4)]"
           >
             {isPending ? (
