@@ -67,29 +67,44 @@ export async function reverseGeocodeSuburb(lat: number, lng: number): Promise<st
 
   if (!API_KEY) return `${lat},${lng}`;
 
-  try {
+  const geocode = async (extraParams = "") => {
     const url =
       `https://maps.googleapis.com/maps/api/geocode/json` +
       `?latlng=${lat},${lng}` +
-      `&result_type=locality` +
       `&region=au` +
-      `&key=${API_KEY}`;
-
+      `&key=${API_KEY}` +
+      extraParams;
     const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const data = await resp.json() as any;
+    return resp.json() as Promise<any>;
+  };
 
-    if (data.status === "OK" && data.results?.length > 0) {
-      // Prefer the "short" formatted address of the locality result
-      const result = data.results[0];
-      const suburb = result.formatted_address as string;
-      suburbCache.set(cacheKey, suburb);
-      return suburb;
+  const extractSuburb = (data: any): string | null => {
+    if (data.status !== "OK" || !data.results?.length) return null;
+    for (const result of data.results) {
+      const comps: any[] = result.address_components ?? [];
+      const locality = comps.find((c: any) => c.types?.includes("locality"));
+      const state = comps.find((c: any) => c.types?.includes("administrative_area_level_1"));
+      if (locality) {
+        return state ? `${locality.long_name}, ${state.short_name}` : locality.long_name;
+      }
+    }
+    return null;
+  };
+
+  try {
+    // First try: filter to locality results only (more precise)
+    let data = await geocode("&result_type=locality");
+    let suburb = extractSuburb(data);
+
+    // Second try: broader search if locality filter returned nothing
+    if (!suburb) {
+      data = await geocode();
+      suburb = extractSuburb(data);
     }
 
-    // Fallback: use coordinates as origin — Maps API still handles this correctly
-    const fallback = `${lat},${lng}`;
-    suburbCache.set(cacheKey, fallback);
-    return fallback;
+    const result = suburb ?? `${lat},${lng}`;
+    suburbCache.set(cacheKey, result);
+    return result;
   } catch (err) {
     console.error("[maps] reverseGeocodeSuburb error:", err);
     return `${lat},${lng}`;
