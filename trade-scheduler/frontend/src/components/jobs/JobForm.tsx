@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 
 import { useCreateJob, useUpdateJob, useListWorkers, useListJobs, JobType, ValidityCode, Job } from "@/lib/api-client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, ArrowUp, ArrowDown, X, ShieldCheck, MapPin } from "lucide-react";
+import { ArrowRight, Loader2, Save, Info, CheckCircle2, Plus, Trash2, ReceiptText, AlertTriangle, ArrowUpAZ, ArrowDownAZ, ArrowUp, ArrowDown, X, MapPin, Paperclip, FileImage, FileText, ClipboardPaste } from "lucide-react";
 import { AddressAutocomplete } from "@/components/ui/AddressAutocomplete";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import { toast } from "sonner";
@@ -195,13 +195,68 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const { data: workers } = useListWorkers();
   const { data: allJobs = [] } = useListJobs();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
-  const [requiredSkills, setRequiredSkills] = useState<string[]>(initialData?.requiredSkills ?? []);
-  const [skillInput, setSkillInput] = useState("");
   const [workerSortKey, setWorkerSortKey] = useState<"name" | "distance">("name");
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
   const [materials, setMaterials] = useState<MaterialLine[]>([]);
+  const [recurFrequency, setRecurFrequency] = useState<"none" | "weekly" | "monthly">("none");
+  const [recurCount, setRecurCount] = useState(2);
+  const [fileUrls, setFileUrls] = useState<string[]>((initialData as any)?.imageUrls ?? []);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadFile = useCallback(async (file: File) => {
+    if (!initialData?.id) return;
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      toast.error("Only images and PDFs are supported");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File too large (max 10 MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch(`/api/jobs/${initialData.id}/images`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const updated = await res.json();
+      setFileUrls(updated.imageUrls ?? []);
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+      toast.success("File uploaded");
+    } catch (err: any) {
+      toast.error("Upload failed", { description: err.message });
+    } finally {
+      setUploading(false);
+    }
+  }, [initialData?.id, queryClient]);
+
+  const deleteFile = useCallback(async (url: string) => {
+    if (!initialData?.id) return;
+    try {
+      const res = await fetch(`/api/jobs/${initialData.id}/images`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      const updated = await res.json();
+      setFileUrls(updated.imageUrls ?? []);
+      queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
+    } catch {
+      toast.error("Failed to delete file");
+    }
+  }, [initialData?.id, queryClient]);
 
 
   interface WorkerLocEntry {
@@ -281,7 +336,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             : "",
         }
       : {
-          jobType: "quote",
+          jobType: "booking",
           validityCode: 2,
           title: "",
           tradeType: "",
@@ -358,7 +413,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
       scheduledDate = new Date(`${data.scheduledDate}T${timePart}:00`).toISOString();
     }
 
-    const finalEstimatedHours = data.jobType === "quote" ? 1 : data.estimatedHours;
+    const finalEstimatedHours = data.estimatedHours;
 
     // Compute final price: labour + materials subtotal, then optionally +10% GST
     const labourAmt = data.labourPrice ?? 0;
@@ -372,13 +427,32 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
       estimatedHours: finalEstimatedHours,
       scheduledDate,
       assignedWorkerIds: selectedWorkerIds,
-      requiredSkills,
+      requiredSkills: [],
     };
     delete (payload as any).scheduledTime;
     delete (payload as any).labourPrice;
 
     if (initialData) {
       updateJob.mutate({ id: initialData.id, data: payload });
+    } else if (recurFrequency !== "none" && scheduledDate) {
+      // Create multiple recurring jobs
+      const dates: string[] = [scheduledDate];
+      const baseDate = new Date(scheduledDate);
+      for (let i = 1; i < recurCount; i++) {
+        const d = new Date(baseDate);
+        if (recurFrequency === "weekly") d.setDate(d.getDate() + 7 * i);
+        else d.setMonth(d.getMonth() + i);
+        dates.push(d.toISOString());
+      }
+      let created = 0;
+      const createNext = (idx: number) => {
+        if (idx >= dates.length) return;
+        createJob.mutate(
+          { data: { ...payload, scheduledDate: dates[idx], title: `${payload.title}${dates.length > 1 ? ` (${idx + 1}/${dates.length})` : ""}` } },
+          { onSuccess: () => createNext(idx + 1) }
+        );
+      };
+      createNext(0);
     } else {
       createJob.mutate({ data: payload });
     }
@@ -392,29 +466,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
       {step === 1 && (
         <div className="space-y-4 animate-in slide-in-from-right-4 fade-in">
           <div className="grid grid-cols-2 gap-4">
-            {/* Enquiry Type */}
-            <div>
-              <Label required>Enquiry Type</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={jobType === "quote" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => form.setValue("jobType", "quote")}
-                >
-                  QUOTE
-                </Button>
-                <Button
-                  type="button"
-                  variant={jobType === "booking" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => form.setValue("jobType", "booking")}
-                >
-                  BOOKING
-                </Button>
-              </div>
-            </div>
-
             {/* Validity Code with explanation */}
             <div>
               <div className="flex items-center gap-1.5 mb-1">
@@ -568,21 +619,12 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
         <div className="space-y-4 animate-in slide-in-from-right-4 fade-in">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-display text-xl text-primary uppercase">
-              {jobType === "quote" ? "Quote Details" : "Booking Details"}
+              Booking Details
             </h3>
             <Button type="button" variant="ghost" onClick={() => setStep(1)} className="text-xs">
               ← Back
             </Button>
           </div>
-
-          {jobType === "quote" && (
-            <div className="bg-primary/10 border border-primary/30 p-4 rounded-lg text-primary-foreground mb-4">
-              <p className="text-sm">
-                <strong>Auto-schedule info:</strong> As a Quote, this will automatically block out 1 hour on
-                site plus calculated travel time. The estimated start time factors in travel distance.
-              </p>
-            </div>
-          )}
 
           {/* ── Pricing Breakdown ── */}
           <Card className="p-4 bg-secondary/30 border-white/5 space-y-4">
@@ -615,7 +657,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             )}
 
             {/* Labour / service charge */}
-            <div className={jobType === "booking" ? "grid grid-cols-2 gap-4" : ""}>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label required hint="Labour or service charge (ex-GST)">Labour / Service (AUD)</Label>
                 <div className="relative">
@@ -634,15 +676,13 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                   <p className="text-destructive text-sm mt-1">{form.formState.errors.labourPrice.message}</p>
                 )}
               </div>
-              {jobType === "booking" && (
-                <div>
+              <div>
                   <Label required>Est. Hours</Label>
                   <Input type="number" step="0.5" min="0.5" max="200" {...form.register("estimatedHours")} />
                   {form.formState.errors.estimatedHours && (
                     <p className="text-destructive text-sm mt-1">{form.formState.errors.estimatedHours.message}</p>
                   )}
                 </div>
-              )}
             </div>
 
             {/* Materials line items */}
@@ -785,49 +825,6 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                   </Label>
                   <Input type="number" min="0" step="0.5" max="168" {...form.register("callUpTimeHours")} />
                 </div>
-              </div>
-              {/* Required licences / skills */}
-              <div>
-                <Label hint="Workers assigned to this job will be warned if they lack any of these.">
-                  <ShieldCheck size={12} className="inline mr-1" />Required Licences / Skills
-                </Label>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    value={skillInput}
-                    onChange={e => setSkillInput(e.target.value)}
-                    placeholder="e.g. EWP Licence, White Card, Gas Cert…"
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const v = skillInput.trim();
-                        if (v && !requiredSkills.includes(v)) { setRequiredSkills(s => [...s, v]); setSkillInput(""); }
-                      }
-                    }}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button" variant="outline" size="sm"
-                    onClick={() => {
-                      const v = skillInput.trim();
-                      if (v && !requiredSkills.includes(v)) { setRequiredSkills(s => [...s, v]); setSkillInput(""); }
-                    }}
-                    disabled={!skillInput.trim()}
-                  >
-                    <Plus size={14} />
-                  </Button>
-                </div>
-                {requiredSkills.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {requiredSkills.map(s => (
-                      <span key={s} className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2 py-0.5 rounded-full">
-                        <ShieldCheck size={9} />{s}
-                        <button type="button" onClick={() => setRequiredSkills(prev => prev.filter(x => x !== s))}>
-                          <X size={9} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1173,6 +1170,54 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             </div>
           )}
 
+          {/* Repeat Booking — only for new jobs */}
+          {!initialData && (
+            <Card className="p-4 bg-secondary/30 border-white/5 space-y-3">
+              <h4 className="font-display uppercase text-sm text-primary flex items-center gap-2">
+                Repeat Booking
+              </h4>
+              <div className="flex gap-2">
+                {(["none", "weekly", "monthly"] as const).map(freq => (
+                  <button
+                    key={freq}
+                    type="button"
+                    onClick={() => setRecurFrequency(freq)}
+                    className={`flex-1 py-2 rounded-md border text-xs font-semibold transition-all capitalize ${
+                      recurFrequency === freq
+                        ? "bg-primary/20 border-primary/50 text-primary"
+                        : "border-input text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    {freq === "none" ? "No Repeat" : freq === "weekly" ? "Weekly" : "Monthly"}
+                  </button>
+                ))}
+              </div>
+              {recurFrequency !== "none" && (
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted-foreground uppercase font-display shrink-0">
+                    Occurrences
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRecurCount(c => Math.max(2, c - 1))}
+                      className="w-7 h-7 rounded-md border border-input flex items-center justify-center text-sm hover:bg-muted"
+                    >−</button>
+                    <span className="w-8 text-center font-semibold text-sm">{recurCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setRecurCount(c => Math.min(12, c + 1))}
+                      className="w-7 h-7 rounded-md border border-input flex items-center justify-center text-sm hover:bg-muted"
+                    >+</button>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Creates {recurCount} bookings {recurFrequency === "weekly" ? "one week" : "one month"} apart
+                  </span>
+                </div>
+              )}
+            </Card>
+          )}
+
           {/* Notes with character count */}
           <div>
             <div className="flex justify-between items-end">
@@ -1189,6 +1234,117 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
               <p className="text-destructive text-sm mt-1">{form.formState.errors.notes.message}</p>
             )}
           </div>
+
+          {/* Files / Plans — only available when editing an existing job */}
+          {initialData?.id && (
+            <Card
+              className="p-4 bg-secondary/30 border-white/5 space-y-3"
+              onPaste={e => {
+                const items = Array.from(e.clipboardData.items);
+                for (const item of items) {
+                  if (item.kind === "file") {
+                    const file = item.getAsFile();
+                    if (file) uploadFile(file);
+                  }
+                }
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="font-display uppercase text-sm text-primary flex items-center gap-2">
+                  <Paperclip size={15} /> Files & Plans
+                </h4>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const items = await navigator.clipboard.read();
+                        for (const item of items) {
+                          for (const type of item.types) {
+                            if (type.startsWith("image/")) {
+                              const blob = await item.getType(type);
+                              uploadFile(new File([blob], `pasted.${type.split("/")[1]}`, { type }));
+                            }
+                          }
+                        }
+                      } catch {
+                        toast.error("Clipboard access denied — try pasting directly into this card");
+                      }
+                    }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    title="Paste image from clipboard"
+                  >
+                    <ClipboardPaste size={13} /> Paste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"
+                  >
+                    {uploading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                    {uploading ? "Uploading…" : "Add File"}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadFile(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground">
+                Supports images and PDFs (plans, reports). Paste directly into this card or click Add File.
+              </p>
+
+              {fileUrls.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No files attached.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {fileUrls.map((url, i) => {
+                    const isPdf = url.toLowerCase().includes(".pdf");
+                    return (
+                      <div key={i} className="relative group w-20 h-20">
+                        {isPdf ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex flex-col items-center justify-center w-full h-full bg-muted rounded-lg border border-border text-muted-foreground hover:text-primary transition-colors text-[10px] gap-1"
+                          >
+                            <FileText size={24} />
+                            <span className="truncate w-16 text-center px-1">PDF</span>
+                          </a>
+                        ) : (
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={url}
+                              alt={`Attachment ${i + 1}`}
+                              className="w-full h-full object-cover rounded-lg border border-border"
+                            />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => deleteFile(url)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove file"
+                        >
+                          <X size={10} className="text-white" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Submit */}
           <Button

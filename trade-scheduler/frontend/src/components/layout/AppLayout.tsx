@@ -79,10 +79,10 @@ export function AppLayout({
           </div>
           <div className="min-w-0 leading-none">
             <p className="font-display text-[9px] font-semibold uppercase tracking-[0.28em] text-primary/90">
-              Trade
+              Tradie
             </p>
             <p className="truncate font-display text-sm font-bold text-foreground sm:text-base">
-              Scheduler 2
+              Scheduler
             </p>
           </div>
         </div>
@@ -183,8 +183,8 @@ export function AppLayout({
             TS2
           </div>
           <div>
-            <h1 className="font-display font-bold text-2xl leading-none text-foreground">TRADE</h1>
-            <p className="font-display text-primary text-sm font-semibold tracking-widest">SCHEDULER 2</p>
+            <h1 className="font-display font-bold text-2xl leading-none text-foreground">TRADIE</h1>
+            <p className="font-display text-primary text-sm font-semibold tracking-widest">SCHEDULER</p>
           </div>
         </div>
 

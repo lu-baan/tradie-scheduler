@@ -48,7 +48,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
   })();
   const [sortBy, setSortBy] = useState<LocalSortBy>("smart");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [filterType, setFilterType] = useState<"all" | "quote" | "booking" | "completed" | "cancelled">("all");
+  const [filterType, setFilterType] = useState<"all" | "booking" | "completed" | "cancelled">("all");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [showSortInfo, setShowSortInfo] = useState(false);
   const [locationSearch, setLocationSearch] = useState("");
@@ -158,9 +158,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
             </DialogTrigger>
             <DialogContent
               className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
-              onInteractOutside={(e) => {
-                if ((e.target as Element).closest?.(".pac-container")) e.preventDefault();
-              }}
+              onInteractOutside={(e) => e.preventDefault()}
             >
               <DialogHeader>
                 <DialogTitle>Create New Enquiry</DialogTitle>
@@ -174,13 +172,13 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
       <div className="bg-card border border-white/5 rounded-xl p-3 sm:p-4 shadow-xl">
         <Tabs.Root value={filterType} onValueChange={v => setFilterType(v as any)}>
           <Tabs.List className="flex overflow-x-auto border-b border-border mb-4 sm:mb-6 no-scrollbar">
-            {["all", "quote", "booking", "completed", "cancelled"].map(tab => (
+            {["all", "booking", "completed", "cancelled"].map(tab => (
               <Tabs.Trigger
                 key={tab}
                 value={tab}
                 className="px-3 sm:px-6 py-2.5 sm:py-3 font-display uppercase tracking-wider font-semibold text-xs sm:text-sm transition-colors data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary text-muted-foreground hover:text-foreground whitespace-nowrap"
               >
-                {tab === "all" ? "Active Jobs" : tab === "completed" ? "Completed" : tab === "cancelled" ? "Cancelled" : tab + "s"}
+                {tab === "all" ? "Active Jobs" : tab === "completed" ? "Completed" : tab === "cancelled" ? "Cancelled" : "Bookings"}
               </Tabs.Trigger>
             ))}
           </Tabs.List>
@@ -291,7 +289,7 @@ export function JobsList({ userRole = "admin" }: { userRole?: UserRole }) {
           </div>
 
           {/* Job cards */}
-          {(["all", "quote", "booking", "completed", "cancelled"] as const).map(tab => {
+          {(["all", "booking", "completed", "cancelled"] as const).map(tab => {
             const tabJobs = getFilteredJobs(tab);
             return (
               <Tabs.Content key={tab} value={tab} className="outline-none">

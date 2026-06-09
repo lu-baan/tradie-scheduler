@@ -15,6 +15,18 @@ import { useRef, useState } from "react";
 import { JobForm } from "./JobForm";
 import { toast } from "sonner";
 
+// ── Error helper ─────────────────────────────────────────────────────────────
+
+function apiErrMsg(err: unknown): string {
+  if (err && typeof err === "object") {
+    const data = (err as any).data;
+    if (typeof data?.error === "string" && data.error.trim()) return data.error;
+    const msg = (err as any).message;
+    if (typeof msg === "string" && msg.trim()) return msg;
+  }
+  return "Please try again.";
+}
+
 // ── Validity code descriptions ────────────────────────────────────────────────
 
 const VALIDITY_LABELS: Record<number, { label: string; description: string }> = {
@@ -595,7 +607,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
         queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
         toast.success("Job deleted", { description: `"${job.title}" has been permanently removed.` });
       },
-      onError: () => toast.error("Failed to delete job", { description: "Please try again." }),
+      onError: (err) => toast.error("Failed to delete job", { description: apiErrMsg(err) }),
     },
   });
 
@@ -607,7 +619,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
           description: `${data.bumpedCount} other booking(s) have been bumped.`,
         });
       },
-      onError: () => toast.error("Failed to trigger emergency"),
+      onError: (err) => toast.error("Failed to trigger emergency", { description: apiErrMsg(err) }),
     },
   });
 
@@ -617,7 +629,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
         queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
         toast.success("Converted to booking!", { description: `"${job.title}" is now a confirmed booking.` });
       },
-      onError: () => toast.error("Failed to convert to booking"),
+      onError: (err) => toast.error("Failed to convert to booking", { description: apiErrMsg(err) }),
     },
   });
 
@@ -629,7 +641,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
           description: `"${job.title}" — Invoice has been generated.`,
         });
       },
-      onError: () => toast.error("Failed to mark as complete"),
+      onError: (err) => toast.error("Failed to mark as complete", { description: apiErrMsg(err) }),
     },
   });
 
@@ -639,7 +651,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
         queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
         toast.success("Emergency resolved", { description: `"${job.title}" returned to normal status.` });
       },
-      onError: () => toast.error("Failed to resolve emergency"),
+      onError: (err) => toast.error("Failed to resolve emergency", { description: apiErrMsg(err) }),
     },
   });
 
@@ -649,7 +661,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
         queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
         toast.success("Job cancelled", { description: `"${job.title}" has been cancelled.` });
       },
-      onError: () => toast.error("Failed to cancel job"),
+      onError: (err) => toast.error("Failed to cancel job", { description: apiErrMsg(err) }),
     },
   });
 

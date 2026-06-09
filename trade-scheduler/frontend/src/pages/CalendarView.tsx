@@ -22,7 +22,7 @@ import { ChevronLeft, ChevronRight, Clock, Users, X, MapPin, Phone, CheckCircle2
 import { cn, formatPhone } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { JobForm } from "@/components/jobs/JobForm";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { UserRole } from "@/App";
 
@@ -748,6 +748,14 @@ const WORKER_PALETTE = [
 export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   const { data: jobs = [] } = useListJobs();
   const { data: workers = [] } = useListWorkers();
+  const { data: leaveRequests = [] } = useQuery<any[]>({
+    queryKey: ["/api/leave"],
+    queryFn: async () => {
+      const res = await fetch("/api/leave", { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    staleTime: 60_000,
+  });
 
   // For workers: filter to only their assigned jobs
   const workerId = (() => {
@@ -773,8 +781,10 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
   // Day popup (month cell click)
   const [dayPopup, setDayPopup] = useState<Date | null>(null);
+  const [previewWorkerView, setPreviewWorkerView] = useState(false);
 
   const timeGridRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Scroll to current time on mount/view change
   useEffect(() => {
@@ -784,6 +794,23 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
       timeGridRef.current.scrollTo({ top: scrollTop, behavior: "smooth" });
     }
   }, [viewMode]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartRef.current.x;
+    const dy = t.clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+    // Only fire on predominantly horizontal swipes of 60px+
+    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.8) return;
+    if (dx < 0) goNext();
+    else goPrev();
+  };
 
   // Workers only see their own jobs; admins can filter by worker
   const baseJobs = userRole === "worker"
@@ -831,6 +858,16 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
   });
 
   const openJob = (job: any) => { setSelectedJob(job); setEditOpen(true); };
+
+  // Returns true if a worker (or any worker when workerId=null) is on approved leave for the given date
+  const isWorkerOnLeave = (wid: number | null, date: Date): boolean => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return leaveRequests.some((r: any) => {
+      if (r.status !== "approved") return false;
+      if (wid !== null && r.workerId !== wid) return false;
+      return dateStr >= r.startDate && dateStr <= r.endDate;
+    });
+  };
 
   return (
     <div
@@ -881,7 +918,11 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
       </div>
 
       {/* ── Main Calendar ── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-card border-l border-border min-w-0">
+      <div
+        className="flex-1 flex flex-col overflow-hidden bg-card border-l border-border min-w-0"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
 
         {/* Header bar */}
         <div className="shrink-0 flex items-center justify-between px-2 sm:px-4 py-2 border-b border-border bg-card/60 gap-2 flex-wrap">
@@ -1004,6 +1045,8 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                   const today = isToday(day);
                   const dots = getDots(filteredJobs, day);
                   const dayHours = getDayHours(filteredJobs, day);
+                  const monthLeaveWid = workerFilter !== "all" ? workerFilter : null;
+                  const monthOnLeave = inMonth && isWorkerOnLeave(monthLeaveWid, day);
 
                   return (
                     <div
@@ -1012,8 +1055,10 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                       className={cn(
                         "border-r border-b border-border last:border-r-0 p-1 sm:p-1.5 cursor-pointer transition-colors overflow-hidden",
                         !inMonth && "bg-background/20 opacity-40 pointer-events-none",
-                        today && "bg-primary/5",
-                        inMonth && "hover:bg-muted/40"
+                        monthOnLeave && "bg-destructive/8",
+                        !monthOnLeave && today && "bg-primary/5",
+                        inMonth && !monthOnLeave && "hover:bg-muted/40",
+                        inMonth && monthOnLeave && "hover:bg-destructive/12"
                       )}
                     >
                       <div className="flex items-start justify-between mb-0.5 sm:mb-1">
@@ -1021,7 +1066,7 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
                           <span
                             className={cn(
                               "text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full",
-                              today ? "bg-primary text-primary-foreground" : "text-foreground"
+                              today ? "bg-primary text-primary-foreground" : monthOnLeave ? "text-destructive" : "text-foreground"
                             )}
                           >
                             {format(day, "d")}
@@ -1100,24 +1145,35 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               {weekDays.map(day => {
                 const dots = getDots(filteredJobs, day);
                 const dayHours = getDayHours(filteredJobs, day);
+                const leaveWid = workerFilter !== "all" ? workerFilter : null;
+                const onLeave = isWorkerOnLeave(leaveWid, day);
                 return (
                   <div
                     key={day.toISOString()}
-                    className="flex-1 py-1.5 sm:py-2 text-center border-l border-border cursor-pointer hover:bg-muted transition-colors min-w-0"
+                    className={cn(
+                      "flex-1 py-1.5 sm:py-2 text-center border-l border-border cursor-pointer transition-colors min-w-0",
+                      onLeave ? "bg-destructive/10 hover:bg-destructive/15" : "hover:bg-muted"
+                    )}
                     onClick={() => setDayPopup(day)}
                   >
-                    <div className="text-[8px] sm:text-[9px] font-display uppercase text-muted-foreground tracking-wider">
+                    <div className={cn(
+                      "text-[8px] sm:text-[9px] font-display uppercase tracking-wider",
+                      onLeave ? "text-destructive/80" : "text-muted-foreground"
+                    )}>
                       <span className="hidden sm:inline">{format(day, "EEE")}</span>
                       <span className="sm:hidden">{format(day, "EEEEE")}</span>
                     </div>
                     <div
                       className={cn(
                         "text-sm sm:text-lg font-bold mx-auto w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full mt-0.5",
-                        isToday(day) ? "bg-primary text-primary-foreground" : "text-foreground"
+                        isToday(day) ? "bg-primary text-primary-foreground" : onLeave ? "text-destructive" : "text-foreground"
                       )}
                     >
                       {format(day, "d")}
                     </div>
+                    {onLeave && (
+                      <div className="text-[8px] text-destructive font-semibold uppercase tracking-wide mt-0.5">Leave</div>
+                    )}
                     {dayHours > 0 && (
                       <span
                         className={cn(
@@ -1362,16 +1418,37 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
 
       {/* ── Edit Job Dialog ── */}
       {selectedJob && (
-        <Dialog open={editOpen} onOpenChange={o => { setEditOpen(o); if (!o) setSelectedJob(null); }}>
-          <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+        <Dialog open={editOpen} onOpenChange={o => { setEditOpen(o); if (!o) { setSelectedJob(null); setPreviewWorkerView(false); } }}>
+          <DialogContent
+            className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto"
+            onInteractOutside={(e) => e.preventDefault()}
+          >
             <DialogHeader>
-              <DialogTitle>{userRole === "worker" ? selectedJob.title : `Edit Job #${selectedJob.id} – ${selectedJob.title}`}</DialogTitle>
-              <DialogDescription>{userRole === "worker" ? `${selectedJob.tradeType} · ${selectedJob.clientName}` : "Update the details for this job."}</DialogDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <DialogTitle>{userRole === "worker" ? selectedJob.title : `Edit Job #${selectedJob.id} – ${selectedJob.title}`}</DialogTitle>
+                  <DialogDescription>{userRole === "worker" ? `${selectedJob.tradeType} · ${selectedJob.clientName}` : "Update the details for this job."}</DialogDescription>
+                </div>
+                {userRole === "admin" && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewWorkerView(v => !v)}
+                    className={`shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
+                      previewWorkerView
+                        ? "bg-primary/20 border-primary/40 text-primary"
+                        : "border-input text-muted-foreground hover:text-foreground hover:border-primary/40"
+                    }`}
+                    title="Preview what the assigned tradie sees"
+                  >
+                    {previewWorkerView ? "← Edit Mode" : "👁 Worker View"}
+                  </button>
+                )}
+              </div>
             </DialogHeader>
-            {userRole === "worker" ? (
+            {userRole === "worker" || previewWorkerView ? (
               <WorkerJobPanel
                 job={selectedJob}
-                onClose={() => { setEditOpen(false); setSelectedJob(null); }}
+                onClose={() => { setEditOpen(false); setSelectedJob(null); setPreviewWorkerView(false); }}
               />
             ) : (
               <JobForm
