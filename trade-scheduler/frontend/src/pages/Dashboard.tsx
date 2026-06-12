@@ -39,29 +39,21 @@ export function Dashboard() {
   const totalScheduledHrs = weekJobs.reduce((s, j) => s + (j.estimatedHours ?? 0) * (j.assignedWorkerIds?.length ?? 1), 0);
   const utilPct = totalCapacityHrs > 0 ? Math.round((totalScheduledHrs / totalCapacityHrs) * 100) : 0;
 
-  // Fill rate: bookings with ≥1 worker assigned / all active (pending/confirmed) bookings
-  const activeBookings = allJobs.filter(j =>
-    j.jobType === "booking" &&
-    j.status !== "cancelled" &&
-    j.status !== "completed" &&
-    j.status !== "bumped"
-  );
-  const assignedBookings = activeBookings.filter(j => (j.assignedWorkers ?? []).length > 0);
-  const fillRate = activeBookings.length > 0 ? Math.round((assignedBookings.length / activeBookings.length) * 100) : 100;
+  // Fill rate: active jobs (excluding bumped) with ≥1 worker assigned
+  const staffableJobs = activeJobs.filter(j => j.status !== "bumped");
+  const assignedJobs = staffableJobs.filter(j => (j.assignedWorkers ?? []).length > 0);
+  const fillRate = staffableJobs.length > 0 ? Math.round((assignedJobs.length / staffableJobs.length) * 100) : 100;
 
   // Unassigned today
   const todayStr = new Date().toISOString().slice(0, 10);
   const todayBookings = allJobs.filter(j =>
     j.scheduledDate?.startsWith(todayStr) &&
-    j.jobType === "booking" &&
     j.status !== "cancelled"
   );
   const unassignedToday = todayBookings.filter(j => (j.assignedWorkerIds ?? []).length === 0).length;
 
-  // Mock chart data for visual appeal based on job types
   const chartData = [
-    { name: "Quote", count: allJobs.filter(j => j.jobType === "quote").length },
-    { name: "Booking", count: allJobs.filter(j => j.jobType === "booking").length },
+    { name: "Active", count: staffableJobs.length },
     { name: "Completed", count: completedJobs.length },
     { name: "Bumped", count: allJobs.filter(j => j.status === "bumped").length },
   ];

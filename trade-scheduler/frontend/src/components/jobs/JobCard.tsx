@@ -219,7 +219,7 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
     <div className={noBorder ? "" : "mt-4 pt-4 border-t border-border"}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
-          <Images size={13} /> Photos & Files {images.length > 0 && `(${images.length})`}
+          <Images size={13} /> Files & Plans {images.length > 0 && `(${images.length})`}
         </span>
         {canEdit && (
           <>
@@ -244,7 +244,9 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
         )}
       </div>
 
-      {images.length > 0 && (
+      {images.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground/50 italic py-1">No files attached yet.</p>
+      ) : (
         <div className="flex gap-2 flex-wrap">
           {images.map(url => {
             const isPdf = url.toLowerCase().includes(".pdf");
@@ -880,7 +882,7 @@ export function JobCard({ job, userRole = "admin" }: { job: Job; userRole?: User
                       setCompletedNotesOpen(true);
                     }}
                   >
-                    <Edit2 size={13} className="mr-1" /> Notes & Photos
+                    <Edit2 size={13} className="mr-1" /> Notes & Files
                   </Button>
                 )}
                 <Button
