@@ -806,8 +806,8 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
     const dx = t.clientX - touchStartRef.current.x;
     const dy = t.clientY - touchStartRef.current.y;
     touchStartRef.current = null;
-    // Only fire on predominantly horizontal swipes of 60px+
-    if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.8) return;
+    // Only fire on predominantly horizontal swipes of 40px+
+    if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
     if (dx < 0) goNext();
     else goPrev();
   };
@@ -1235,6 +1235,8 @@ export function CalendarView({ userRole = "admin" }: { userRole?: UserRole }) {
               ref={timeGridRef}
               className="flex-1 overflow-y-auto overscroll-contain"
               style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
               <div className="flex">
                 <div className="w-10 sm:w-12 shrink-0 bg-background/20">

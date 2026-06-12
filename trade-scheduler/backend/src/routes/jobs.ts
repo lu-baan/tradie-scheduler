@@ -382,7 +382,13 @@ router.post("/:id/emergency", requireAdmin, async (req: Request, res: Response) 
     // already occupying that slot is bumped.
 
     let targetWorkerId: number | null = null;
-    let scheduledStart: string | null = job.scheduledDate ?? null;
+    // If the original scheduled date is in the past, promote it to now so the
+    // Code 9 emergency appears as current rather than overdue.
+    const rawScheduled = job.scheduledDate ? new Date(job.scheduledDate) : null;
+    let scheduledStart: string | null =
+      rawScheduled && rawScheduled > new Date()
+        ? job.scheduledDate!
+        : new Date().toISOString();
     const bumped: (typeof jobsTable.$inferSelect)[] = [];
 
     {

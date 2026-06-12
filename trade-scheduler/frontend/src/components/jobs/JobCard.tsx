@@ -164,12 +164,13 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
   const [uploading, setUploading] = useState(false);
   const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
+      toast.error("Only images and PDFs are supported");
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
@@ -184,12 +185,19 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
         throw new Error(err.error ?? "Upload failed");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
-      toast.success("Photo uploaded");
+      toast.success("File uploaded");
     } catch (err: any) {
       toast.error("Upload failed", { description: err.message });
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await uploadFile(file);
   };
 
   const handleDelete = async (url: string) => {
@@ -216,7 +224,13 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
   if (!canEdit && images.length === 0) return null;
 
   return (
-    <div className={noBorder ? "" : "mt-4 pt-4 border-t border-border"}>
+    <div
+      className={`${noBorder ? "" : "mt-4 pt-4 border-t border-border"} ${canEdit && dragOver ? "ring-2 ring-primary/50 rounded-lg" : ""}`}
+      onDragOver={canEdit ? e => { e.preventDefault(); setDragOver(true); } : undefined}
+      onDragLeave={canEdit ? () => setDragOver(false) : undefined}
+      onDrop={canEdit ? async e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) await uploadFile(f); } : undefined}
+      onPaste={canEdit ? async e => { for (const item of Array.from(e.clipboardData.items)) { if (item.kind === "file") { const f = item.getAsFile(); if (f) await uploadFile(f); } } } : undefined}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
           <Images size={13} /> Files & Plans {images.length > 0 && `(${images.length})`}
@@ -244,9 +258,15 @@ function JobPhotos({ job, canEdit, noBorder }: { job: Job; canEdit: boolean; noB
         )}
       </div>
 
-      {images.length === 0 ? (
+      {canEdit && images.length === 0 && (
+        <p className="text-[11px] text-muted-foreground/40 italic py-1">
+          {dragOver ? "Drop file here…" : "No files attached yet. Drag & drop, paste, or use Add File."}
+        </p>
+      )}
+      {!canEdit && images.length === 0 && (
         <p className="text-[11px] text-muted-foreground/50 italic py-1">No files attached yet.</p>
-      ) : (
+      )}
+      {images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {images.map(url => {
             const isPdf = url.toLowerCase().includes(".pdf");

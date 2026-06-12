@@ -209,6 +209,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const { data: workers } = useListWorkers();
   const { data: allJobs = [] } = useListJobs();
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<number[]>(initialData?.assignedWorkerIds || []);
+  const [workerOverrides, setWorkerOverrides] = useState<Record<number, string>>({});
   const [workerSortKey, setWorkerSortKey] = useState<"name" | "distance">("name");
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
@@ -456,6 +457,32 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
     return conflicts;
   })();
 
+  // Per-worker conflict check (used to colour tiles green/red)
+  const getWorkerConflicts = (wid: number): string[] => {
+    if (jobType !== "booking" || !watchedDate) return [];
+    const timePart = watchedTime || "08:00";
+    const newStart = new Date(`${watchedDate}T${timePart}:00`).getTime();
+    const newEnd = newStart + (Number(watchedHours) || 1) * 3600_000;
+    return allJobs
+      .filter(j => {
+        if (!j.scheduledDate || j.id === initialData?.id) return false;
+        const assigned =
+          (j as any).assignedWorkers?.some((w: any) => w.id === wid) ||
+          (j as any).assignedWorkerIds?.includes(wid);
+        if (!assigned) return false;
+        const jStart = new Date(j.scheduledDate).getTime();
+        const jEnd = jStart + (j.estimatedHours || 1) * 3600_000;
+        return newStart < jEnd && jStart < newEnd;
+      })
+      .map(j => j.title);
+  };
+
+  // Block submit if any selected conflicted worker is missing an override reason
+  const missingOverrides = selectedWorkerIds.filter(wid => {
+    const conflicts = getWorkerConflicts(wid);
+    return conflicts.length > 0 && !workerOverrides[wid]?.trim();
+  });
+
   const onSubmit = (data: JobFormValues) => {
     if (data.jobType === "booking" && data.numTradies) {
       const required = Number(data.numTradies);
@@ -466,6 +493,12 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
         );
         return;
       }
+    }
+
+    if (missingOverrides.length > 0) {
+      const names = missingOverrides.map(wid => workers?.find(w => w.id === wid)?.name ?? `Worker #${wid}`).join(", ");
+      toast.error("Override reason required", { description: `Enter a reason for the scheduling conflict with: ${names}` });
+      return;
     }
 
     let scheduledDate: string | undefined;
@@ -1066,15 +1099,22 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                   // Hour tick marks: 6am, 8am, 10am, 12pm, 2pm, 4pm, 6pm, 8pm
                   const ticks = [6, 8, 10, 12, 14, 16, 18, 20];
 
+                  const workerConflicts = getWorkerConflicts(w.id);
+                  const hasConflict = workerConflicts.length > 0;
+
                   return (
-                    <div key={w.id} className="relative group">
+                    <div key={w.id} className="relative group space-y-1.5">
                       <label
                         className={`flex gap-3 p-3 rounded-md border cursor-pointer transition-colors w-full ${
                           selectedWorkerIds.includes(w.id)
-                            ? "bg-primary/20 border-primary"
+                            ? hasConflict
+                              ? "bg-destructive/15 border-destructive"
+                              : "bg-green-500/15 border-green-500"
                             : !w.isAvailable || (selectedWorkerIds.length >= (parseInt(String(form.watch("numTradies") ?? 1)) || 1) && !selectedWorkerIds.includes(w.id))
                             ? "bg-background/50 border-input/50 opacity-40 cursor-not-allowed"
-                            : "bg-background border-input hover:bg-secondary"
+                            : hasConflict
+                            ? "bg-destructive/5 border-destructive/40 hover:bg-destructive/10"
+                            : "bg-green-500/5 border-green-500/30 hover:bg-green-500/10"
                         }`}
                       >
                         {(() => {
@@ -1217,6 +1257,25 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
                           )}
                         </div>
                       </label>
+
+                      {/* Override reason input — shown when a conflicted worker is selected */}
+                      {hasConflict && selectedWorkerIds.includes(w.id) && (
+                        <div className="px-1">
+                          <div className="flex items-start gap-1.5 mb-1">
+                            <AlertTriangle size={11} className="text-destructive mt-0.5 shrink-0" />
+                            <span className="text-[10px] text-destructive font-semibold">
+                              Conflict with: {workerConflicts.join(", ")} — enter a reason to override
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            className="w-full text-xs rounded border border-destructive/50 bg-destructive/5 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-destructive placeholder:text-destructive/40 text-foreground"
+                            placeholder="Override reason (required)…"
+                            value={workerOverrides[w.id] ?? ""}
+                            onChange={e => setWorkerOverrides(prev => ({ ...prev, [w.id]: e.target.value }))}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1235,15 +1294,15 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
 
           {/* Double-booking warning */}
           {bookingConflicts.length > 0 && (
-            <div className="bg-orange-500/10 border border-orange-500/40 rounded-lg p-3 space-y-1">
-              <div className="flex items-center gap-2 text-orange-400 font-semibold text-sm">
+            <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3 space-y-1">
+              <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
                 <AlertTriangle size={15} />
                 Scheduling conflict detected
               </div>
               {bookingConflicts.map((c, i) => (
-                <p key={i} className="text-xs text-orange-300 pl-5">{c}</p>
+                <p key={i} className="text-xs text-destructive/80 pl-5">{c}</p>
               ))}
-              <p className="text-[11px] text-orange-400/70 pl-5 pt-1">
+              <p className="text-[11px] text-destructive/60 pl-5 pt-1">
                 You can still save — check with the workers before confirming.
               </p>
             </div>
@@ -1428,7 +1487,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
           {/* Submit */}
           <Button
             type="submit"
-            disabled={isPending || workersMismatch}
+            disabled={isPending || workersMismatch || missingOverrides.length > 0}
             className="w-full h-14 text-lg mt-6 shadow-[0_0_20px_rgba(234,88,12,0.4)]"
           >
             {isPending ? (
