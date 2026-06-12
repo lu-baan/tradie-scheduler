@@ -14,3 +14,21 @@ export function getSupabase(): SupabaseClient {
   _client = createClient(url, key);
   return _client;
 }
+
+/** Ensure the storage bucket accepts both images and PDFs. Called at startup. */
+export async function ensureBucketAllowsPdfs(): Promise<void> {
+  try {
+    const sb = getSupabase();
+    const { error } = await sb.storage.updateBucket(IMAGES_BUCKET, {
+      allowedMimeTypes: ["image/*", "application/pdf"],
+    });
+    if (error) {
+      console.warn("[storage] Could not update bucket MIME types:", error.message);
+    } else {
+      console.log("[storage] Bucket MIME types updated — images + PDFs allowed.");
+    }
+  } catch (err) {
+    // Non-fatal: bucket may not exist yet or creds not configured
+    console.warn("[storage] ensureBucketAllowsPdfs skipped:", err);
+  }
+}

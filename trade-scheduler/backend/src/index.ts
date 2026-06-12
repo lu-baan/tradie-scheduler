@@ -1,5 +1,6 @@
 import "dotenv/config";
 import app from "./app";
+import { ensureBucketAllowsPdfs } from "./lib/supabase";
 
 const rawPort = process.env["PORT"];
 
@@ -17,4 +18,5 @@ if (Number.isNaN(port) || port <= 0) {
 
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
+  ensureBucketAllowsPdfs();
 });

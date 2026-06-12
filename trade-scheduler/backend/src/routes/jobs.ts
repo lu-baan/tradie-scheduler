@@ -749,7 +749,7 @@ router.post("/:id/images", upload.single("image"), async (req: Request, res: Res
 
     if (uploadError) {
       console.error("[images] Supabase upload error:", uploadError);
-      res.status(500).json({ error: "Image upload failed" }); return;
+      res.status(500).json({ error: uploadError.message ?? "File upload failed" }); return;
     }
 
     const { data: urlData } = getSupabase().storage.from(IMAGES_BUCKET).getPublicUrl(storagePath);
