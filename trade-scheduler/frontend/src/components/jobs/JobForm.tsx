@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,6 +30,8 @@ function loadTradeTypes(): string[] {
     return DEFAULT_TRADE_TYPES;
   }
 }
+
+const DRAFT_KEY = "ts2_new_job_draft";
 
 const JOB_TITLE_MAX = 80;
 const CLIENT_NAME_MAX = 80;
@@ -191,6 +193,18 @@ function timeAgo(ts: string): string {
 
 export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; onSuccess: () => void }) {
   const queryClient = useQueryClient();
+  const isNewJob = !initialData;
+
+  // Load draft once on mount (new jobs only)
+  const [draftData] = useState<any>(() => {
+    if (!isNewJob) return null;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(draftData?.savedAt ?? null);
+
   const [step, setStep] = useState(1);
   const { data: workers } = useListWorkers();
   const { data: allJobs = [] } = useListJobs();
@@ -199,12 +213,16 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const [workerSortDir, setWorkerSortDir] = useState<"asc" | "desc">("asc");
   const [showValidityInfo, setShowValidityInfo] = useState(false);
   const [includeGst, setIncludeGst] = useState(true);
-  const [materials, setMaterials] = useState<MaterialLine[]>([]);
+  const [materials, setMaterials] = useState<MaterialLine[]>(
+    isNewJob && draftData?.materials ? draftData.materials : []
+  );
   const [recurFrequency, setRecurFrequency] = useState<"none" | "weekly" | "monthly">("none");
   const [recurCount, setRecurCount] = useState(2);
   const [fileUrls, setFileUrls] = useState<string[]>((initialData as any)?.imageUrls ?? []);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const materialsRef = useRef(materials);
+  useEffect(() => { materialsRef.current = materials; });
 
   const uploadFile = useCallback(async (file: File) => {
     if (!initialData?.id) return;
@@ -277,6 +295,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const createJob = useCreateJob({
     mutation: {
       onSuccess: () => {
+        localStorage.removeItem(DRAFT_KEY);
         queryClient.invalidateQueries({ queryKey: ["/api/jobs"] });
         toast.success("Job created successfully!", {
           description: "The new enquiry has been added to your jobs list.",
@@ -335,7 +354,7 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
             ? new Date(initialData.scheduledDate).toTimeString().slice(0, 5)
             : "",
         }
-      : {
+      : draftData?.formValues ?? {
           jobType: "booking",
           validityCode: 2,
           title: "",
@@ -369,6 +388,48 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
   const jobLng = form.watch("longitude");
   const numTradiesWatched = parseInt(String(form.watch("numTradies") ?? 1)) || 1;
   const workersMismatch = jobType === "booking" && selectedWorkerIds.length !== numTradiesWatched;
+
+  // Auto-save draft for new enquiries
+  useEffect(() => {
+    if (!isNewJob) return;
+    const { unsubscribe } = form.watch((values) => {
+      try {
+        const ts = Date.now();
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ formValues: values, materials: materialsRef.current, savedAt: ts }));
+        setDraftSavedAt(ts);
+      } catch {}
+    });
+    return () => unsubscribe();
+  }, [form, isNewJob]);
+
+  // Also save when materials list changes
+  useEffect(() => {
+    if (!isNewJob) return;
+    try {
+      const ts = Date.now();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ formValues: form.getValues(), materials, savedAt: ts }));
+      setDraftSavedAt(ts);
+    } catch {}
+  }, [materials, isNewJob]); // eslint-disable-line
+
+  // Toast on draft restore
+  useEffect(() => {
+    if (isNewJob && draftData?.formValues?.title) {
+      toast.info("Draft restored", { description: "Your previous enquiry has been restored." });
+    }
+  }, []); // eslint-disable-line
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftSavedAt(null);
+    form.reset({
+      jobType: "booking", validityCode: 2, title: "", tradeType: "", clientName: "",
+      clientPhone: "", clientEmail: "", address: "", latitude: null, longitude: null,
+      notes: "", price: 0, labourPrice: 0, estimatedHours: 1, numTradies: 1,
+      callUpTimeHours: 0, scheduledDate: "", scheduledTime: "",
+    });
+    setMaterials([]);
+  };
 
   // Double-booking detection: check assigned workers against existing jobs
   const bookingConflicts: string[] = (() => {
@@ -465,6 +526,24 @@ export function JobForm({ initialData, onSuccess }: { initialData?: Job | null; 
       {/* ── STEP 1: Job & Client Info ── */}
       {step === 1 && (
         <div className="space-y-4 animate-in slide-in-from-right-4 fade-in">
+
+          {/* Draft indicator */}
+          {isNewJob && draftSavedAt && (
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/40 border border-white/5 text-xs">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <Save size={11} className="text-green-400" />
+                Draft auto-saved
+              </span>
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="text-destructive/60 hover:text-destructive transition-colors"
+              >
+                Clear draft
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             {/* Validity Code with explanation */}
             <div>
